@@ -28,3 +28,7 @@ test-results/
 *.log
 *.png
 !docs/**/*.png
+
+# deployment tooling state
+.vercel/
+.railway/
