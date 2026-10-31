@@ -1,0 +1,75 @@
+# Local development stack. Zero cost: everything runs on your machine.
+#   scripts/setup.ps1 (or scripts/setup.sh)  ->  creates .env with generated secrets
+#   docker compose up --build
+x-backend-env: &backend-env
+  APP_ENV: ${APP_ENV:-development}
+  APP_SECRET_KEY: ${APP_SECRET_KEY:?run scripts/setup first (copies .env.example to .env)}
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ati}:${POSTGRES_PASSWORD:?run scripts/setup first}@postgres:5432/${POSTGRES_DB:-ati}
+  REDIS_URL: redis://redis:6379/0
+  FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+  BACKEND_URL: ${BACKEND_URL:-http://localhost:8000}
+  BINANCE_API_BASE_URL: ${BINANCE_API_BASE_URL:-https://api.binance.com}
+  TWELVE_DATA_API_KEY: ${TWELVE_DATA_API_KEY:-}
+  AUTH_REQUIRED: ${AUTH_REQUIRED:-false}
+  JOB_BACKEND: celery
+  MODEL_DIR: /app/data/models
+  UPLOAD_DIR: /app/data/uploads
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ati}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run scripts/setup first}
+      POSTGRES_DB: ${POSTGRES_DB:-ati}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ati} -d ${POSTGRES_DB:-ati}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment: *backend-env
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    volumes:
+      - appdata:/app/data
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  worker:
+    build: ./backend
+    command: ["celery", "-A", "app.jobs.worker.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+    environment: *backend-env
+    depends_on:
+      backend: { condition: service_healthy }
+    volumes:
+      - appdata:/app/data
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${BACKEND_URL:-http://localhost:8000}
+    depends_on:
+      backend: { condition: service_healthy }
+    ports:
+      - "127.0.0.1:3000:3000"
+
+volumes:
+  pgdata:
+  appdata:

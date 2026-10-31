@@ -1,0 +1,30 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.db
+backend/model_store/
+backend/uploads/
+backend/.test_model_store/
+backend/.test_uploads/
+
+# node
+node_modules/
+.next/
+next-env.d.ts
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# local tooling
+.playwright-mcp/
+*.log
+*.png
+!docs/**/*.png
