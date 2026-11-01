@@ -16,7 +16,7 @@ from app.database.models import Experiment
 
 APP_DIR = Path(__file__).resolve().parents[1]
 CODE_PACKAGES = ("backtesting", "ml_engine", "feature_engineering", "price_action", "market_structure", "candlestick",
-                 "prediction", "historical_engine", "multi_timeframe", "research")
+                 "prediction", "historical_engine", "multi_timeframe", "research", "opportunities")
 
 
 def _q(x) -> str:

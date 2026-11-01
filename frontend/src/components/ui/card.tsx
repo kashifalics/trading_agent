@@ -2,19 +2,19 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("rounded-lg border bg-card", className)} {...props} />;
+  return <div className={cn("rounded-2xl border border-border/60 bg-card shadow-card", className)} {...props} />;
 }
 
 export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("flex items-center justify-between gap-2 border-b px-4 py-3", className)} {...props} />;
+  return <div className={cn("flex items-center justify-between gap-2 border-b border-border/60 px-5 py-4", className)} {...props} />;
 }
 
 export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn("text-sm font-semibold tracking-wide text-foreground", className)} {...props} />;
+  return <h3 className={cn("text-base font-semibold text-foreground", className)} {...props} />;
 }
 
 export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("p-4", className)} {...props} />;
+  return <div className={cn("p-5", className)} {...props} />;
 }
 
 export function Stat({ label, value, sub, className, wrap = false }: { label: string; value: React.ReactNode; sub?: React.ReactNode; className?: string; wrap?: boolean }) {

@@ -27,8 +27,9 @@ COST_SCENARIOS: dict[str, dict] = {
     "optimistic": {"commission_pct": 0.075, "spread_pct": 0.001, "slippage_pct": 0.005},
     "base": {"commission_pct": 0.10, "spread_pct": 0.002, "slippage_pct": 0.01},
     "stress": {"commission_pct": 0.10, "spread_pct": 0.01, "slippage_pct": 0.03},
+    "gold_spot": {"commission_pct": 0.0, "spread_pct": 0.01, "slippage_pct": 0.005},  # spot gold via a CFD-like feed: no fee, 1 bp spread
 }
-DETERMINISTIC = {"decision_engine", "ma_cross"}
+DETERMINISTIC = {"decision_engine", "ma_cross", "opportunity_rules"}
 _memo: dict[tuple, dict] = {}
 
 
@@ -37,11 +38,15 @@ def round_trip_cost_frac(scenario: str) -> float:
     return 2 * (c.get("commission_pct", 0) + c.get("slippage_pct", 0)) / 100 + c.get("spread_pct", 0) / 100
 
 
-def load_series(session: Session, symbol: str, provider: str | None, timeframe: str, expected_snapshot: str | None = None):
+def load_series(session: Session, symbol: str, provider: str | None, timeframe: str, expected_snapshot: str | None = None,
+                max_bars: int | None = None):
+    """max_bars: use only the most recent N complete candles (the snapshot hash then covers exactly those candles)."""
     inst, prov, _ = resolve_mapping(session, symbol, provider)
     candles = load_candles(session, inst.id, prov.id, timeframe, complete_only=True)
+    if max_bars:
+        candles = candles[-max_bars:]
     bars = Bars.from_candles(candles, tf_step(timeframe))
-    snap = dataset_snapshot(session, inst.id, prov.id, timeframe, inst.canonical_symbol, prov.code)
+    snap = dataset_snapshot(session, inst.id, prov.id, timeframe, inst.canonical_symbol, prov.code, start=candles[0].ts if candles else None)
     if expected_snapshot and snap["snapshot_id"] != expected_snapshot:
         raise ValueError(f"dataset changed: snapshot {snap['snapshot_id']} != expected {expected_snapshot}")
     return inst, prov, bars, snap
@@ -155,7 +160,7 @@ def run_backtest_experiment(session: Session, spec: dict) -> tuple[dict, dict]:
     """spec: symbol, provider, timeframe, strategy, strategy_params, cost_scenario, backtest (overrides), n_folds,
     expected_snapshot. Returns (results, dataset_snapshot)."""
     inst, prov, bars, snap = load_series(session, spec["symbol"], spec.get("provider"), spec["timeframe"],
-                                         spec.get("expected_snapshot"))
+                                         spec.get("expected_snapshot"), spec.get("max_bars"))
     inner = STRATEGIES[spec["strategy"]](**spec.get("strategy_params", {}))
     strat = inner
     if spec["strategy"] in DETERMINISTIC:
@@ -241,7 +246,7 @@ def engine_baselines(session: Session, base_spec: dict, scenario: str, seeds: in
 
 def compute_baselines(session: Session, base_spec: dict, scenario: str = "base") -> dict:
     inst, prov, bars, snap = load_series(session, base_spec["symbol"], base_spec.get("provider"), base_spec["timeframe"],
-                                         base_spec.get("expected_snapshot"))
+                                         base_spec.get("expected_snapshot"), base_spec.get("max_bars"))
     warm = STRATEGIES["decision_engine"]().warmup
     res = {"no_trade": {"total_return_pct": 0.0, "max_drawdown_pct": 0.0, "n_trades": 0, "sharpe_annualized": None},
            "buy_and_hold": buy_and_hold(bars, warm, scenario),

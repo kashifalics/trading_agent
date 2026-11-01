@@ -28,10 +28,10 @@ export function SeriesChart({
     if (!el.current || !data.length) return;
     const c = createChart(el.current, {
       autoSize: true,
-      layout: { background: { type: ColorType.Solid, color: "#0a0e17" }, textColor: "#8a94a6", fontSize: 11 },
-      grid: { vertLines: { visible: false }, horzLines: { color: "rgba(138,148,166,0.07)" } },
-      rightPriceScale: { borderColor: "#1d2433" },
-      timeScale: { borderColor: "#1d2433", timeVisible: true },
+      layout: { background: { type: ColorType.Solid, color: "#ffffff" }, textColor: "#6f7d93", fontSize: 11, fontFamily: "Poppins, system-ui, sans-serif" },
+      grid: { vertLines: { visible: false }, horzLines: { color: "rgba(33,72,140,0.06)" } },
+      rightPriceScale: { borderColor: "#e5ecf5" },
+      timeScale: { borderColor: "#e5ecf5", timeVisible: true },
     });
     const fmt = { type: "price" as const, precision, minMove: Math.pow(10, -precision) };
     const s =

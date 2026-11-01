@@ -25,11 +25,11 @@ export interface ChartLine {
 }
 
 export const COLORS = {
-  bull: "#3fb97f",
-  bear: "#ef5b64",
+  bull: "#4caf50",
+  bear: "#ef5350",
   neutral: "#8a94a6",
-  warn: "#e5a93d",
-  primary: "#4f9bf7",
+  warn: "#f59e0b",
+  primary: "#3b5bdb",
 };
 
 const ABBR: Record<string, string> = {

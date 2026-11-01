@@ -37,6 +37,14 @@ Legend: ✅ working & tested · 🟡 working with stated limits · ⛔ blocked/u
 | Auth | 🟡 | API-key auth + isolation; no registration UI |
 | LLM explanations, paper trading, S3 | ⬜ | |
 
+## Trade Opportunities module (2026-11-02, local only: not pushed or deployed)
+New sidebar tab **Trade Opportunities** (below Overview): one scan analyses XAUUSD, US30, BTCUSDT and USOIL on all 14 timeframes, builds candidate setups for scalping / intraday / swing / long-term, adds historical-analogue evidence and a transparent evidence score, ranks the results and explains each. US30 and USOIL are reported **unavailable** (no OANDA token); nothing is substituted.
+* Docs: `TRADE_OPPORTUNITIES_ARCHITECTURE.md`, `MULTI_TIMEFRAME_ANALYSIS.md`, `TRADE_SCORING_METHODOLOGY.md`, `STRATEGY_VALIDATION.md`, `TRADE_OPPORTUNITIES_TEST_REPORT.md`; report `reports/OPPORTUNITY_VALIDATION.md`.
+* Backend: `app/opportunities/*`, `price_action/levels.py` (S/R, trendlines, channels, breakouts/retests), migration `0003` (4 tables; also marks the live-verified Twelve Data XAUUSD mapping `active`), `/api/v1/opportunities/*`, optional scheduler (`OPPORTUNITY_SCAN_INTERVAL_MINUTES`).
+* Frontend: `/opportunities` page; the whole UI was re-themed (light dashboard: white cards on a pale-blue canvas, navy type, green positives, amber call-to-action, Poppins) from a reference design the user supplied. Data and logic are unchanged.
+* **No setup rule set is validated.** See `STRATEGY_VALIDATION.md`; scores are capped by validation status and are labelled "Evidence Score — Not Win Probability".
+* Why the old engine looked "mostly WAIT": on stored data it was *not* mostly WAIT bar by bar (BTCUSDT 1H last 600 bars: 31% BUY/SELL; XAUUSD 22%), but (1) production has no candles, (2) the live pipeline adds multi-timeframe, analogue and data-quality gates, and (3) its signals have no demonstrated edge (BTC 1H net E[R] −0.26). The new module is deliberately stricter and says why it waits.
+
 ## Gold and Bitcoin, all timeframes: pattern study (2026-11-01)
 Focus is now **BTCUSDT and XAUUSD** (`FOCUS_SYMBOLS`; GBPUSD, US30, USOIL stay registered and reachable with `?all=true`).
 

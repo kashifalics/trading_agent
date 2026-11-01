@@ -5,6 +5,7 @@ from collections.abc import Callable
 from fastapi import BackgroundTasks
 
 from app.core.config import get_settings
+from app.opportunities.scanner import run_scan_job
 from app.services.analysis_service import run_analysis_job
 from app.services.backtest_service import run_backtest_job
 from app.services.model_service import train_model_job
@@ -13,6 +14,7 @@ JOBS: dict[str, Callable] = {
     "analysis": run_analysis_job,
     "backtest": run_backtest_job,
     "train_model": train_model_job,
+    "scan": run_scan_job,
 }
 
 

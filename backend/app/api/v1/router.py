@@ -7,11 +7,12 @@ from app.api.v1.routes import (
     health,
     market,
     models,
+    opportunities,
     patterns,
     predictions,
     watchlists,
 )
 
 api_router = APIRouter()
-for module in (health, market, analysis, charts, predictions, backtesting, patterns, models, watchlists):
+for module in (health, market, analysis, charts, predictions, backtesting, patterns, opportunities, models, watchlists):
     api_router.include_router(module.router)

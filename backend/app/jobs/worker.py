@@ -22,6 +22,13 @@ def backtest_task(run_id: int) -> None:
     run_backtest_job(run_id)
 
 
+@celery_app.task(name="ati.scan")
+def scan_task(scan_id: int) -> None:
+    from app.opportunities.scanner import run_scan_job
+
+    run_scan_job(scan_id)
+
+
 @celery_app.task(name="ati.train_model")
 def train_model_task(params: dict) -> None:
     from app.services.model_service import train_model_job

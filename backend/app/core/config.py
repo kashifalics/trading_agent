@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 240
     job_backend: str = "inline"  # inline | celery
     auto_migrate: bool = True
+
+    # Trade Opportunities module (docs/TRADE_OPPORTUNITIES_ARCHITECTURE.md)
+    opportunity_symbols: str = "XAUUSD,US30,BTCUSDT,USOIL"
+    opportunity_scan_interval_minutes: int = 0  # 0 = automatic scanning disabled (manual / API-triggered only)
+    opportunity_refresh_providers: str = "binance"  # providers the SCHEDULED scan may sync (quota-limited providers stay manual)
+    opportunity_max_sync_tfs: int = 4  # timeframes refreshed per instrument when a scan is asked to refresh data
     model_dir: str = "./model_store"
     upload_dir: str = "./uploads"
     max_upload_bytes: int = 8_000_000
@@ -58,6 +64,14 @@ class Settings(BaseSettings):
     @property
     def focus_list(self) -> set[str]:
         return {s.strip().upper() for s in self.focus_symbols.split(",") if s.strip()}
+
+    @property
+    def opportunity_list(self) -> list[str]:
+        return [s.strip().upper() for s in self.opportunity_symbols.split(",") if s.strip()]
+
+    @property
+    def opportunity_refresh_list(self) -> list[str]:
+        return [s.strip().lower() for s in self.opportunity_refresh_providers.split(",") if s.strip()]
 
     @property
     def is_production(self) -> bool:

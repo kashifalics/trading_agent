@@ -26,6 +26,8 @@ import type {
   Watchlist,
 } from "@/lib/types";
 
+import type { OppSummary, OppValidation, OpportunityDetail, ScanAccepted } from "@/lib/opportunity-types";
+
 export const retryPolicy = (failureCount: number, error: unknown) =>
   failureCount < 2 && (!(error instanceof ApiError) || error.retryable);
 
@@ -188,4 +190,29 @@ export function useWatchlistMutations() {
     }),
     removeItem: useMutation({ mutationFn: (v: { id: number; itemId: number }) => api.del(`/watchlists/${v.id}/items/${v.itemId}`), onSuccess: done }),
   };
+}
+
+// ---- Trade Opportunities ----
+export const useOppSummary = () =>
+  useQuery({
+    queryKey: ["opp-summary"],
+    queryFn: () => api.get<OppSummary>("/opportunities/summary"),
+    refetchInterval: (q) => (q.state.data?.running_scan ? 2000 : 60_000),
+    retry: retryPolicy,
+  });
+export const useOpportunity = (id: number | null) =>
+  useQuery({
+    queryKey: ["opportunity", id],
+    queryFn: () => api.get<OpportunityDetail>(`/opportunities/${id}`),
+    enabled: id !== null,
+    retry: retryPolicy,
+  });
+export const useOppValidation = () => useQuery({ queryKey: ["opp-validation"], queryFn: () => api.get<OppValidation>("/opportunities/validation"), staleTime: 300_000 });
+
+export function useStartScan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (req: { symbols?: string[]; refresh_data?: boolean }) => api.post<ScanAccepted>("/opportunities/scan", req),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["opp-summary"] }),
+  });
 }

@@ -47,7 +47,7 @@ class ZonesPrimitive implements ISeriesPrimitive<Time> {
             const h = Math.max(1, Math.abs(y2 - y1) * scope.verticalPixelRatio);
             ctx.fillStyle = z.color;
             ctx.fillRect(left, top, scope.bitmapSize.width - left, h);
-            ctx.fillStyle = "rgba(200,208,220,0.7)";
+            ctx.fillStyle = "rgba(20,32,107,0.7)";
             ctx.font = `${10 * scope.verticalPixelRatio}px sans-serif`;
             ctx.fillText(z.label, left + 4 * scope.horizontalPixelRatio, top + 11 * scope.verticalPixelRatio);
           }
@@ -92,14 +92,14 @@ export function CandleChart({ candles, precision, markers = [], zones = [], line
     if (!el.current) return;
     const c = createChart(el.current, {
       autoSize: true,
-      layout: { background: { type: ColorType.Solid, color: "#0a0e17" }, textColor: "#8a94a6", fontSize: 11 },
-      grid: { vertLines: { color: "rgba(138,148,166,0.07)" }, horzLines: { color: "rgba(138,148,166,0.07)" } },
-      rightPriceScale: { borderColor: "#1d2433" },
-      timeScale: { borderColor: "#1d2433", timeVisible: true, secondsVisible: false },
+      layout: { background: { type: ColorType.Solid, color: "#ffffff" }, textColor: "#6f7d93", fontSize: 11, fontFamily: "Poppins, system-ui, sans-serif" },
+      grid: { vertLines: { color: "rgba(33,72,140,0.05)" }, horzLines: { color: "rgba(33,72,140,0.06)" } },
+      rightPriceScale: { borderColor: "#e5ecf5" },
+      timeScale: { borderColor: "#e5ecf5", timeVisible: true, secondsVisible: false },
       crosshair: { mode: CrosshairMode.Normal },
     });
     const s = c.addSeries(CandlestickSeries, {
-      upColor: "#3fb97f", downColor: "#ef5b64", borderVisible: false, wickUpColor: "#3fb97f", wickDownColor: "#ef5b64",
+      upColor: "#4caf50", downColor: "#ef5350", borderVisible: false, wickUpColor: "#4caf50", wickDownColor: "#ef5350",
     });
     const z = new ZonesPrimitive();
     s.attachPrimitive(z);

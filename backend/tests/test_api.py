@@ -62,7 +62,7 @@ def test_instruments_are_honest_about_support(client):
     us30 = {m["provider"]: m for m in items["US30"]["mappings"]}
     assert us30["oanda"]["provider_symbol"] == "US30_USD" and us30["oanda"]["status"] == "unverified"
     assert "ETF" in us30["oanda"]["notes"] or "NOT the index" in us30["oanda"]["notes"]  # no silent ETF substitution
-    assert items["XAUUSD"]["mappings"][0]["status"] == "unverified"
+    assert items["XAUUSD"]["mappings"][0]["status"] == "active"  # live-verified 2026-11-01 (migration 0003)
     assert len(client.get("/api/v1/market/timeframes").json()) == 14
 
 

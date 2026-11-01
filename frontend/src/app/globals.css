@@ -2,21 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme: soft light analytics dashboard (white cards on a pale-blue canvas, navy type, green positives, amber call-to-action).
+   All colours are tokens; components never hard-code them (charts read the same values from components/charts/overlays.ts). */
 :root {
-  --background: 222 38% 6%;
-  --surface: 222 33% 8.5%;
-  --card: 222 30% 11%;
-  --border: 222 22% 19%;
-  --muted: 222 24% 15%;
-  --muted-foreground: 218 14% 63%;
-  --foreground: 210 20% 92%;
-  --primary: 212 92% 62%;
-  --primary-foreground: 222 40% 8%;
-  --bull: 152 56% 46%;
-  --bear: 357 72% 61%;
-  --warn: 38 90% 56%;
-  --ring: 212 92% 62%;
-  color-scheme: dark;
+  --background: 210 62% 97%; /* pale blue canvas */
+  --surface: 0 0% 100%; /* sidebar / panels */
+  --card: 0 0% 100%;
+  --border: 214 32% 91%;
+  --muted: 210 38% 96%;
+  --muted-foreground: 217 15% 47%;
+  --foreground: 231 62% 20%; /* navy */
+  --primary: 226 62% 40%; /* navy-blue: links, info */
+  --primary-foreground: 0 0% 100%;
+  --cta: 33 100% 66%; /* amber call-to-action */
+  --cta-foreground: 231 62% 20%;
+  --nav: 122 38% 92%; /* active navigation: pale green */
+  --nav-foreground: 122 42% 32%;
+  --bull: 123 40% 38%;
+  --bear: 4 72% 52%;
+  --warn: 30 92% 40%;
+  --ring: 226 62% 40%;
+  color-scheme: light;
 }
 
 * {
@@ -24,14 +30,14 @@
 }
 
 body {
-  background: hsl(var(--background));
+  background: linear-gradient(180deg, hsl(208 70% 92%) 0, hsl(var(--background)) 340px) no-repeat, hsl(var(--background));
   color: hsl(var(--foreground));
-  font-feature-settings: "tnum" 1, "cv11" 1;
+  font-feature-settings: "tnum" 1;
   -webkit-font-smoothing: antialiased;
 }
 
+/* numbers keep the same rounded sans as the rest of the UI; tabular figures keep columns aligned */
 .num {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-variant-numeric: tabular-nums;
 }
 
@@ -40,7 +46,7 @@ body {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted));
+  background: hsl(214 25% 82%);
   border-radius: 6px;
 }
 ::-webkit-scrollbar-track {

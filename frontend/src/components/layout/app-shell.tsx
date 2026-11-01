@@ -12,6 +12,7 @@ import {
   LineChart,
   Menu,
   Radar,
+  Crosshair,
   Settings,
   Target,
   X,
@@ -22,8 +23,9 @@ import { useState } from "react";
 import { useHealth } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 
-const NAV = [
+export const NAV = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
+  { href: "/opportunities", label: "Trade Opportunities", icon: Crosshair },
   { href: "/chart", label: "Chart Analysis", icon: LineChart },
   { href: "/scanner", label: "Market Scanner", icon: Radar },
   { href: "/predictions", label: "Predictions", icon: Target },
@@ -39,7 +41,7 @@ const NAV = [
 function Nav({ onNavigate }: { onNavigate?: () => void }) {
   const path = usePathname();
   return (
-    <nav aria-label="Primary" className="flex flex-col gap-0.5 p-2">
+    <nav aria-label="Primary" className="flex flex-col gap-0.5 py-2">
       {NAV.map(({ href, label, icon: Icon }) => {
         const active = href === "/" ? path === "/" : path.startsWith(href);
         return (
@@ -49,8 +51,8 @@ function Nav({ onNavigate }: { onNavigate?: () => void }) {
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm",
-              active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+              "flex items-center gap-3 px-6 py-2.5 text-sm transition-colors",
+              active ? "bg-nav font-semibold text-nav-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
             <Icon className="h-4 w-4 shrink-0" aria-hidden />
@@ -77,22 +79,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col border-r bg-surface lg:flex">
-        <div className="flex h-14 items-center gap-2 border-b px-4">
-          <Activity className="h-5 w-5 text-primary" aria-hidden />
-          <span className="text-sm font-semibold tracking-wide">AI Trading Intel</span>
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border/60 bg-surface shadow-card lg:flex">
+        <div className="flex h-16 items-center gap-2.5 px-6">
+          <Activity className="h-6 w-6 text-bull" aria-hidden />
+          <span className="text-base font-bold tracking-tight">AI Trading Intel</span>
         </div>
         <div className="flex-1 overflow-y-auto">
           <Nav />
         </div>
-        <div className="border-t p-3 text-[11px] leading-snug text-muted-foreground">
+        <div className="p-5 text-[11px] leading-snug text-muted-foreground">
           Analysis only. No orders are placed and no broker is connected.
         </div>
       </aside>
 
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
+          <div className="absolute inset-0 bg-foreground/40" onClick={() => setOpen(false)} />
           <aside className="absolute left-0 top-0 h-full w-64 border-r bg-surface">
             <div className="flex h-14 items-center justify-between border-b px-4">
               <span className="text-sm font-semibold">AI Trading Intel</span>
@@ -106,7 +108,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/90 px-4 backdrop-blur">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between bg-background/80 px-4 backdrop-blur sm:px-6">
           <button className="lg:hidden" aria-label="Open menu" onClick={() => setOpen(true)}>
             <Menu className="h-5 w-5" />
           </button>

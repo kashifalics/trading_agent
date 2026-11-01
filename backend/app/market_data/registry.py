@@ -67,8 +67,9 @@ SEED_INSTRUMENTS = [
 # (canonical, provider, provider_symbol, exchange, market_kind, status, notes)
 SEED_MAPPINGS = [
     ("BTCUSDT", "binance", "BTCUSDT", "BINANCE", "spot", "active", "Public klines; verified working."),
-    ("XAUUSD", "twelve_data", "XAU/USD", None, "spot", "unverified",
-     "Free plan serves 1H/1D (verified 2026-11-01). 2H/4H are built from 1H. Feed contains thin weekend quotes: hidden."),
+    ("XAUUSD", "twelve_data", "XAU/USD", None, "spot", "active",
+     "Live-verified 2026-11-01 (docs/reports/XAUUSD_COVERAGE.md): free plan serves 1m-1D natively except 3m/2H/4H, which are built "
+     "from 1m/1H. Feed contains thin weekend quotes: hidden."),
     ("GBPUSD", "twelve_data", "GBP/USD", None, "spot", "active",
      "Free plan serves 1H/1D (probed 2026-11-01). 2H/4H are built from 1H (native grid shifts with US DST)."),
     ("US30", "oanda", "US30_USD", None, "cfd", "unverified",

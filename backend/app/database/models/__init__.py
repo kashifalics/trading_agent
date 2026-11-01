@@ -19,6 +19,12 @@ from app.database.models.market import (  # noqa: F401
     Instrument,
     ProviderInstrument,
 )
+from app.database.models.opportunity import (  # noqa: F401
+    MarketScan,
+    OpportunityStatusHistory,
+    TimeframeAnalysis,
+    TradeOpportunity,
+)
 from app.database.models.user import (  # noqa: F401
     AuditEvent,
     User,

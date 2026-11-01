@@ -14,6 +14,9 @@ An **analysis-only** market-intelligence terminal. It reads candles, detects pri
 
 Full detail: [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md).
 
+## Trade Opportunities
+The **Trade Opportunities** tab (below Overview) scans every supported instrument on all 14 timeframes and ranks scalping / intraday / swing / long-term setups by an *evidence score* (not a win probability). WAIT is a normal result. Start a scan from the page, or `POST /api/v1/opportunities/scan`; set `OPPORTUNITY_SCAN_INTERVAL_MINUTES` to scan automatically. See [`docs/TRADE_OPPORTUNITIES_ARCHITECTURE.md`](docs/TRADE_OPPORTUNITIES_ARCHITECTURE.md) and [`docs/STRATEGY_VALIDATION.md`](docs/STRATEGY_VALIDATION.md) (no rule set is validated yet).
+
 ## Quick start (Docker)
 ```powershell
 .\scripts\setup.ps1 -DockerOnly     # PowerShell   (bash: ./scripts/setup.sh --docker-only)
@@ -25,7 +28,7 @@ Without Docker (SQLite): `.\scripts\setup.ps1`, then run the backend (`uvicorn a
 
 ## Checks
 ```
-cd backend  && pytest                       # 135 tests
+cd backend  && pytest                       # 179 tests
 cd frontend && npm run lint && npm run typecheck && npm test && npm run build
 cd frontend && npx playwright install chromium && npm run e2e
 ```
