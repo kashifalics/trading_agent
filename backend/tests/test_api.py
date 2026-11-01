@@ -230,3 +230,21 @@ def test_managed_postgres_urls_are_rewritten_to_the_psycopg_dialect(monkeypatch)
     assert Settings(database_url="postgresql+psycopg://u:p@h/d").database_url == "postgresql+psycopg://u:p@h/d"
     assert Settings(database_url="sqlite:///./x.db").database_url == "sqlite:///./x.db"
     assert "p@h" not in repr(Settings(database_url="postgres://u:p@h:5432/d"))  # credentials never in repr
+
+
+def test_screenshot_warns_when_the_typed_instrument_contradicts_the_chart_title(client, tmp_path, monkeypatch):
+    import app.services.chart_service as cs
+
+    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
+    get_settings.cache_clear()
+    monkeypatch.setattr(cs, "ocr_available", lambda: True)
+    monkeypatch.setattr(cs, "read_title_text", lambda img: "XAUUSD 1H")
+    monkeypatch.setattr(cs, "read_price_axis", lambda img, x: [])
+    img, _ = render_chart(walk_ohlc(70))
+    files = {"file": ("chart.png", png_bytes(img), "image/png")}
+    wrong = client.post("/api/v1/charts/analyze", files=files, data={"symbol": "BTCUSDT"}).json()
+    assert any("title reads XAUUSD" in w for w in wrong["warnings"]) and wrong["symbol"] == "BTCUSDT"
+    auto = client.post("/api/v1/charts/analyze", files=files).json()
+    assert auto["symbol"] == "XAUUSD" and auto["timeframe"] == "1H"  # blank field: the image decides
+    assert not any("title reads" in w for w in auto["warnings"])
+    get_settings.cache_clear()

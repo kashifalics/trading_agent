@@ -72,6 +72,9 @@ def analyze_screenshot(session: Session, user_id: int, stored: StoredImage, symb
             cal = user_cal
         else:
             warnings.append("supplied calibration points were rejected (need >=2 distinct rows with price falling downwards)")
+    if symbol and det_symbol and symbol.upper() != det_symbol:
+        warnings.append(f"The chart title reads {det_symbol} but you specified {symbol.upper()}; analysing {symbol.upper()} as instructed. "
+                        f"Clear the instrument field to use the one detected in the image.")
     symbol = (symbol or det_symbol or "").upper() or None
     timeframe = timeframe or det_tf
     if cal is None:

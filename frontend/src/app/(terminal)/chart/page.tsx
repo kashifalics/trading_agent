@@ -25,11 +25,11 @@ const TOGGLES: [keyof OverlayToggles, string][] = [
   ["swings", "Swings"], ["structure", "BOS / CHoCH"], ["zones", "FVG / OB / S&D"], ["liquidity", "Liquidity"], ["patterns", "Candle patterns"], ["plan", "Entry / SL / TP"],
 ];
 
-function UploadCard({ symbol, timeframe }: { symbol: string; timeframe: string }) {
+function UploadCard() {
   const upload = useUploadChart();
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<ChartAnalyzeResult | null>(null);
-  const form = useForm<UploadForm>({ resolver: zodResolver(uploadSchema), defaultValues: { symbol, timeframe } });
+  const form = useForm<UploadForm>({ resolver: zodResolver(uploadSchema), defaultValues: { symbol: "", timeframe: "" } });
   const { errors } = form.formState;
 
   const submit = form.handleSubmit((v) => {
@@ -52,8 +52,8 @@ function UploadCard({ symbol, timeframe }: { symbol: string; timeframe: string }
           <Input id="shot" type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <div><Label htmlFor="u-sym">Instrument (if not in image)</Label><Input id="u-sym" {...form.register("symbol")} /></div>
-          <div><Label htmlFor="u-tf">Timeframe</Label><Input id="u-tf" {...form.register("timeframe")} /></div>
+          <div><Label htmlFor="u-sym">Instrument (optional)</Label><Input id="u-sym" placeholder="auto-detect from image" {...form.register("symbol")} /></div>
+          <div><Label htmlFor="u-tf">Timeframe (optional)</Label><Input id="u-tf" placeholder="auto-detect, e.g. 1H" {...form.register("timeframe")} /></div>
         </div>
         <div>
           <Label>Price calibration (optional): two pixel rows and the price at each</Label>
@@ -65,7 +65,7 @@ function UploadCard({ symbol, timeframe }: { symbol: string; timeframe: string }
           </div>
           <FieldError message={errors.y1?.message ?? errors.y2?.message ?? errors.timeframe?.message} />
         </div>
-        <SourceNote>Without OCR or calibration points, prices are not extracted and no entry/stop/target is produced. OHLC values are never guessed.</SourceNote>
+        <SourceNote>Leave instrument and timeframe empty to read them from the chart title (e.g. XAUUSD 1H). Without OCR or calibration points, prices are not extracted and no entry/stop/target is produced. OHLC values are never guessed.</SourceNote>
         <Button type="submit" loading={upload.isPending} disabled={!file}><Upload className="h-4 w-4" /> Analyse screenshot</Button>
         {upload.isError && <ErrorState error={upload.error} />}
       </form>
@@ -175,7 +175,7 @@ export default function ChartPage() {
           </Card>
 
           {result && resultMatchesChart && <SectionCard title="Confidence — five separate views"><ConfidencePanelView panel={result.decision.confidence} /></SectionCard>}
-          <UploadCard symbol={s.symbol} timeframe={s.timeframe} />
+          <UploadCard />
         </div>
 
         <aside className="space-y-4" aria-label="Analysis result">
