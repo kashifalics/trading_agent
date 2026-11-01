@@ -53,19 +53,23 @@ def test_health_and_mode(client):
 
 def test_instruments_are_honest_about_support(client):
     items = {i["canonical_symbol"]: i for i in client.get("/api/v1/market/instruments").json()}
-    assert set(items) == {"XAUUSD", "US30", "BTCUSDT", "USOIL"}
-    assert items["BTCUSDT"]["supported"] and items["BTCUSDT"]["mappings"][0]["provider"] == "binance"
-    assert not items["US30"]["supported"] and not items["USOIL"]["supported"]
+    assert set(items) == {"XAUUSD", "US30", "BTCUSDT", "USOIL", "GBPUSD"}
+    assert items["BTCUSDT"]["mappings"][0]["provider"] == "binance" and items["BTCUSDT"]["mappings"][0]["status"] == "active"
+    gbp = items["GBPUSD"]["mappings"][0]
+    assert (gbp["provider"], gbp["provider_symbol"]) == ("twelve_data", "GBP/USD") and items["GBPUSD"]["price_precision"] == 5
+    us30 = {m["provider"]: m for m in items["US30"]["mappings"]}
+    assert us30["oanda"]["provider_symbol"] == "US30_USD" and us30["oanda"]["status"] == "unverified"
+    assert "ETF" in us30["oanda"]["notes"] or "NOT the index" in us30["oanda"]["notes"]  # no silent ETF substitution
     assert items["XAUUSD"]["mappings"][0]["status"] == "unverified"
     assert len(client.get("/api/v1/market/timeframes").json()) == 14
 
 
-def test_unsupported_instrument_returns_clear_error_not_fake_data(client):
-    r = client.get("/api/v1/market/candles", params={"symbol": "US30", "timeframe": "1H"})
-    assert r.status_code == 422 and r.json()["error"]["code"] == "unsupported"
-    q = {x["symbol"]: x for x in client.get("/api/v1/market/quotes", params={"symbols": "US30,XAUUSD"}).json()}
-    assert q["US30"]["status"] == "unsupported" and q["US30"]["price"] is None
-    assert q["XAUUSD"]["status"] == "not_configured" and q["XAUUSD"]["price"] is None
+def test_unconfigured_providers_report_it_instead_of_inventing_data(client):
+    q = {x["symbol"]: x for x in client.get("/api/v1/market/quotes", params={"symbols": "US30,XAUUSD,GBPUSD,USOIL"}).json()}
+    assert all(x["status"] == "not_configured" and x["price"] is None for x in q.values())
+    assert "OANDA_API_TOKEN" in q["US30"]["message"] and "TWELVE_DATA_API_KEY" in q["GBPUSD"]["message"]
+    c = client.get("/api/v1/market/candles", params={"symbol": "US30", "timeframe": "1H"}).json()
+    assert c["provider"] == "oanda" and c["count"] == 0  # nothing stored, nothing fabricated
 
 
 def test_validation_errors_use_the_standard_envelope(client):
@@ -108,9 +112,11 @@ def test_analysis_flow_end_to_end(synced):
     assert c.get("/api/v1/predictions/stats").json()["total"] == 1
 
 
-def test_analysis_of_unsupported_instrument_is_rejected(client):
+def test_analysis_without_data_or_credentials_fails_clearly(client):
     r = client.post("/api/v1/analysis/run", json={"symbol": "US30", "timeframe": "1H"})
-    assert r.status_code == 422 and "unsupported" in r.json()["error"]["message"]
+    assert r.status_code == 202
+    a = client.get(r.json()["poll_url"]).json()
+    assert a["status"] == "failed" and "Sync data first" in a["error"]
 
 
 def test_backtest_flow(synced):

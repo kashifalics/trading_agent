@@ -24,7 +24,9 @@ class TwelveDataProvider(MarketDataProvider):
 
     code = "twelve_data"
     MINUTE_WAIT_S = MINUTE_WAIT_S
-    native_timeframes = {c: t.twelve_data for c, t in TIMEFRAMES.items() if t.twelve_data}
+    # 2H and 4H are deliberately NOT native: Twelve Data's grid for them shifts by one hour with US daylight saving
+    # (verified live on XAU/USD and GBP/USD), so they are built from 1H on our UTC grid instead.
+    native_timeframes = {c: t.twelve_data for c, t in TIMEFRAMES.items() if t.twelve_data and c not in ("2H", "4H")}
 
     def __init__(self, api_key: str | None, base_url: str = "https://api.twelvedata.com",
                  client: httpx.Client | None = None, min_interval_s: float = FREE_MIN_INTERVAL_S):

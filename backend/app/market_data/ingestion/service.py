@@ -17,6 +17,7 @@ from app.database.models import (
 )
 from app.market_data.aggregation.aggregate import aggregate_candles
 from app.market_data.base import MarketDataProvider
+from app.market_data.calendars import get_calendar
 from app.market_data.coverage.gaps import find_gaps
 from app.market_data.normalization.normalize import normalize_candles
 from app.market_data.registry import SEED_INSTRUMENTS, SEED_MAPPINGS, SEED_PROVIDERS
@@ -182,6 +183,7 @@ def ingest_candles(session: Session, provider: MarketDataProvider, inst: Instrum
         result.stored = store_candles(session, inst.id, prov.id, fetch_tf, clean)
         if kind == "aggregate":
             base = load_candles(session, inst.id, prov.id, fetch_tf, start=start, end=end, complete_only=False)
+            base = [c for c in base if get_calendar(inst.calendar).is_open(c.ts)]  # never aggregate closed-market quotes
             agg = aggregate_candles(base, fetch_tf, timeframe, anchor_for(inst), inst.calendar)
             result.stored += store_candles(session, inst.id, prov.id, timeframe, agg)
             refresh_coverage(session, inst, prov, fetch_tf, status="ok")

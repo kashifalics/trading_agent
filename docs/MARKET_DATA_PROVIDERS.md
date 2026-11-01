@@ -8,8 +8,9 @@ Status as of this build. "Verified" = exercised against the live service in this
 |---|---|---|---|
 | **BTCUSDT** | Binance spot public klines | ✅ **Verified, working** | Live sync of 1H/4H/1D (1,500–3,000 bars each, 0 gaps) and live book-ticker quotes; `3m` native, `12M` aggregated from `1M`. |
 | **XAUUSD** | Twelve Data `XAU/USD` (spot) | ✅ **Verified live on the free plan** (1H, 4H, 1D) with data caveats | `reports/XAUUSD_COVERAGE.md`: 1D since 1979, 4H since 2020-01, 1H from at least 2020-07. **Native 4H is off our grid for ~April-September** and the feed contains weekend candles (below). |
-| **US30** | Broker-specific CFD or licensed index feed | ❌ **Unsupported** | No free, licensed source is assumed. Mapped to the unimplemented `broker_cfd` provider with status `unsupported`; API returns `422 unsupported`. Index (DJI) and CFD prices differ, so no substitute is used. |
-| **USOIL** | WTI spot/CFD feed | ❌ **Unsupported** | Same. NYMEX `CL` futures are a different series (roll/contango) and are **not** substituted. |
+| **GBPUSD** | Twelve Data `GBP/USD` (spot FX) | ✅ **Available on the free plan** (1H, 1D probed live 2026-11-01) | 2H/4H are built from 1H (see Twelve Data caveat 1). |
+| **US30** | OANDA `US30_USD` (broker CFD) | 🟡 **Adapter built and unit-tested with mocked HTTP; not verified live** until you add a free practice-account token | **Twelve Data's free plan does not serve the Dow index**: searching `DJI`/`US30` returns only ETFs/warrants (e.g. `DJIA` = a covered-call ETF), which are different instruments and are never substituted. |
+| **USOIL** | OANDA `WTICO_USD` (WTI CFD) | 🟡 Same adapter, same status (needs `OANDA_API_TOKEN`) | Not NYMEX `CL` futures (roll/contango); never substituted. |
 
 Deliberately *not* used: PAXG/XAUT (tokenised gold ≠ spot gold), ETFs as index/oil proxies, Yahoo/Stooq/TradingView extraction (unofficial or licence-unclear).
 
@@ -24,7 +25,7 @@ Deliberately *not* used: PAXG/XAUT (tokenised gold ≠ spot gold), ETFs as index
 
 ### Twelve Data (`twelve_data`) — free plan only
 * Auth: API key (`TWELVE_DATA_API_KEY`), sign up yourself at <https://twelvedata.com/pricing>; the build never creates accounts.
-* Timeframes mapped: 1m 5m 15m 30m 1H 2H 4H 1D 1W 1M (`3m` and `3M/6M/12M` aggregated).
+* Native timeframes used: 1m 5m 15m 30m 1H 1D 1W 1M. **2H and 4H are built from 1H** on our UTC grid (their native grid shifts with US DST); `3m` and `3M/6M/12M` are aggregated.
 * **Measured** (provider `/api_usage`): plan `basic`, **8 requests/minute and 800/day**; at most 5,000 points per request. The adapter paces at 7.6 s, waits 62 s once on a per-minute 429 (observed live), fails fast on daily exhaustion, maps 401/403 to a key error and plan errors to `unsupported`; provider messages are scrubbed of the key.
 * **Paging semantics (verified live):** a request returns the *most recent* `outputsize` points of `[start_date, end_date]` whatever `order` says, so long ranges are fetched **backwards**. (An earlier forward-paging assumption would have silently dropped old data.)
 * FX/metals carry no volume (`volume_type=none`). Daily bars are UTC-midnight aligned; the newest daily bar can carry a next-session (future) label and is stored as incomplete.
@@ -33,8 +34,12 @@ Deliberately *not* used: PAXG/XAUT (tokenised gold ≠ spot gold), ETFs as index
 * **Caveat 2 - weekend candles**: ~12% of 1H rows are stamped Fri 22:00 through Sunday, inside the FX closure, with roughly 1/27 of the normal range; filter by calendar before analysis.
 * **Caveat 3 - gaps**: a daily break at 21:00/22:00 UTC, holidays, and a genuine provider gap on 2025-04-15/16.
 
-### Broker CFD (`broker_cfd`)
-Registered placeholder only. To support US30/USOIL, implement a `MarketDataProvider` for a feed you are licensed to use (e.g. broker API) and flip the mapping status to `active`. No code outside `app/market_data/<provider>/` changes.
+### OANDA v20 (`oanda`) - US30 and USOIL
+* Free **fxTrade Practice (demo)** account; sign up yourself at <https://www.oanda.com/register/#/sign-up/demo>, then create a personal API token in the account portal (*Manage API Access*). The build never creates accounts.
+* Set `OANDA_API_TOKEN` (Railway: `railway variable set -s backend OANDA_API_TOKEN=...`; local: root or `backend/.env`). `OANDA_BASE_URL` defaults to the practice host `https://api-fxpractice.oanda.com`.
+* Read-only: only `/v3/instruments/{instrument}/candles` is called (never order or account endpoints). Candles up to 5,000 per request, forward paging, `complete` flag from the API, tick volume. Requests set `dailyAlignment=0, alignmentTimezone=UTC, weeklyAlignment=Monday` so H2/H4/D/W sit on the platform's UTC grid.
+* Prices are **broker CFD quotes**, not exchange index prices; they are stored under provider `oanda` and never mixed with other providers' candles. Licence: demo-account/API terms (personal use, no redistribution) - see <https://www.oanda.com/legal/>.
+* Verification after you add the token: `POST /market/coverage/probe {symbol: US30, timeframe: 1H}` then `POST /market/sync`. Until then the mapping stays `unverified` and quotes report `not_configured`.
 
 ## Symbol mapping
 

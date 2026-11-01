@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 
 import httpx
 import pytest
@@ -90,14 +91,25 @@ def test_twelve_data_parse_and_plan_error():
         p.get_candles("DJI", "1H", limit=2)
 
 
-def test_unsupported_instruments_are_not_substituted(session):
-    with pytest.raises(UnsupportedError) as ei:
-        resolve_mapping(session, "US30")
-    assert "unsupported" in str(ei.value)
-    with pytest.raises(UnsupportedError):
-        resolve_mapping(session, "USOIL")
+def test_us30_maps_to_oanda_and_refuses_without_a_token_rather_than_substituting(session):
+    inst, prov, pi = resolve_mapping(session, "US30")
+    assert (prov.code, pi.provider_symbol, pi.status) == ("oanda", "US30_USD", "unverified")
+    from app.market_data.oanda.provider import OandaProvider
+    with pytest.raises(ProviderNotConfigured, match="OANDA_API_TOKEN"):
+        OandaProvider(None).get_candles("US30_USD", "1H", limit=2)
     inst, prov, pi = resolve_mapping(session, "BTCUSDT")
     assert prov.code == "binance" and pi.status == "active"
+    inst, prov, pi = resolve_mapping(session, "GBPUSD")
+    assert (prov.code, pi.provider_symbol) == ("twelve_data", "GBP/USD")
+
+
+def test_twelve_data_builds_2h_and_4h_from_1h_because_its_native_grid_shifts_with_dst():
+    from app.market_data.timeframes import plan_timeframe
+
+    native = set(TwelveDataProvider.native_timeframes)
+    assert {"1H", "1D"} <= native and not ({"2H", "4H"} & native)
+    assert plan_timeframe("4H", native) == ("aggregate", "1H")
+    assert plan_timeframe("2H", native) == ("aggregate", "1H")
 
 
 @respx.mock
@@ -256,3 +268,113 @@ def test_sync_rejects_candles_off_the_timeframe_grid_instead_of_storing_them(ses
     r = ingest_candles(session, fast_binance(), inst, prov, pi, "4H", bars=10)
     assert r.misaligned == 2 and r.stored == 3
     assert session.scalar(select(func.count()).select_from(CandleRow)) == 3
+
+
+OA = "https://api-fxpractice.oanda.com"
+
+
+def fast_oanda(sleeps=None, token="tok-secret-123"):
+    from app.market_data.oanda.provider import OandaProvider
+
+    p = OandaProvider(token, OA, min_interval_s=0)
+    p._sleep = sleeps.append if sleeps is not None else (lambda s: None)
+    return p
+
+
+def oa_candle(t, o="100.0", h="101.0", low="99.0", c="100.5", complete=True, vol=77):
+    return {"complete": complete, "volume": vol, "time": t, "mid": {"o": o, "h": h, "l": low, "c": c}}
+
+
+@respx.mock
+def test_oanda_parses_candles_and_requests_the_platform_utc_grid():
+    route = respx.get(f"{OA}/v3/instruments/US30_USD/candles").mock(return_value=httpx.Response(200, json={
+        "instrument": "US30_USD", "granularity": "H1", "candles": [
+            oa_candle("2024-01-02T10:00:00.000000000Z", o="37000.5"), oa_candle("2024-01-02T11:00:00.000000000Z", complete=False)]}))
+    out = fast_oanda().get_candles("US30_USD", "1H", start=datetime(2024, 1, 2, 10, tzinfo=timezone.utc))
+    assert [c.ts.hour for c in out] == [10, 11] and out[0].complete and not out[1].complete
+    assert str(out[0].open) == "37000.5" and out[0].volume_type == "tick" and out[0].ts.tzinfo is not None
+    q = route.calls[0].request.url.params
+    assert q["granularity"] == "H1" and q["alignmentTimezone"] == "UTC" and q["dailyAlignment"] == "0"
+    assert q["weeklyAlignment"] == "Monday" and q["price"] == "M"
+    assert route.calls[0].request.headers["authorization"] == "Bearer tok-secret-123"
+
+
+@respx.mock
+def test_oanda_pages_forward_without_duplicates(monkeypatch):
+    import app.market_data.oanda.provider as om
+
+    monkeypatch.setattr(om, "MAX_COUNT", 3)
+    hours = [datetime(2024, 1, 2, h, tzinfo=timezone.utc) for h in range(0, 8)]
+
+    def serve(request: httpx.Request):
+        frm = datetime.strptime(request.url.params["from"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        rows = [t for t in hours if t >= frm][:3]
+        return httpx.Response(200, json={"candles": [oa_candle(t.strftime("%Y-%m-%dT%H:%M:%S.000000000Z")) for t in rows]})
+
+    respx.get(f"{OA}/v3/instruments/GBP_USD/candles").mock(side_effect=serve)
+    out = fast_oanda().get_candles("GBP_USD", "1H", start=hours[0], end=hours[-1])
+    assert [c.ts for c in out] == hours
+
+
+@respx.mock
+def test_oanda_errors_and_secret_hygiene():
+    route = respx.get(f"{OA}/v3/instruments/US30_USD/candles")
+    route.mock(return_value=httpx.Response(401, json={"errorMessage": "Insufficient authorization"}))
+    with pytest.raises(Exception, match="rejected the API token") as ei:
+        fast_oanda().get_candles("US30_USD", "1H", limit=2)
+    assert "tok-secret-123" not in str(ei.value)
+    route.mock(return_value=httpx.Response(400, json={"errorMessage": "Invalid value specified for instrument tok-secret-123"}))
+    with pytest.raises(UnsupportedError) as ei:
+        fast_oanda().get_candles("US30_USD", "1H", limit=2)
+    assert "tok-secret-123" not in str(ei.value) and "***" in str(ei.value)
+    sleeps: list = []
+    route.mock(side_effect=[httpx.Response(429), httpx.Response(200, json={"candles": [oa_candle("2024-01-02T10:00:00.000000000Z")]})])
+    assert len(fast_oanda(sleeps).get_candles("US30_USD", "1H", limit=1)) == 1 and sleeps == [2.0]
+    with pytest.raises(UnsupportedError):
+        fast_oanda().get_candles("US30_USD", "3m", limit=1)  # no native 3m: aggregate from 1m
+
+
+@respx.mock
+def test_oanda_quote_and_coverage_probe():
+    respx.get(f"{OA}/v3/instruments/US30_USD/candles").mock(side_effect=lambda r: httpx.Response(200, json={"candles": [
+        {"complete": False, "volume": 5, "time": "2026-11-02T10:00:00.000000000Z", "bid": {"c": "37000.0"}, "ask": {"c": "37002.0"}}
+        if r.url.params.get("price") == "BA" else oa_candle("2000-01-03T00:00:00.000000000Z" if r.url.params.get("from") else "2026-11-02T10:00:00.000000000Z")]}))
+    q = fast_oanda().get_latest_quote("US30_USD")
+    assert (q.bid, q.ask, q.price) == (Decimal("37000.0"), Decimal("37002.0"), Decimal("37001.0"))
+    cov = fast_oanda().check_data_coverage("US30_USD", "1H")
+    assert cov["available"] and cov["earliest"].startswith("2000-01-03") and cov["latest"].startswith("2026-11-02")
+
+
+def test_building_4h_from_1h_ignores_closed_market_quotes(session):
+    """Friday evening 4H candle must be made only of trading hours, even if the feed also published weekend quotes."""
+    from datetime import timedelta
+
+    from app.market_data.base import MarketDataProvider
+
+    class Hourly(MarketDataProvider):
+        code, native_timeframes = "fake", {"1H": "1h"}
+        def is_configured(self): return True
+        def get_instruments(self, symbols=None): return []
+        def get_latest_quote(self, symbol): raise NotImplementedError
+        def get_market_status(self, symbol): return {}
+        def get_provider_metadata(self): raise NotImplementedError
+        def check_data_coverage(self, symbol, timeframe): return {}
+
+        def get_candles(self, symbol, timeframe, start=None, end=None, limit=None):
+            from app.market_data.types import Candle
+            t0 = datetime(2024, 1, 5, 16, tzinfo=timezone.utc)  # Friday 11:00 New York (winter): closes 22:00 UTC
+            out = []
+            for h in range(0, 48):  # through Sunday
+                t = t0 + timedelta(hours=h)
+                weekend = t >= datetime(2024, 1, 5, 22, tzinfo=timezone.utc)
+                price = Decimal(900 if weekend else 2000 + h)  # weekend quotes are wildly different: contamination is obvious
+                out.append(Candle(t, price, price + 1, price - 1, price, complete=True))
+            return out
+
+    inst, prov, pi = resolve_mapping(session, "XAUUSD", "twelve_data")
+    r = ingest_candles(session, Hourly(), inst, prov, pi, "4H", bars=40, start=datetime(2024, 1, 5, 16, tzinfo=timezone.utc),
+                       end=datetime(2024, 1, 7, 16, tzinfo=timezone.utc))
+    assert r.plan == "aggregate"
+    fri = [c for c in load_candles(session, inst.id, prov.id, "4H", complete_only=False) if c.ts == datetime(2024, 1, 5, 16, tzinfo=timezone.utc)][0]
+    assert fri.high < 2100 and fri.low > 1900  # no 900-ish weekend price inside the Friday bucket
+    assert fri.meta["n_base"] == 6 == fri.meta["expected_base"] or fri.meta["n_base"] == fri.meta["expected_base"]

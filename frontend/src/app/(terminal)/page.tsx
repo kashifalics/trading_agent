@@ -76,7 +76,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <PageHeader title="Overview" description="Live quotes, structure bias, recent predictions and data health for the four tracked instruments. Every number comes from the backend; nothing is simulated." />
+      <PageHeader title="Overview" description="Live quotes, structure bias, recent predictions and data health for the tracked instruments. Every number comes from the backend; nothing is simulated." />
 
       <QueryState query={instruments} skeleton={<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-36" />)}</div>}>
         {(list) => (

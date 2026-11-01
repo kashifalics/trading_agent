@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     binance_api_base_url: str = "https://api.binance.com"
     twelve_data_api_key: str | None = Field(None, repr=False)
     twelve_data_base_url: str = "https://api.twelvedata.com"
+    oanda_api_token: str | None = Field(None, repr=False)
+    oanda_base_url: str = "https://api-fxpractice.oanda.com"  # practice (demo) environment
 
     s3_endpoint: str | None = None
     s3_bucket: str | None = None

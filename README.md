@@ -9,7 +9,8 @@ An **analysis-only** market-intelligence terminal. It reads candles, detects pri
 |---|---|---|
 | BTCUSDT | Binance public API | ✅ working (live-verified) |
 | XAUUSD | Twelve Data free plan | 🟡 verified live (1H/4H/1D); native-4H grid and weekend-candle caveats, see the status doc |
-| US30, USOIL | none configured | ⛔ unsupported until a licensed feed adapter exists |
+| GBPUSD | Twelve Data free plan | ✅ available (1H/1D; 2H/4H built from 1H) |
+| US30, USOIL | OANDA practice account | 🟡 adapter ready - add a free `OANDA_API_TOKEN` (Twelve Data's free plan has no Dow index) |
 
 Full detail: [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md).
 

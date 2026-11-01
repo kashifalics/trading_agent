@@ -24,7 +24,8 @@ Legend: ✅ working & tested · 🟡 working with stated limits · ⛔ blocked/u
 | **Historical backfill** | ✅ | `market_data/ingestion/backfill.py`: computes expected open-times, fetches only what is missing in span-based windows, validates (OHLC, grid alignment, forming candle excluded), checkpoints each window, records `ingestion_runs`. Resumable and idempotent (tested, and shown on real data) |
 | **Data-quality report** | ✅ | `app/research/data_quality.py` → `reports/BTCUSDT_DATA_QUALITY.md`; recomputed from stored rows, independent count check |
 | Twelve Data adapter (XAUUSD) | 🟡 | **Works** on the free (`basic`) plan for 1H/4H/1D, but native 4H cannot be used as-is and the feed has weekend candles (below) |
-| US30, USOIL | ⛔ | `unsupported`; no licensed feed |
+| GBPUSD | ✅ | Twelve Data free plan, 1H/1D native, 2H/4H built from 1H |
+| US30, USOIL | 🟡 | **OANDA adapter** (`oanda`, read-only candles/quotes, UTC-aligned buckets), unit-tested with mocked HTTP; **not verified live: needs `OANDA_API_TOKEN`** (free practice account). Twelve Data free plan does not serve the Dow index |
 | Timeframe registry, aggregation, DST, gaps, coverage | ✅ | |
 | Price-action/candlestick/structure detectors; analogues; features; labels | ✅ | |
 | **Backtester** | ✅ | Audited. Fixed: reported `costs` over-counted spread on target exits; added percentage-of-price spread/slippage (`spread_pct`, `slippage_pct`) for long price histories. Documented, not changed: entries are market orders at the next open (the plan's entry zone is not used in backtests) |
@@ -52,7 +53,7 @@ Legend: ✅ working & tested · 🟡 working with stated limits · ⛔ blocked/u
 * Registry status of the XAUUSD mapping is still `unverified` in the seed data; flip to `active` after deciding on items 1–2.
 
 ## Blockers / credentials still needed
-1. US30 and USOIL: licensed feed + adapter.
+1. US30 and USOIL: a free OANDA practice-account token (`OANDA_API_TOKEN`) to verify the adapter live.
 2. Decision on XAUUSD 4H (aggregate) and weekend-candle filtering before XAUUSD analyses are trusted.
 3. Tesseract on the host for OCR outside Docker; OCR untested on real broker screenshots.
 4. No model has predictive information on BTCUSDT 1H/4H with the current features; further research should change the information set (e.g. longer horizons, other features/instruments) and be validated on data not used here.
