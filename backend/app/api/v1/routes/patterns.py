@@ -9,6 +9,7 @@ from app.market_data.ingestion.service import resolve_mapping
 from app.market_data.timeframes import TIMEFRAMES
 from app.price_action.engine import analyze_price_action
 from app.services.data_service import load_bars
+from app.services.pattern_scan import scan_symbol
 from app.services.pipeline import overlay_events, swing_points
 
 router = APIRouter(prefix="/patterns", tags=["patterns"])
@@ -30,6 +31,14 @@ CONCEPT_DEFINITIONS = {
 def definitions() -> dict:
     return {"candlestick": PATTERN_DEFINITIONS, "price_action": CONCEPT_DEFINITIONS,
             "note": "Detections are descriptive. They do not imply a profitable trade."}
+
+
+@router.get("/scan")
+def scan(symbol: str, provider: str | None = None, recent: int = Query(3, ge=1, le=20),
+         session: Session = Depends(get_session)) -> dict:
+    """Every timeframe with stored candles: structure, zone, and the patterns firing in the last `recent` bars, each with
+    its measured out-of-sample track record (or an explicit 'no_study_data'). Database only, no provider calls."""
+    return to_jsonable(scan_symbol(session, symbol, provider, recent))
 
 
 @router.get("")

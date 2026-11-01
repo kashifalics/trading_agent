@@ -378,3 +378,14 @@ def test_building_4h_from_1h_ignores_closed_market_quotes(session):
     fri = [c for c in load_candles(session, inst.id, prov.id, "4H", complete_only=False) if c.ts == datetime(2024, 1, 5, 16, tzinfo=timezone.utc)][0]
     assert fri.high < 2100 and fri.low > 1900  # no 900-ish weekend price inside the Friday bucket
     assert fri.meta["n_base"] == 6 == fri.meta["expected_base"] or fri.meta["n_base"] == fri.meta["expected_base"]
+
+
+@respx.mock
+def test_twelve_data_retries_transient_network_failures_then_gives_up():
+    sleeps: list = []
+    ok = {"status": "ok", "values": [{"datetime": "2024-01-02 09:00:00", "open": "1", "high": "2", "low": "0.5", "close": "1.5"}]}
+    route = respx.get(f"{TD}/time_series").mock(side_effect=[httpx.ConnectError("dns"), httpx.ConnectError("dns"), httpx.Response(200, json=ok)])
+    assert len(fast_td(sleeps).get_candles("XAU/USD", "1H", limit=1)) == 1 and route.call_count == 3 and sleeps == [2.0, 5.0]
+    route.mock(side_effect=httpx.ConnectError("dns"))
+    with pytest.raises(Exception, match="request failed: ConnectError"):
+        fast_td().get_candles("XAU/USD", "1H", limit=1)

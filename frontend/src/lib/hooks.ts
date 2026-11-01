@@ -15,6 +15,7 @@ import type {
   ModelRow,
   Page,
   PatternDefinitions,
+  PatternScan,
   PatternsResponse,
   Prediction,
   PredictionDetail,
@@ -52,6 +53,12 @@ export const usePatterns = (symbol: string, timeframe: string, enabled = true) =
     queryKey: ["patterns", symbol, timeframe],
     queryFn: () => api.get<PatternsResponse>("/patterns", { symbol, timeframe, lookback_bars: 600 }),
     enabled,
+    retry: retryPolicy,
+  });
+export const usePatternScan = (symbol: string, recent = 3) =>
+  useQuery({
+    queryKey: ["pattern-scan", symbol, recent],
+    queryFn: () => api.get<PatternScan>("/patterns/scan", { symbol, recent }),
     retry: retryPolicy,
   });
 export const usePatternDefinitions = () =>

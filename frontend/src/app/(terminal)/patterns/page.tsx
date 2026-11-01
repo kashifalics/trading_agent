@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { AllTimeframesPanel } from "@/components/domain/timeframe-scan";
 import { EmptyState, InstrumentSelect, PageHeader, QueryState, TimeframeSelect } from "@/components/domain/common";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,7 @@ export default function PatternsPage() {
         <div><Label htmlFor="p-sym">Instrument</Label><InstrumentSelect id="p-sym" value={s.symbol} onChange={(v) => s.set({ symbol: v })} /></div>
         <div><Label htmlFor="p-tf">Timeframe</Label><TimeframeSelect id="p-tf" value={s.timeframe} onChange={(v) => s.set({ timeframe: v })} /></div>
       </div>
+      <div className="mb-4"><AllTimeframesPanel symbol={s.symbol} /></div>
       <QueryState query={q}>
         {(d) =>
           d.events.length === 0 ? (

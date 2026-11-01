@@ -50,10 +50,15 @@ class TwelveDataProvider(MarketDataProvider):
             if wait > 0:
                 self._sleep(wait)
             self._last_call = _time.monotonic()
-        try:
-            resp = self._client.get(self.base_url + path, params={**params, "apikey": self.api_key})
-        except httpx.HTTPError as exc:
-            raise ProviderError(f"Twelve Data request failed: {exc.__class__.__name__}") from exc
+        resp = None
+        for attempt in range(4):  # transient DNS/connect failures are common on home networks: retry with backoff
+            try:
+                resp = self._client.get(self.base_url + path, params={**params, "apikey": self.api_key})
+                break
+            except httpx.HTTPError as exc:
+                if attempt == 3:
+                    raise ProviderError(f"Twelve Data request failed: {exc.__class__.__name__}") from exc
+                self._sleep((2.0, 5.0, 10.0)[attempt])
         self.last_quota = {k: resp.headers.get(k) for k in ("api-credits-used", "api-credits-left") if k in resp.headers}
         try:
             body = resp.json()

@@ -428,3 +428,57 @@ export interface ChartAnalyzeResult {
   prediction_id: number | null;
   data_source?: string;
 }
+
+export type EvidenceVerdict =
+  | "confirmed_tradeable"
+  | "confirmed_not_profitable_after_costs"
+  | "failed_out_of_sample"
+  | "no_edge_found"
+  | "too_few_events"
+  | "no_study_data";
+
+export interface PatternEvidence {
+  i_n: number | null;
+  i_lift: number | null;
+  o_n: number | null;
+  o_win: number | null;
+  o_gross: number | null;
+  o_net: number | null;
+  o_lift: number | null;
+  o_holm: number | null;
+  cand?: boolean;
+  cg?: boolean;
+  cn?: boolean;
+}
+
+export interface PatternFiring {
+  pattern: string;
+  side: "long" | "short";
+  bars_ago: number;
+  verdict: EvidenceVerdict;
+  evidence: PatternEvidence | null;
+}
+
+export interface ScanFrame {
+  timeframe: string;
+  bars: number;
+  status: "ok" | "insufficient_data";
+  structure_trend?: number;
+  last_break?: string | null;
+  zone?: string | null;
+  range_position?: number | null;
+  atr?: number | null;
+  last_close?: number;
+  live_zones?: number;
+  patterns_firing?: PatternFiring[];
+}
+
+export interface PatternScan {
+  symbol: string;
+  provider: string;
+  recent_bars: number;
+  timeframes: ScanFrame[];
+  alignment: { bullish_timeframes: number; bearish_timeframes: number; analysed: number };
+  evidence_meta: Record<string, unknown>;
+  note: string;
+}

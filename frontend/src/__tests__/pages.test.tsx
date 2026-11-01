@@ -120,3 +120,29 @@ describe("Predictions list", () => {
     await waitFor(() => expect(calls.some((c) => c.key === "GET /api/v1/predictions")).toBe(true));
   });
 });
+
+describe("All-timeframes panel", () => {
+  it("shows each pattern's measured track record and never invents one", async () => {
+    const frame = (tf: string, trend: number, firing: object[]) => ({ timeframe: tf, bars: 700, status: "ok", structure_trend: trend, last_break: "BOS:bullish", zone: "discount", range_position: 0.3, atr: 5, last_close: 100, live_zones: 2, patterns_firing: firing });
+    mockApi({
+      ...base,
+      "GET /api/v1/patterns/scan": {
+        symbol: "BTCUSDT", provider: "binance", recent_bars: 3, evidence_meta: {}, note: "Nothing here is a probability of profit.",
+        alignment: { bullish_timeframes: 1, bearish_timeframes: 1, analysed: 2 },
+        timeframes: [
+          frame("1H", 1, [{ pattern: "fvg_retest", side: "long", bars_ago: 0, verdict: "no_edge_found", evidence: { i_n: 90, i_lift: 0.1, o_n: 40, o_win: 0.3, o_gross: 0.0, o_net: -0.4, o_lift: 0.0, o_holm: 0.9 } }]),
+          frame("4H", -1, [{ pattern: "hammer", side: "long", bars_ago: 1, verdict: "no_study_data", evidence: null }]),
+          { timeframe: "1M", bars: 40, status: "insufficient_data" },
+        ],
+      },
+    });
+    const { default: PatternsPage } = await import("@/app/(terminal)/patterns/page");
+    renderWithClient(<PatternsPage />);
+    expect(await screen.findByText("1 bullish")).toBeInTheDocument();
+    expect(screen.getByText("1 bearish")).toBeInTheDocument();
+    expect(screen.getAllByText("no edge").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("no track record").length).toBeGreaterThan(0);
+    expect(screen.getByText("insufficient stored data")).toBeInTheDocument();
+    expect(screen.getByText(/Nothing here is a probability of profit/)).toBeInTheDocument();
+  });
+});

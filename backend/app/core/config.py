@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     openai_api_key: str | None = Field(None, repr=False)
     sentry_dsn: str | None = Field(None, repr=False)
 
+    # Instruments shown by default in the UI/API (comma separated). Others stay registered and reachable with ?all=true.
+    focus_symbols: str = "BTCUSDT,XAUUSD"
     auth_required: bool = False
     rate_limit_per_minute: int = 240
     job_backend: str = "inline"  # inline | celery
@@ -52,6 +54,10 @@ class Settings(BaseSettings):
         if v and v.startswith("postgresql://"):
             v = "postgresql+psycopg://" + v[len("postgresql://"):]
         return v
+
+    @property
+    def focus_list(self) -> set[str]:
+        return {s.strip().upper() for s in self.focus_symbols.split(",") if s.strip()}
 
     @property
     def is_production(self) -> bool:

@@ -52,7 +52,9 @@ def test_health_and_mode(client):
 
 
 def test_instruments_are_honest_about_support(client):
-    items = {i["canonical_symbol"]: i for i in client.get("/api/v1/market/instruments").json()}
+    focus = client.get("/api/v1/market/instruments").json()
+    assert {i["canonical_symbol"] for i in focus} == {"BTCUSDT", "XAUUSD"}  # default focus: gold and bitcoin
+    items = {i["canonical_symbol"]: i for i in client.get("/api/v1/market/instruments", params={"all": "true"}).json()}
     assert set(items) == {"XAUUSD", "US30", "BTCUSDT", "USOIL", "GBPUSD"}
     assert items["BTCUSDT"]["mappings"][0]["provider"] == "binance" and items["BTCUSDT"]["mappings"][0]["status"] == "active"
     gbp = items["GBPUSD"]["mappings"][0]
@@ -284,3 +286,39 @@ def test_market_closure_candles_are_hidden_from_charts_and_analysis_but_stay_sto
     assert stored == len(everything) == 56
     assert hours == sorted(["Fri 18", "Fri 19", "Fri 20", "Fri 21", "Sun 22", "Sun 23", "Mon 00", "Mon 01"])  # closed Fri 22:00 - Sun 22:00 UTC
     assert len(bars) == len(visible) == 8 and all(datetime.fromtimestamp(int(t), tz=timezone.utc).strftime("%a") != "Sat" for t in bars.t)
+
+
+def test_all_timeframe_scan_attaches_study_evidence_and_never_invents_it(synced, tmp_path, monkeypatch):
+    import json
+
+    import app.services.pattern_scan as ps
+
+    c = synced
+    monkeypatch.setattr(ps, "EVIDENCE_PATH", tmp_path / "missing.json")  # the real study file ships with the repo
+    empty = c.get("/api/v1/patterns/scan", params={"symbol": "BTCUSDT", "recent": 20}).json()
+    tfs = {f["timeframe"]: f for f in empty["timeframes"]}
+    assert len(tfs) == 14 and tfs["1H"]["status"] == "ok" and tfs["1M"]["status"] == "insufficient_data"
+    firing = tfs["1H"]["patterns_firing"]
+    assert firing and all(f["verdict"] == "no_study_data" and f["evidence"] is None for f in firing)  # no file => no claims
+    name = f"{firing[0]['pattern']}:{firing[0]['side']}"
+    ev = {"meta": {"experiment_id": 1}, "symbols": {"BTCUSDT": {"1H": {name: {"i_n": 80, "cand": True, "cg": True, "cn": False, "o_n": 40, "o_lift": 0.2}}}}}
+    f = tmp_path / "ev.json"
+    f.write_text(json.dumps(ev))
+    monkeypatch.setattr(ps, "EVIDENCE_PATH", f)
+    got = c.get("/api/v1/patterns/scan", params={"symbol": "BTCUSDT", "recent": 20}).json()
+    match = next(x for x in {g["timeframe"]: g for g in got["timeframes"]}["1H"]["patterns_firing"] if f"{x['pattern']}:{x['side']}" == name)
+    assert match["verdict"] == "confirmed_not_profitable_after_costs" and match["evidence"]["o_lift"] == 0.2
+    assert got["evidence_meta"]["experiment_id"] == 1
+
+
+def test_buy_sell_carries_the_pattern_study_caveat_only_when_nothing_was_validated(tmp_path, monkeypatch):
+    import json
+
+    import app.services.pattern_scan as ps
+
+    f = tmp_path / "ev.json"
+    f.write_text(json.dumps({"meta": {"experiments": {"BTCUSDT": {"id": 7, "summary": {"tested": 600, "confirmed_net": 0}},
+                                                      "XAUUSD": {"id": 8, "summary": {"tested": 600, "confirmed_net": 2}}}}, "symbols": {}}))
+    assert "Pattern study #7" in ps.study_caveat("BTCUSDT", f) and "600 patterns" in ps.study_caveat("BTCUSDT", f)
+    assert ps.study_caveat("XAUUSD", f) is None  # a validated pattern exists: no blanket warning
+    assert ps.study_caveat("GBPUSD", f) is None  # never studied: no claim either way

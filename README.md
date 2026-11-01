@@ -25,7 +25,7 @@ Without Docker (SQLite): `.\scripts\setup.ps1`, then run the backend (`uvicorn a
 
 ## Checks
 ```
-cd backend  && pytest                       # 114 tests
+cd backend  && pytest                       # 135 tests
 cd frontend && npm run lint && npm run typecheck && npm test && npm run build
 cd frontend && npx playwright install chromium && npm run e2e
 ```

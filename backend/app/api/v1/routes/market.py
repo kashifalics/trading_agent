@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.exceptions import (
     AppError,
     NotFoundError,
@@ -60,8 +61,11 @@ def _instrument_out(session: Session, inst: Instrument) -> InstrumentOut:
 
 
 @router.get("/instruments", response_model=list[InstrumentOut])
-def instruments(session: Session = Depends(get_session)):
-    return [_instrument_out(session, i) for i in session.scalars(select(Instrument).where(Instrument.is_active.is_(True)))]
+def instruments(all: bool = Query(False, description="include instruments outside FOCUS_SYMBOLS"),
+                session: Session = Depends(get_session)):
+    focus = get_settings().focus_list
+    rows = session.scalars(select(Instrument).where(Instrument.is_active.is_(True)).order_by(Instrument.id)).all()
+    return [_instrument_out(session, i) for i in rows if all or not focus or i.canonical_symbol in focus]
 
 
 @router.get("/timeframes", response_model=list[TimeframeOut])
@@ -132,7 +136,8 @@ def providers(session: Session = Depends(get_session)) -> list[dict]:
 def quotes(symbols: str | None = Query(None, description="comma separated; default all active"),
            session: Session = Depends(get_session)):
     names = [s.strip().upper() for s in symbols.split(",")] if symbols else \
-        [i.canonical_symbol for i in session.scalars(select(Instrument).where(Instrument.is_active.is_(True)))]
+        [i.canonical_symbol for i in session.scalars(select(Instrument).where(Instrument.is_active.is_(True)).order_by(Instrument.id))
+         if not get_settings().focus_list or i.canonical_symbol in get_settings().focus_list]
     out: list[QuoteOut] = []
     for sym in names:
         cached = _quote_cache.get(sym)

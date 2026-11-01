@@ -56,6 +56,14 @@ python -m app.research.run_milestone report                 # writes docs/report
 python -m app.research.reproduce 7                          # re-run experiment 7 and diff against its stored results
 ```
 
+### Pattern study (gold + Bitcoin, all timeframes)
+```powershell
+python -m app.research.run_patterns data      # resumable; gold is rate-limited (8 req/min): ~25 min
+python -m app.research.run_patterns study     # ~1 min per instrument
+python -m app.research.run_patterns report    # docs/reports/PATTERN_EDGE_*.md + data/*.csv
+python scripts/export_pattern_evidence.py     # refresh backend/app/data/pattern_evidence.json (served by /patterns/scan)
+```
+
 ## Troubleshooting
 * *"backend unreachable"* in the UI → backend not running or `NEXT_PUBLIC_API_URL` wrong (it is baked at build time; rebuild the frontend after changing).
 * `docker compose` complains about `APP_SECRET_KEY` → run the setup script first.

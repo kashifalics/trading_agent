@@ -24,6 +24,7 @@ from app.ml_engine.model_registry import get_active_model
 from app.multi_timeframe.analysis import MTFConfig
 from app.prediction.confidence import data_quality
 from app.services.data_service import ensure_data, load_bars, recent_gap_count
+from app.services.pattern_scan import study_caveat
 from app.services.pipeline import (
     PipelineOutput,
     overlay_events,
@@ -133,6 +134,10 @@ def persist_result(session: Session, a: Analysis, inst: Instrument, provider_cod
     as_of = datetime.fromtimestamp(int(bars.t[-1]) + bars.step, tz=timezone.utc)
     dec = d.to_dict()
     dec["warnings"] = list(dict.fromkeys(dec["warnings"] + warnings))
+    if d.decision != "WAIT":
+        caveat = study_caveat(inst.canonical_symbol)
+        if caveat:
+            dec["warnings"].append(caveat)
     events = overlay_events(out.pa, out.n_bars)
     a.as_of_ts = as_of
     a.result = to_jsonable({

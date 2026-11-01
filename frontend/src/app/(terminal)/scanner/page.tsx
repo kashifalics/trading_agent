@@ -12,9 +12,9 @@ import { Checkbox } from "@/components/ui/form";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { useInstruments, usePredictions, useRunAnalysis } from "@/lib/hooks";
 import type { Instrument, Prediction } from "@/lib/types";
-import { fmtNum, timeAgo } from "@/lib/utils";
+import { TIMEFRAME_CODES, fmtNum, timeAgo } from "@/lib/utils";
 
-const SCAN_TFS = ["15m", "1H", "4H", "1D"];
+const SCAN_TFS = TIMEFRAME_CODES;
 
 function Cell({ pred, inst, tf, onRun, busy }: { pred?: Prediction; inst: Instrument; tf: string; onRun: () => void; busy: boolean }) {
   if (!inst.supported) return <TD className="text-xs text-muted-foreground">no data source</TD>;
@@ -43,7 +43,7 @@ export default function ScannerPage() {
   const preds = usePredictions({ limit: 200 });
   const run = useRunAnalysis();
   const qc = useQueryClient();
-  const [tfs, setTfs] = useState<string[]>(["1H", "4H"]);
+  const [tfs, setTfs] = useState<string[]>(["15m", "1H", "4H", "1D"]);
   const [scanning, setScanning] = useState(false);
 
   const latest = (sym: string, tf: string) => preds.data?.items.find((p) => p.symbol === sym && p.timeframe === tf);
