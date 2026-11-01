@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     twelve_data_base_url: str = "https://api.twelvedata.com"
     oanda_api_token: str | None = Field(None, repr=False)
     oanda_base_url: str = "https://api-fxpractice.oanda.com"  # practice (demo) environment
+    biquote_base_url: str = "https://biquote.io"  # free public API, no key (docs/BIQUOTE_PROVIDER_EVALUATION.md)
+    # Provider used when a request does not name one, for every instrument that has a (non-unsupported) mapping to it. Empty = pick by mapping status
+    # (Binance for BTCUSDT, Twelve Data for XAUUSD, OANDA for US30/USOIL). Explicit `provider=` always wins; the other providers stay registered.
+    preferred_provider: str = "biquote"
 
     s3_endpoint: str | None = None
     s3_bucket: str | None = None
@@ -45,7 +49,7 @@ class Settings(BaseSettings):
     # Trade Opportunities module (docs/TRADE_OPPORTUNITIES_ARCHITECTURE.md)
     opportunity_symbols: str = "XAUUSD,US30,BTCUSDT,USOIL"
     opportunity_scan_interval_minutes: int = 0  # 0 = automatic scanning disabled (manual / API-triggered only)
-    opportunity_refresh_providers: str = "binance"  # providers the SCHEDULED scan may sync (quota-limited providers stay manual)
+    opportunity_refresh_providers: str = "biquote,binance"  # providers the SCHEDULED scan may sync (quota-limited providers stay manual)
     opportunity_max_sync_tfs: int = 4  # timeframes refreshed per instrument when a scan is asked to refresh data
     model_dir: str = "./model_store"
     upload_dir: str = "./uploads"

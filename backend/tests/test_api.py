@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 
 import httpx
 import pytest
@@ -67,11 +68,16 @@ def test_instruments_are_honest_about_support(client):
 
 
 def test_unconfigured_providers_report_it_instead_of_inventing_data(client):
-    q = {x["symbol"]: x for x in client.get("/api/v1/market/quotes", params={"symbols": "US30,XAUUSD,GBPUSD,USOIL"}).json()}
+    q = {x["symbol"]: x for x in client.get("/api/v1/market/quotes", params={"symbols": "XAUUSD,GBPUSD"}).json()}
     assert all(x["status"] == "not_configured" and x["price"] is None for x in q.values())
-    assert "OANDA_API_TOKEN" in q["US30"]["message"] and "TWELVE_DATA_API_KEY" in q["GBPUSD"]["message"]
+    assert "TWELVE_DATA_API_KEY" in q["XAUUSD"]["message"] and "TWELVE_DATA_API_KEY" in q["GBPUSD"]["message"]
+    with respx.mock:  # US30 is served by BiQuote (no key): a CLOSED market is returned as a last price that says so, never as a live one
+        batch = json.loads((Path(__file__).parent / "fixtures" / "biquote" / "latest_batch.json").read_text(encoding="utf8"))
+        respx.get("https://biquote.io/api/US30").mock(return_value=httpx.Response(200, json=batch["US30"]))
+        us30 = client.get("/api/v1/market/quotes", params={"symbols": "US30"}).json()[0]
+    assert us30["status"] == "ok" and us30["provider"] == "biquote" and "not a live price" in us30["message"]
     c = client.get("/api/v1/market/candles", params={"symbol": "US30", "timeframe": "1H"}).json()
-    assert c["provider"] == "oanda" and c["count"] == 0  # nothing stored, nothing fabricated
+    assert c["provider"] == "biquote" and c["count"] == 0  # nothing stored, nothing fabricated
 
 
 def test_validation_errors_use_the_standard_envelope(client):
@@ -115,7 +121,7 @@ def test_analysis_flow_end_to_end(synced):
 
 
 def test_analysis_without_data_or_credentials_fails_clearly(client):
-    r = client.post("/api/v1/analysis/run", json={"symbol": "US30", "timeframe": "1H"})
+    r = client.post("/api/v1/analysis/run", json={"symbol": "XAUUSD", "timeframe": "1H"})  # Twelve Data without a key: no data, no credentials
     assert r.status_code == 202
     a = client.get(r.json()["poll_url"]).json()
     assert a["status"] == "failed" and "Sync data first" in a["error"]

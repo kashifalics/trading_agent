@@ -148,7 +148,8 @@ def quotes(symbols: str | None = Query(None, description="comma separated; defau
             inst, prov, pi = resolve_mapping(session, sym)
             q = get_provider(prov.code).get_latest_quote(pi.provider_symbol)
             res = QuoteOut(symbol=sym, status="ok", price=float(q.price), bid=None if q.bid is None else float(q.bid),
-                           ask=None if q.ask is None else float(q.ask), time=q.ts, provider=prov.code)
+                           ask=None if q.ask is None else float(q.ask), time=q.ts, provider=prov.code,
+                           message=f"Last known price ({q.ts:%Y-%m-%d %H:%M}Z): market closed or quote stale, not a live price" if q.is_delayed else None)
         except UnsupportedError as exc:
             res = QuoteOut(symbol=sym, status="unsupported", message=exc.message)
         except ProviderNotConfigured as exc:

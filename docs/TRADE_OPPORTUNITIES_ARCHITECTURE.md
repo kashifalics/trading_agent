@@ -76,7 +76,7 @@ unknown ids, `401` without a valid API key when `AUTH_REQUIRED=true`.
 |---|---|---|
 | `OPPORTUNITY_SYMBOLS` | `XAUUSD,US30,BTCUSDT,USOIL` | Instruments scanned |
 | `OPPORTUNITY_SCAN_INTERVAL_MINUTES` | `0` | `> 0` enables automatic scanning inside the API process (first run 30 s after start; 2 retries with backoff when a scan fails) |
-| `OPPORTUNITY_REFRESH_PROVIDERS` | `binance` | Providers a **scheduled** scan may sync. Quota-limited providers (Twelve Data free: 8/min, 800/day) are only synced when a user asks for "Refresh data & scan" |
+| `OPPORTUNITY_REFRESH_PROVIDERS` | `biquote,binance` | Providers a **scheduled** scan may sync. Quota-limited providers (Twelve Data free: 8/min, 800/day) are only synced when a user asks for "Refresh data & scan" |
 | `OPPORTUNITY_MAX_SYNC_TFS` | `4` | Timeframes refreshed per instrument by a refresh scan |
 Everything analytical (style profiles, weights, caps, penalties, costs) is in `app/opportunities/config.py` and versioned by `CONFIG_VERSION`.
 
@@ -89,6 +89,6 @@ signature of the exact candles. Validation experiments store a content hash of t
 * Never fabricates candles, substitutes instruments or mixes providers inside one analysis (the provider is stored with every opportunity).
 * Never treats a forming candle as complete; derived timeframes use complete buckets only and are labelled `built from 1H`.
 * Provider quotas are never spent implicitly: a normal scan reads the database only.
-* US30 and USOIL stay **unavailable** until `OANDA_API_TOKEN` (a verified source) is configured and candles are synced.
+* US30 and USOIL are served by BiQuote (keyless, default provider since 2026-11-01) and appear as **unavailable** until their candles are synced; with `PREFERRED_PROVIDER=` empty they fall back to OANDA, which needs `OANDA_API_TOKEN`.
 * The scan is as fresh as the stored candles. Without a sync or a scheduled refresh, "latest" means "latest stored".
 * Cross-instrument correlation is **not measured**; only same-instrument, same-direction setups are flagged as one exposure.

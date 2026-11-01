@@ -35,6 +35,8 @@ def provider_configured(code: str) -> tuple[bool, str | None]:
         return True, None
     if code == "twelve_data":
         return (True, None) if s.twelve_data_api_key else (False, "TWELVE_DATA_API_KEY is not configured")
+    if code == "biquote":
+        return True, None  # public API: no key to configure
     if code == "oanda":
         return (True, None) if s.oanda_api_token else (False, "OANDA_API_TOKEN is not configured (no verified data source for this instrument)")
     return False, f"no adapter for provider '{code}'"

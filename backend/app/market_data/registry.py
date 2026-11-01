@@ -13,10 +13,11 @@ from app.core.config import Settings, get_settings
 from app.core.exceptions import NotFoundError
 from app.market_data.base import MarketDataProvider
 from app.market_data.binance.provider import BinanceProvider
+from app.market_data.biquote.provider import BiQuoteProvider
 from app.market_data.oanda.provider import OandaProvider
 from app.market_data.twelve_data.provider import TwelveDataProvider
 
-PROVIDER_CODES = ["binance", "twelve_data", "oanda"]
+PROVIDER_CODES = ["binance", "twelve_data", "oanda", "biquote"]
 
 
 def get_provider(code: str, settings: Settings | None = None) -> MarketDataProvider:
@@ -27,6 +28,8 @@ def get_provider(code: str, settings: Settings | None = None) -> MarketDataProvi
         return TwelveDataProvider(s.twelve_data_api_key, s.twelve_data_base_url)
     if code == "oanda":
         return OandaProvider(s.oanda_api_token, s.oanda_base_url)
+    if code == "biquote":
+        return BiQuoteProvider(s.biquote_base_url)
     raise NotFoundError(f"No adapter implemented for provider '{code}'")
 
 
@@ -38,6 +41,8 @@ SEED_PROVIDERS = [
      "requires_api_key": True, "is_enabled": True, "meta": {"docs": "https://twelvedata.com/docs"}},
     {"code": "oanda", "name": "OANDA v20 (fxTrade Practice, free demo)", "base_url": "https://api-fxpractice.oanda.com",
      "requires_api_key": True, "is_enabled": True, "meta": {"docs": "https://developer.oanda.com/rest-live-v20/instrument-ep/"}},
+    {"code": "biquote", "name": "BiQuote (free public API, indicative broker quotes)", "base_url": "https://biquote.io",
+     "requires_api_key": False, "is_enabled": True, "meta": {"docs": "https://biquote.io/docs/", "terms": "https://biquote.io/terms.html"}},
 ]
 
 SEED_INSTRUMENTS = [
@@ -77,4 +82,17 @@ SEED_MAPPINGS = [
      "Needs a free OANDA practice-account token in OANDA_API_TOKEN. Broker CFD prices, not exchange index prices."),
     ("USOIL", "oanda", "WTICO_USD", None, "cfd", "unverified",
      "WTI crude CFD via OANDA (needs OANDA_API_TOKEN). Not NYMEX CL futures - do not substitute."),
+    # BiQuote (docs/BIQUOTE_PROVIDER_EVALUATION.md): MT5 broker-CFD quotes, no key. Shallow fixed history (1h ~7 days, 4h ~30 days, 1d ~500 bars), no 1W/1M.
+    ("BTCUSDT", "biquote", "BTCUSDT", None, "spot", "active",
+     "Aggregated-venue feed whose closes match Binance spot (median diff 0.0 bp): not an independent source. History is ~7 days of 1H (Binance has years); "
+     "live stream verified (about 1 tick/s). Default source via PREFERRED_PROVIDER=biquote; Binance stays registered (provider=binance)."),
+    ("XAUUSD", "biquote", "XAUUSD", None, "cfd", "active",
+     "MT5 broker CFD (OTC gold, contract 100). Candles verified 2026-11-01; live stream NOT yet verified in market hours; 1h history ~7 days only. "
+     "Default source via PREFERRED_PROVIDER=biquote; Twelve Data stays registered (provider=twelve_data)."),
+    ("US30", "biquote", "US30", None, "cfd", "active",
+     "MT5 broker CFD 'US Wall Street 30 Index'. Candles verified 2026-11-01 (1m..1d, valid OHLC); live stream NOT yet verified in market hours (market was closed). "
+     "Indicative CFD price, not the exchange index. Default source via PREFERRED_PROVIDER=biquote."),
+    ("USOIL", "biquote", "USOIL", None, "cfd", "active",
+     "MT5 broker CFD 'Crude Oil' (about 0.8% below the aggregated WTI perpetual). Candles verified 2026-11-01; live stream NOT yet verified in market hours. "
+     "Not NYMEX CL futures. Default source via PREFERRED_PROVIDER=biquote."),
 ]

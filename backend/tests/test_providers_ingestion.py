@@ -93,7 +93,9 @@ def test_twelve_data_parse_and_plan_error():
 
 def test_us30_maps_to_oanda_and_refuses_without_a_token_rather_than_substituting(session):
     inst, prov, pi = resolve_mapping(session, "US30")
-    assert (prov.code, pi.provider_symbol, pi.status) == ("oanda", "US30_USD", "unverified")
+    assert (prov.code, pi.provider_symbol, pi.status) == ("biquote", "US30", "active")  # the keyless verified source is the default for US30
+    inst, prov, pi = resolve_mapping(session, "US30", "oanda")
+    assert (prov.code, pi.provider_symbol, pi.status) == ("oanda", "US30_USD", "unverified")  # OANDA stays registered and selectable
     from app.market_data.oanda.provider import OandaProvider
     with pytest.raises(ProviderNotConfigured, match="OANDA_API_TOKEN"):
         OandaProvider(None).get_candles("US30_USD", "1H", limit=2)

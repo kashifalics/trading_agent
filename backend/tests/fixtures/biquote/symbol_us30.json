@@ -1,0 +1,1 @@
+{"name":"US30","description":"US Wall Street 30 Index","exchange":"INDEX","type":"Index","digits":2,"tickSize":0.01,"tickValue":0.01,"contractSize":1,"currency":"USD","source":"MetaTrader 5 (Broker 1)","isActive":true,"hasData":false}

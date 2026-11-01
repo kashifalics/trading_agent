@@ -63,8 +63,8 @@ def test_scan_reports_every_timeframe_and_marks_unsupported_instruments_unavaila
     scan = run(session)
     assert scan.status == "completed" and scan.config_version and scan.code_version["source_sha256"]
     info = {i["symbol"]: i for i in scan.instruments}
-    for sym in ("US30", "USOIL"):
-        assert info[sym]["status"] == "unavailable" and "OANDA_API_TOKEN" in info[sym]["reason"]
+    for sym in ("US30", "USOIL"):  # served by BiQuote (no key needed): unavailable only because nothing has been synced yet
+        assert info[sym]["status"] == "unavailable" and info[sym]["provider"] == "biquote" and "no stored candles" in info[sym]["reason"]
     assert info["XAUUSD"]["status"] == "unavailable" and "TWELVE_DATA_API_KEY" in info["XAUUSD"]["reason"]
     tfs = {t["timeframe"]: t for t in info["BTCUSDT"]["timeframes"]}
     assert len(tfs) == 14

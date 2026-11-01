@@ -6,6 +6,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.exceptions import NotFoundError, UnsupportedError
 from app.database.base import utcnow
 from app.database.models import Candle as CandleRow
@@ -78,7 +79,12 @@ def resolve_mapping(session: Session, canonical: str, provider_code: str | None 
     if not rows:
         raise NotFoundError(f"No provider mapping for {canonical}")
     rank = {"active": 0, "unverified": 1, "unsupported": 2}
-    pi, prov = sorted(rows, key=lambda r: rank.get(r[0].status, 9))[0]
+    pref = (get_settings().preferred_provider or "").strip().lower()
+    if pref and not provider_code:  # configured default source; never overrides an explicit provider and never selects an unsupported mapping
+        chosen = [r for r in rows if r[1].code == pref and r[0].status != "unsupported"]
+        if chosen:
+            return inst, chosen[0][1], chosen[0][0]
+    pi, prov = sorted(rows, key=lambda r: (rank.get(r[0].status, 9), r[0].id))[0]  # ties: the earliest-registered mapping wins, deterministically
     if pi.status == "unsupported":
         raise UnsupportedError(f"{canonical} is unsupported until a data source is configured. {pi.notes or ''}".strip(),
                                details={"instrument": canonical, "provider": prov.code})
@@ -169,8 +175,9 @@ def ingest_candles(session: Session, provider: MarketDataProvider, inst: Instrum
     now = datetime.now(timezone.utc)
     mult = 1 if kind == "native" else int(approx_seconds(tf) / approx_seconds(fetch)) + 1
     fetch_bars = min(bars * mult, MAX_BARS_PER_CALL * 5)
-    if start is None and end is None:
+    if start is None and end is None and not getattr(provider, "fixed_retention", False):
         start = now - timedelta(seconds=approx_seconds(fetch) * fetch_bars)
+        # a fixed-retention provider (BiQuote) is asked for everything it still holds: a relative window is empty over a closed weekend market
     try:
         raw = provider.get_candles(pi.provider_symbol, fetch_tf, start=start, end=end)
         clean, report = normalize_candles(raw)

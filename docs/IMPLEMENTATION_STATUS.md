@@ -37,7 +37,10 @@ Legend: ✅ working & tested · 🟡 working with stated limits · ⛔ blocked/u
 | Auth | 🟡 | API-key auth + isolation; no registration UI |
 | LLM explanations, paper trading, S3 | ⬜ | |
 
-## Trade Opportunities module (2026-11-02, local only: not pushed or deployed)
+## Data provider routing (2026-11-01)
+**BiQuote** (free keyless API, MT5 broker-CFD quotes; `docs/BIQUOTE_PROVIDER_EVALUATION.md`) is the default provider for BTCUSDT, XAUUSD, US30 and USOIL (`PREFERRED_PROVIDER=biquote`); Binance, Twelve Data and OANDA stay registered and selectable with `provider=`. Trade-off: BiQuote keeps only a fixed recent window (1H ~7 days, 4H ~30 days, 1D ~500 bars, no 1W/1M), so most analysis beyond 1D/4H reports insufficient data. Live streaming during market hours for XAUUSD/US30/USOIL is not yet verified.
+
+## Trade Opportunities module (2026-11-02)
 New sidebar tab **Trade Opportunities** (below Overview): one scan analyses XAUUSD, US30, BTCUSDT and USOIL on all 14 timeframes, builds candidate setups for scalping / intraday / swing / long-term, adds historical-analogue evidence and a transparent evidence score, ranks the results and explains each. US30 and USOIL are reported **unavailable** (no OANDA token); nothing is substituted.
 * Docs: `TRADE_OPPORTUNITIES_ARCHITECTURE.md`, `MULTI_TIMEFRAME_ANALYSIS.md`, `TRADE_SCORING_METHODOLOGY.md`, `STRATEGY_VALIDATION.md`, `TRADE_OPPORTUNITIES_TEST_REPORT.md`; report `reports/OPPORTUNITY_VALIDATION.md`.
 * Backend: `app/opportunities/*`, `price_action/levels.py` (S/R, trendlines, channels, breakouts/retests), migration `0003` (4 tables; also marks the live-verified Twelve Data XAUUSD mapping `active`), `/api/v1/opportunities/*`, optional scheduler (`OPPORTUNITY_SCAN_INTERVAL_MINUTES`).
