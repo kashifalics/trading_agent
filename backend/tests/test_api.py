@@ -248,3 +248,33 @@ def test_screenshot_warns_when_the_typed_instrument_contradicts_the_chart_title(
     assert auto["symbol"] == "XAUUSD" and auto["timeframe"] == "1H"  # blank field: the image decides
     assert not any("title reads" in w for w in auto["warnings"])
     get_settings.cache_clear()
+
+
+def test_market_closure_candles_are_hidden_from_charts_and_analysis_but_stay_stored(client):
+    """Some FX/metal feeds publish thin weekend quotes. They must not reach charts or the analysis engine."""
+    from datetime import timedelta
+    from decimal import Decimal
+
+    from sqlalchemy import select
+
+    from app.database.models import Candle as CandleRow
+    from app.database.models import DataProvider, Instrument
+    from app.database.session import session_scope
+    from app.market_data.ingestion.service import store_candles
+    from app.market_data.types import Candle
+    from app.services.data_service import load_bars
+
+    start = datetime(2024, 1, 5, 18, tzinfo=timezone.utc)  # Friday 13:00 New York (winter time)
+    rows = [Candle(start + timedelta(hours=h), Decimal(2000 + h), Decimal(2001 + h), Decimal(1999 + h), Decimal(2000 + h)) for h in range(0, 56)]
+    with session_scope() as s:
+        inst = s.scalar(select(Instrument).where(Instrument.canonical_symbol == "XAUUSD"))
+        prov = s.scalar(select(DataProvider).where(DataProvider.code == "twelve_data"))
+        store_candles(s, inst.id, prov.id, "1H", rows)
+        stored = len(s.scalars(select(CandleRow.ts)).all())
+        bars = load_bars(s, inst, prov, "1H", 100)
+    visible = client.get("/api/v1/market/candles", params={"symbol": "XAUUSD", "timeframe": "1H", "limit": 100}).json()["candles"]
+    everything = client.get("/api/v1/market/candles", params={"symbol": "XAUUSD", "timeframe": "1H", "limit": 100, "trading_hours_only": "false"}).json()["candles"]
+    hours = sorted(datetime.fromtimestamp(c["time"], tz=timezone.utc).strftime("%a %H") for c in visible)
+    assert stored == len(everything) == 56
+    assert hours == sorted(["Fri 18", "Fri 19", "Fri 20", "Fri 21", "Sun 22", "Sun 23", "Mon 00", "Mon 01"])  # closed Fri 22:00 - Sun 22:00 UTC
+    assert len(bars) == len(visible) == 8 and all(datetime.fromtimestamp(int(t), tz=timezone.utc).strftime("%a") != "Sat" for t in bars.t)

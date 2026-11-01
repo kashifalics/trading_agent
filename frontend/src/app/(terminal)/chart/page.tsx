@@ -109,7 +109,7 @@ export default function ChartPage() {
   const cs = candles.data?.candles ?? [];
   const firstVisible = cs.length > RECENT ? cs[cs.length - RECENT].time : (cs[0]?.time ?? 0);
   const markers = useMemo(() => (result ? buildMarkers(result.events, result.swings, s.overlays, firstVisible) : []), [result, s.overlays, firstVisible]);
-  const zones = useMemo(() => (result ? buildZones(result.events, s.overlays, firstVisible) : []), [result, s.overlays, firstVisible]);
+  const zones = useMemo(() => (result ? buildZones(result.events, s.overlays, firstVisible, { price: result.last_close, atr: result.atr }) : []), [result, s.overlays, firstVisible]);
   const lines = useMemo(() => buildPlanLines(result?.decision.plan ?? null, s.overlays), [result, s.overlays]);
   const resultMatchesChart = analysis.data?.symbol === s.symbol && analysis.data?.timeframe === s.timeframe;
 

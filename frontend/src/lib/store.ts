@@ -33,7 +33,7 @@ export const useSettings = create<SettingsState>()(
       mtfHigher: "1D",
       mtfIntermediate: "4H",
       mtfEntry: "1H",
-      overlays: { swings: true, structure: true, zones: true, liquidity: true, patterns: false, plan: true },
+      overlays: { swings: false, structure: true, zones: true, liquidity: true, patterns: false, plan: true },
       set: (patch) => set(patch),
       setOverlay: (key, value) => set((s) => ({ overlays: { ...s.overlays, [key]: value } })),
     }),

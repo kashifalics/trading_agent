@@ -12,6 +12,7 @@ from app.database.models import (
     ProviderInstrument,
 )
 from app.market_data.bars import Bars
+from app.market_data.calendars import get_calendar
 from app.market_data.coverage.gaps import staleness
 from app.market_data.ingestion.service import anchor_for, ingest_candles, load_candles
 from app.market_data.registry import get_provider
@@ -51,10 +52,23 @@ def ensure_data(session: Session, inst: Instrument, prov: DataProvider, pi: Prov
         return [f"data sync failed ({exc.__class__.__name__}); using previously stored candles"]
 
 
+def trading_hours_only(candles: list, calendar: str) -> list:
+    """Drop candles stamped inside the instrument's market closure (e.g. the thin weekend quotes some FX/metal feeds
+    publish). Stored data is NOT modified; analysis and charts simply ignore non-tradable bars. No-op for 24/7 markets."""
+    if calendar == "continuous":
+        return candles
+    cal = get_calendar(calendar)
+    return [c for c in candles if cal.is_open(c.ts)]
+
+
 def load_bars(session: Session, inst: Instrument, prov: DataProvider, timeframe: str, n: int,
               end: datetime | None = None, start: datetime | None = None) -> Bars:
-    candles = load_candles(session, inst.id, prov.id, timeframe, start=start, end=end, limit=n if not start else None,
+    fetch = n if inst.calendar == "continuous" else int(n * 1.25) + 5  # leave room for the closed-market bars dropped below
+    candles = load_candles(session, inst.id, prov.id, timeframe, start=start, end=end, limit=fetch if not start else None,
                            complete_only=True)
+    candles = trading_hours_only(candles, inst.calendar)
+    if not start:
+        candles = candles[-n:]
     return Bars.from_candles(candles, tf_step(timeframe))
 
 

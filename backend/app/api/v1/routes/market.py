@@ -42,6 +42,7 @@ from app.schemas.market import (
     TimeframeOut,
 )
 from app.services.audit import audit
+from app.services.data_service import trading_hours_only as filter_closed
 
 router = APIRouter(prefix="/market", tags=["market"])
 _quote_cache: dict[str, tuple[float, QuoteOut]] = {}
@@ -76,12 +77,16 @@ def timeframes():
 @router.get("/candles", response_model=CandlesResponse)
 def candles(symbol: str, timeframe: str, provider: str | None = None, limit: int = Query(500, ge=1, le=5000),
             start: datetime | None = None, end: datetime | None = None, include_incomplete: bool = False,
+            trading_hours_only: bool = Query(True, description="hide candles stamped inside the market closure"),
             session: Session = Depends(get_session)):
     if timeframe not in TIMEFRAMES:
         raise AppError(f"Unsupported timeframe '{timeframe}'", details={"supported": TIMEFRAME_ORDER})
     inst, prov, _ = resolve_mapping(session, symbol, provider)
-    rows = load_candles(session, inst.id, prov.id, timeframe, start=start, end=end, limit=limit,
+    fetch = limit if (inst.calendar == "continuous" or not trading_hours_only) else int(limit * 1.25) + 5
+    rows = load_candles(session, inst.id, prov.id, timeframe, start=start, end=end, limit=fetch,
                         complete_only=not include_incomplete)
+    if trading_hours_only:
+        rows = filter_closed(rows, inst.calendar)[-limit:]
     return CandlesResponse(
         symbol=inst.canonical_symbol, timeframe=timeframe, provider=prov.code, price_precision=inst.price_precision,
         count=len(rows), candles=[CandleOut(time=int(c.ts.timestamp()), open=float(c.open), high=float(c.high),
