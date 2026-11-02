@@ -12,7 +12,10 @@ export interface OverlayToggles {
   plan: boolean;
 }
 
+export type ChartDetail = "clean" | "detailed";
+
 interface SettingsState {
+  chartDetail: ChartDetail;
   apiKey: string;
   symbol: string;
   timeframe: string;
@@ -33,6 +36,7 @@ export const useSettings = create<SettingsState>()(
       mtfHigher: "1D",
       mtfIntermediate: "4H",
       mtfEntry: "1H",
+      chartDetail: "clean",
       overlays: { swings: false, structure: true, zones: true, liquidity: true, patterns: false, plan: true },
       set: (patch) => set(patch),
       setOverlay: (key, value) => set((s) => ({ overlays: { ...s.overlays, [key]: value } })),

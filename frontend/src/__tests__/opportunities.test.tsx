@@ -46,7 +46,7 @@ const summary = (ranking: Opportunity[], over: Partial<OppSummary> = {}): OppSum
     fallback_wait: ranking.find((r) => r.style === style) ?? null })),
   ranking,
   instruments: [
-    { symbol: "BTCUSDT", status: "scanned", provider: "binance", provider_status: "active", timeframes: [tf("1H", "completed", 2500), tf("1m", "insufficient_data", 0), tf("4H", "failed", 0)] },
+    { symbol: "BTCUSDT", status: "scanned", provider: "binance", provider_status: "active", timeframes: [{ ...tf("1H", "completed", 2500), view: { trend: 1, bias: 1, last_break: "BOS:bullish", last_break_bars_ago: 4, zone: "discount", range_position: 0.3, summary: "bullish structure, last BOS bullish 4 bars ago", last_close: 100, atr: 1 } }, { ...tf("4H", "completed", 800), view: { trend: -1, bias: -1, last_break: null, last_break_bars_ago: null, zone: "premium", range_position: 0.8, summary: "bearish structure", last_close: 100, atr: 1 } }, tf("1m", "insufficient_data", 0), tf("15m", "failed", 0)] },
     { symbol: "US30", status: "unavailable", reason: "OANDA_API_TOKEN is not configured (no verified data source for this instrument)" },
     { symbol: "USOIL", status: "unavailable", reason: "OANDA_API_TOKEN is not configured (no verified data source for this instrument)" },
   ],
@@ -162,6 +162,20 @@ describe("Trade Opportunities page", () => {
     expect(screen.queryByText(/WAIT is a valid result/i)).not.toBeInTheDocument(); // there ARE actionable setups
   });
 
+  it("shows what every timeframe is doing even when no setup qualifies", async () => {
+    mockApi({ ...base, "GET /api/v1/opportunities/summary": summary([WAIT]), "GET /api/v1/opportunities/14": detail(WAIT, { setup: null, score: null }) });
+    renderWithClient(<OpportunitiesPage />);
+    const m = await screen.findByTestId("tf-matrix");
+    const row = within(m).getByText("BTCUSDT").closest("tr")!;
+    const cells = Array.from(row.querySelectorAll("td[data-cell]")).map((c) => c.getAttribute("data-cell"));
+    expect(cells.filter((c) => c === "up")).toHaveLength(1); // 1H bullish
+    expect(cells.filter((c) => c === "down")).toHaveLength(1); // 4H bearish
+    expect(cells.filter((c) => c === "na").length).toBe(12); // 1m insufficient, 15m failed and the 10 timeframes with no data: shown as a dash, never guessed
+    expect(within(m).getByText("D")).toBeInTheDocument();
+    expect(within(m).getByText("P")).toBeInTheDocument();
+    expect(within(m).getByText(/not a signal/i)).toBeInTheDocument();
+  });
+
   it("shows unsupported / unavailable instruments and failed timeframes clearly, with no prices", async () => {
     mockApi({ ...base, "GET /api/v1/opportunities/summary": summary([WAIT]), "GET /api/v1/opportunities/14": detail(WAIT, { setup: null, score: null }) });
     renderWithClient(<OpportunitiesPage />);
@@ -171,10 +185,10 @@ describe("Trade Opportunities page", () => {
     expect(within(us30).getByText(/OANDA_API_TOKEN is not configured/)).toBeInTheDocument();
     expect(us30.textContent).not.toMatch(/\d{2},\d{3}/);
     const btc = within(panel).getByText("BTCUSDT").closest("details")!;
-    expect(within(btc).getByText("Completed")).toBeInTheDocument();
+    expect(within(btc).getAllByText("Completed").length).toBe(2);
     expect(within(btc).getByText("Insufficient data")).toBeInTheDocument();
     expect(within(btc).getByText("Failed")).toBeInTheDocument();
-    expect(within(btc).getByText("1/14 timeframes", { exact: false })).toBeInTheDocument();
+    expect(within(btc).getByText("2/14 timeframes", { exact: false })).toBeInTheDocument();
   });
 
   it("starts a scan and reflects a deduplicated (already running) scan", async () => {

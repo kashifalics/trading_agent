@@ -9,6 +9,7 @@ import {
   OpportunityTable,
   StyleCard,
   SummaryBar,
+  TimeframeMatrix,
   ValidationPanel,
 } from "@/components/domain/opportunities";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,10 @@ function Content({ s, selected, onSelect }: { s: OppSummary; selected: number | 
       <section aria-label="Best opportunity per trading style" className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {s.styles.map((st) => <StyleCard key={st.style} item={st} onSelect={onSelect} precision={precision} />)}
       </section>
+      <Card>
+        <CardHeader><CardTitle>Market read by timeframe</CardTitle><span className="text-xs text-muted-foreground">what each timeframe is doing, even when no setup qualifies</span></CardHeader>
+        <CardContent><TimeframeMatrix items={s.instruments} /></CardContent>
+      </Card>
       <Card>
         <CardHeader><CardTitle>Consolidated ranking</CardTitle><span className="text-xs text-muted-foreground">validated setups outrank unvalidated ones; same-instrument, same-direction setups are one exposure (≈#)</span></CardHeader>
         <CardContent className="p-0"><OpportunityTable rows={s.ranking} selected={sel} onSelect={onSelect} precision={precision} /></CardContent>

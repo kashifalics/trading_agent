@@ -311,3 +311,16 @@ def test_api_requires_authentication_when_enabled(engine, monkeypatch):
 def test_provider_mapping_for_xauusd_is_active_in_the_registry(session):
     status = session.scalar(select(ProviderInstrument.status).join(Instrument).where(Instrument.canonical_symbol == "XAUUSD"))
     assert status == "active"
+
+
+def test_scan_exposes_the_market_read_of_every_analysed_timeframe_even_when_data_is_reused(session):
+    load_btc(session)
+    first = run(session, ("BTCUSDT",))
+    second = run(session, ("BTCUSDT",))  # unchanged data: analyses are reused, the read must still be present
+    for scan in (first, second):
+        tfs = {t["timeframe"]: t for t in scan.instruments[0]["timeframes"]}
+        for code in ("1H", "2H", "4H"):
+            v = tfs[code]["view"]
+            assert v["trend"] in (-1, 0, 1) and v["summary"] and v["zone"] in (None, "premium", "discount", "equilibrium") and v["last_close"] > 0
+        assert "view" not in tfs["1m"]  # a timeframe without data gets no invented read
+    assert all(t["reused"] for t in second.instruments[0]["timeframes"] if t["status"] == "completed")

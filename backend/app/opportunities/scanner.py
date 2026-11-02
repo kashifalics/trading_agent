@@ -126,9 +126,17 @@ def execute_scan(session: Session, scan: MarketScan) -> MarketScan:
 
 
 # ------------------------------------------------------------------------------------------ one instrument
-def _tf_info(t: TF, reused: bool) -> dict:
-    return {"timeframe": t.tf, "status": t.status, "n_bars": t.n_bars, "last_ts": int(t.bars.t[-1]) if t.bars is not None and len(t.bars) else None,
+VIEW_KEYS = ("trend", "bias", "last_break", "last_break_bars_ago", "zone", "range_position", "summary", "last_close", "atr")
+
+
+def _tf_info(t: TF, reused: bool, res: dict | None = None) -> dict:
+    """Per-timeframe status for the page. `view` is the descriptive market read (trend, last break, premium/discount) so a scan that finds no
+    setup still shows what every timeframe is doing."""
+    info = {"timeframe": t.tf, "status": t.status, "n_bars": t.n_bars, "last_ts": int(t.bars.t[-1]) if t.bars is not None and len(t.bars) else None,
             "stale_bars": t.stale_bars, "derived_from": t.derived_from, "reason": t.reason or t.error, "reused": reused}
+    if res and t.ok:
+        info["view"] = {k: res.get(k) for k in VIEW_KEYS}
+    return info
 
 
 def _refresh(session: Session, inst: Instrument, prov: DataProvider, pi: ProviderInstrument) -> list[str]:
@@ -168,7 +176,7 @@ def scan_instrument(session: Session, scan: MarketScan, symbol: str, refresh: bo
     for code in ALL_TIMEFRAMES:
         t = prepare_tf(session, inst, prov, pi, code, now)
         tfs[code] = t
-        reused = False
+        reused, res = False, None
         row = TimeframeAnalysis(scan_id=scan.id, instrument_id=inst.id, provider_id=prov.id, timeframe=code, status=t.status,
                                 signature=t.signature, n_bars=t.n_bars, first_ts=t.first_ts(), last_ts=t.last_ts(),
                                 derived_from=t.derived_from, error=t.error)
@@ -178,16 +186,18 @@ def scan_instrument(session: Session, scan: MarketScan, symbol: str, refresh: bo
                 TimeframeAnalysis.signature == t.signature).order_by(TimeframeAnalysis.id.desc()).limit(1))
             if prev is not None:
                 row.reused_from_id, reused = prev.reused_from_id or prev.id, True
+                root = session.get(TimeframeAnalysis, row.reused_from_id)
+                res = root.result if root is not None else None
             else:
                 try:
-                    row.result = to_jsonable(tf_result(t))
+                    row.result = res = to_jsonable(tf_result(t))
                 except Exception as exc:  # noqa: BLE001
                     t.status, t.error = "failed", f"{exc.__class__.__name__}: {exc}"[:300]
                     row.status, row.error = "failed", t.error
         else:
             row.result = {"reason": t.reason or t.error}
         session.add(row)
-        infos.append(_tf_info(t, reused))
+        infos.append(_tf_info(t, reused, res))
     session.commit()
 
     reconcile(session, scan, inst, tfs)

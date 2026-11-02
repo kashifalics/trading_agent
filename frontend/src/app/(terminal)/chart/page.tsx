@@ -6,7 +6,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { CandleChart } from "@/components/charts/candle-chart";
-import { buildMarkers, buildPlanLines, buildZones } from "@/components/charts/overlays";
+import { buildMarkers, buildPlanLines, buildStructure, buildZones } from "@/components/charts/overlay-build";
+import { ChartLegend } from "@/components/charts/legend";
 import { DecisionBadge, EmptyState, ErrorState, InstrumentSelect, JobBadge, PageHeader, SourceNote, TimeframeSelect } from "@/components/domain/common";
 import { AnalysisOnlyNotice, ConfidencePanelView, EvidenceList, PlanCard, SectionCard } from "@/components/domain/decision";
 import { Badge } from "@/components/ui/badge";
@@ -108,8 +109,12 @@ export default function ChartPage() {
   const precision = candles.data?.price_precision ?? inst?.price_precision ?? 2;
   const cs = candles.data?.candles ?? [];
   const firstVisible = cs.length > RECENT ? cs[cs.length - RECENT].time : (cs[0]?.time ?? 0);
-  const markers = useMemo(() => (result ? buildMarkers(result.events, result.swings, s.overlays, firstVisible) : []), [result, s.overlays, firstVisible]);
-  const zones = useMemo(() => (result ? buildZones(result.events, s.overlays, firstVisible, { price: result.last_close, atr: result.atr }) : []), [result, s.overlays, firstVisible]);
+  const lastTs = cs.length ? cs[cs.length - 1].time : 0;
+  const barSeconds = cs.length > 1 ? cs[1].time - cs[0].time : 0;
+  const detail = s.chartDetail;
+  const markers = useMemo(() => (result ? buildMarkers(result.events, result.swings, s.overlays, firstVisible, detail, lastTs, barSeconds) : []), [result, s.overlays, firstVisible, detail, lastTs, barSeconds]);
+  const zones = useMemo(() => (result ? buildZones(result.events, s.overlays, firstVisible, { price: result.last_close, atr: result.atr }, detail) : []), [result, s.overlays, firstVisible, detail]);
+  const segments = useMemo(() => (result ? buildStructure(result.events, s.overlays, firstVisible, detail) : []), [result, s.overlays, firstVisible, detail]);
   const lines = useMemo(() => buildPlanLines(result?.decision.plan ?? null, s.overlays), [result, s.overlays]);
   const resultMatchesChart = analysis.data?.symbol === s.symbol && analysis.data?.timeframe === s.timeframe;
 
@@ -157,7 +162,13 @@ export default function ChartPage() {
           <Card>
             <CardHeader>
               <CardTitle>{s.symbol} · {s.timeframe} <span className="ml-2 font-normal text-muted-foreground">{candles.data ? `${candles.data.provider} · ${candles.data.count} candles` : ""}</span></CardTitle>
-              <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <div role="group" aria-label="Chart detail" className="mr-2 inline-flex overflow-hidden rounded-lg border">
+                  {(["clean", "detailed"] as const).map((d) => (
+                    <button key={d} type="button" aria-pressed={detail === d} onClick={() => s.set({ chartDetail: d })}
+                      className={`px-3 py-1 text-xs font-medium capitalize ${detail === d ? "bg-nav text-nav-foreground" : "text-muted-foreground hover:bg-muted"}`}>{d}</button>
+                  ))}
+                </div>
                 {TOGGLES.map(([k, label]) => <Checkbox key={k} label={label} checked={s.overlays[k]} onChange={(e) => s.setOverlay(k, e.target.checked)} />)}
               </div>
             </CardHeader>
@@ -168,8 +179,9 @@ export default function ChartPage() {
                 <EmptyState title="No stored candles for this selection" hint="Use Sync to download candles from the provider, or run an analysis with auto-sync enabled." />
               ) : (
                 <CandleChart candles={candles.data?.candles ?? []} precision={precision} resetKey={`${s.symbol}${s.timeframe}`}
-                  markers={resultMatchesChart ? markers : []} zones={resultMatchesChart ? zones : []} lines={resultMatchesChart ? lines : []} />
+                  markers={resultMatchesChart ? markers : []} zones={resultMatchesChart ? zones : []} segments={resultMatchesChart ? segments : []} lines={resultMatchesChart ? lines : []} />
               )}
+              {result && resultMatchesChart && <ChartLegend detail={detail} counts={{ zones: zones.length, structure: segments.length, markers: markers.length }} />}
               {result && !resultMatchesChart && <SourceNote>Overlays are hidden because the loaded analysis is for a different instrument/timeframe.</SourceNote>}
             </CardContent>
           </Card>

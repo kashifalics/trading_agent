@@ -184,6 +184,50 @@ export function InstrumentStatus({ items }: { items: OppInstrument[] }) {
   );
 }
 
+// ------------------------------------------------------------------------------------------------ market read by timeframe
+const ALL_TFS = ["1m", "3m", "5m", "15m", "30m", "1H", "2H", "4H", "1D", "1W", "1M", "3M", "6M", "12M"];
+
+/** One row per scanned instrument, one cell per timeframe: structure trend and premium/discount. Shows the market's state even when no setup qualifies. */
+export function TimeframeMatrix({ items }: { items: OppInstrument[] }) {
+  const scanned = items.filter((i) => i.status === "scanned" && i.timeframes);
+  if (!scanned.length) return null;
+  return (
+    <div className="overflow-x-auto" data-testid="tf-matrix">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+            <th className="px-2 py-2">Instrument</th>
+            {ALL_TFS.map((t) => <th key={t} className="px-1.5 py-2 text-center normal-case">{t}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {scanned.map((i) => (
+            <tr key={i.symbol} className="border-t border-border/60">
+              <td className="px-2 py-2 font-medium">{i.symbol}</td>
+              {ALL_TFS.map((code) => {
+                const t = i.timeframes?.find((x) => x.timeframe === code);
+                const v = t?.view;
+                if (!t || !v) {
+                  return <td key={code} className="px-1.5 py-2 text-center text-muted-foreground" title={t?.reason ?? "no data"} data-cell="na">–</td>;
+                }
+                const dir = v.trend || v.bias;
+                const zone = v.zone === "premium" ? "P" : v.zone === "discount" ? "D" : v.zone === "equilibrium" ? "E" : "";
+                return (
+                  <td key={code} className="px-1.5 py-2 text-center" title={`${t.timeframe}: ${v.summary}${t.stale_bars ? ` · ${t.stale_bars} bars behind` : ""}`} data-cell={dir > 0 ? "up" : dir < 0 ? "down" : "flat"}>
+                    <span className={dir > 0 ? "text-bull" : dir < 0 ? "text-bear" : "text-muted-foreground"}>{dir > 0 ? "▲" : dir < 0 ? "▼" : "▬"}</span>
+                    {zone && <span className="ml-0.5 text-[10px] text-muted-foreground">{zone}</span>}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-2 text-xs text-muted-foreground">▲ bullish / ▼ bearish market structure, ▬ undetermined · P premium, D discount, E equilibrium of the latest swing range · – no usable data. Hover a cell for the detail. This is a description of the market, not a signal.</p>
+    </div>
+  );
+}
+
 // ------------------------------------------------------------------------------------------------ consolidated table
 export function OpportunityTable({ rows, selected, onSelect, precision }: { rows: Opportunity[]; selected: number | null; onSelect: (id: number) => void; precision: (s: string) => number }) {
   if (!rows.length) return <EmptyState title="No opportunities yet" hint="Run a scan to analyse every supported instrument across all timeframes." />;

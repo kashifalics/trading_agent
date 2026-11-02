@@ -224,6 +224,18 @@ export interface OppTfInfo {
   derived_from: string | null;
   reason: string | null;
   reused: boolean;
+  /** Descriptive market read for this timeframe (present when the timeframe was analysed). */
+  view?: {
+    trend: number;
+    bias: number;
+    last_break: string | null;
+    last_break_bars_ago: number | null;
+    zone: string | null;
+    range_position: number | null;
+    summary: string;
+    last_close: number;
+    atr: number | null;
+  };
 }
 export interface OppInstrument {
   symbol: string;
