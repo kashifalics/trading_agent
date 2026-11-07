@@ -10,12 +10,12 @@ from dataclasses import dataclass
 import numpy as np
 
 from app.opportunities.config import (
+    CONFIG_VERSION,
     PENALTIES,
     SCORE_LABEL,
     VALIDATION_CAPS,
     VALIDATION_COMPONENT,
     WEIGHTS,
-    CONFIG_VERSION,
     StyleProfile,
 )
 from app.opportunities.setup import Bias, Setup

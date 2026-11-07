@@ -14,7 +14,13 @@ from app.core.jsonutil import to_jsonable
 from app.database.models import PaperTrade
 from app.ml_engine.evaluation import trade_metrics
 from app.opportunities.validation import classify
-from app.paper.service import LIVE, account_out, active_account, trade_out, worker_status
+from app.paper.service import (
+    LIVE,
+    account_out,
+    active_account,
+    trade_out,
+    worker_status,
+)
 from app.research.strategy_eval import significance
 from app.signals import track_record
 from app.signals.track_record import bucket_of

@@ -4,6 +4,26 @@ import { CANDLES, INSTRUMENTS, QUOTES, analysis } from "../src/test/fixtures";
 const API = "http://localhost:8000/api/v1";
 const json = (body: unknown, status = 200) => ({ status, contentType: "application/json", body: JSON.stringify(body), headers: { "access-control-allow-origin": "*" } });
 
+// A fresh paper account with no recorded signals yet: the state production starts in.
+const PAPER_EMPTY = {
+  generated_at: "2026-11-07T12:00:00Z",
+  account: {
+    id: 1, name: "Paper account", start_balance: 10000, risk_pct: 0.5, max_open_positions: 5, max_daily_loss_pct: 2, is_active: true,
+    created_at: "2026-11-07T00:00:00Z", balance: 10000, start_of_day_balance: 10000, today_pnl: 0, live_trades: 0, can_trade: true, blocked_reason: null,
+    risk_per_trade: 50, equity: 10000, unrealized_pnl: 0, open_risk: 0, return_pct: 0, metrics: { n_trades: 0 }, max_drawdown: 0, equity_curve: [], skipped_signals: 0,
+  },
+  forward: {
+    n_trades: 0, verdict: { status: "collecting", n: 0, needed: 100, summary: "0 of 100 closed trades: too few to tell an edge from luck, no conclusion yet" },
+    counts: { pending: 0, open: 0, closed: 0, cancelled: 0, missed: 0, expired: 0, skipped: 0 }, signals_recorded: 0, limit_fill_rate: null, since: null, equity_curve: [],
+  },
+  backtest: { n_trades: 414, expectancy_r: -0.19, note: "historical replay" },
+  breakdowns: { series: [], symbol: [], timeframe: [], setup_type: [], score_band: [], direction: [], order_type: [], session: [] },
+  open: [], pending: [], recent: [],
+  worker: { enabled: true, interval_s: 60, running: false, cycles: 3, last_cycle_at: "2026-11-07T11:59:30Z", last_duration_s: 11.2, last_results: [], last_error: null },
+  method: ["Every EXECUTE NOW (market) and PLACE LIMIT ORDER (limit) signal is recorded when the backend first sees it; nothing is backfilled."],
+  disclaimer: "Paper trading: simulated orders on live candles, no broker and no real money.",
+};
+
 async function mockBackend(page: Page) {
   const empty = { items: [], total: 0, limit: 25, offset: 0 };
   let polls = 0;
@@ -29,6 +49,9 @@ async function mockBackend(page: Page) {
       "GET /patterns/definitions": { candlestick: { hammer: "Lower wick >= 2x body" }, price_action: {}, note: "Detections are descriptive." },
       "GET /watchlists": [],
       "POST /analysis/run": { id: 7, status: "queued", poll_url: "/api/v1/analysis/7" },
+      "GET /signals": { items: [], generated_at: "2026-11-07T12:00:00Z", config_version: "test", disclaimer: "Analysis only." },
+      "GET /paper/summary": PAPER_EMPTY,
+      "GET /paper/trades": { ...empty, limit: 200 },
     };
     if (key === "GET /analysis/7") return route.fulfill(json(analysis("BUY", ++polls < 2 ? "running" : "completed")));
     if (key in table) return route.fulfill(json(table[key], key.startsWith("POST") ? 202 : 200));
@@ -36,7 +59,7 @@ async function mockBackend(page: Page) {
   });
 }
 
-const ROUTES = ["/", "/chart", "/scanner", "/predictions", "/patterns", "/backtesting", "/performance", "/watchlists", "/data-sources", "/models", "/settings"];
+const ROUTES = ["/", "/signals", "/paper", "/chart", "/scanner", "/predictions", "/patterns", "/backtesting", "/performance", "/watchlists", "/data-sources", "/models", "/settings"];
 
 test.beforeEach(async ({ page }) => mockBackend(page));
 

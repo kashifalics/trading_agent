@@ -31,7 +31,14 @@ from app.database.models import (
 )
 from app.market_data.ingestion.service import get_instrument, resolve_mapping
 from app.opportunities.analogue import build_context, setup_analogues
-from app.opportunities.analysis import TF, build_bias, prepare_tf, provider_configured, tf_features, tf_result
+from app.opportunities.analysis import (
+    TF,
+    build_bias,
+    prepare_tf,
+    provider_configured,
+    tf_features,
+    tf_result,
+)
 from app.opportunities.config import (
     ALL_TIMEFRAMES,
     BIAS_TFS,

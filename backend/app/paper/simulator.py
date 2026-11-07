@@ -12,7 +12,12 @@ from dataclasses import dataclass
 import numpy as np
 
 from app.market_data.bars import Bars
-from app.signals.execution import exit_on_candle, limit_touch, market_entry_ok, r_multiple
+from app.signals.execution import (
+    exit_on_candle,
+    limit_touch,
+    market_entry_ok,
+    r_multiple,
+)
 
 PATH_TFS = ("1m", "5m", "15m", "1H", "4H", "1D")
 CHASE_R = 0.3

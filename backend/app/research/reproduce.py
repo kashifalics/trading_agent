@@ -5,7 +5,9 @@ import sys
 from app.database.init_db import init_db
 from app.database.models import Experiment
 from app.database.session import session_scope
-from app.opportunities import rules_strategy  # noqa: F401  (registers the opportunity_rules strategy)
+from app.opportunities import (
+    rules_strategy,  # noqa: F401  (registers the opportunity_rules strategy)
+)
 from app.research.experiments import code_version
 from app.research.ml_eval import run_ml_experiment
 from app.research.strategy_eval import run_backtest_experiment

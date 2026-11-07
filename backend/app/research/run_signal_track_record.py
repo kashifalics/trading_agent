@@ -35,7 +35,12 @@ from app.services.data_service import tf_step, trading_hours_only
 from app.signals.config import CHAINS, CONFIG_VERSION, GROUPS, PARAMS, spread_for
 from app.signals.context import session_name
 from app.signals.engine import Frame, evaluate_timeframe
-from app.signals.execution import exit_on_candle, limit_touch, market_entry_ok, r_multiple
+from app.signals.execution import (
+    exit_on_candle,
+    limit_touch,
+    market_entry_ok,
+    r_multiple,
+)
 from app.signals.track_record import TRACK_PATH, bucket_of
 
 SOURCES = {"BTCUSDT": "binance", "XAUUSD": "twelve_data"}

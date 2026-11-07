@@ -13,8 +13,22 @@ from app.opportunities.rules_strategy import resample
 from app.opportunities.setup import Concepts
 from app.price_action.engine import PriceActionResult
 from app.signals import config as cfg
-from app.signals.context import as_of, classify_direction, in_active_session, period_levels, period_sweeps, read_tf
-from app.signals.engine import Frame, _decide, evaluate_instrument, evaluate_timeframe, live_adjust, overall_bias
+from app.signals.context import (
+    as_of,
+    classify_direction,
+    in_active_session,
+    period_levels,
+    period_sweeps,
+    read_tf,
+)
+from app.signals.engine import (
+    Frame,
+    _decide,
+    evaluate_instrument,
+    evaluate_timeframe,
+    live_adjust,
+    overall_bias,
+)
 from app.signals.lifecycle import apply_lifecycle, what_happened
 from app.signals.plan import build_plan
 from app.signals.scoring import score_plan

@@ -15,16 +15,31 @@ from app.core.config import get_settings
 from app.core.exceptions import AppError, NotFoundError, UnsupportedError
 from app.core.jsonutil import to_jsonable
 from app.database.models import Candle as CandleRow
-from app.database.models import DataCoverage, DataProvider, Instrument, ProviderInstrument
+from app.database.models import (
+    DataCoverage,
+    DataProvider,
+    Instrument,
+    ProviderInstrument,
+)
 from app.market_data.bars import Bars
 from app.market_data.calendars import get_calendar
 from app.market_data.coverage.gaps import staleness
-from app.market_data.ingestion.service import anchor_for, ingest_candles, resolve_mapping
+from app.market_data.ingestion.service import (
+    anchor_for,
+    ingest_candles,
+    resolve_mapping,
+)
 from app.market_data.registry import get_provider
 from app.market_data.timeframes import bucket_end, get_timeframe
 from app.opportunities.analysis import prepare_tf, provider_configured
 from app.signals import track_record
-from app.signals.config import CONFIG_VERSION, PARAMS, SIGNAL_TFS, provider_override, spread_for
+from app.signals.config import (
+    CONFIG_VERSION,
+    PARAMS,
+    SIGNAL_TFS,
+    provider_override,
+    spread_for,
+)
 from app.signals.engine import DISCLAIMER, Frame, evaluate_instrument
 from app.signals.lifecycle import apply_lifecycle
 
