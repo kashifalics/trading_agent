@@ -269,7 +269,7 @@ export function TimeframeTable({ a, selected, onSelect }: { a: SignalAnalysis; s
 }
 
 // ------------------------------------------------------------------------------------------------ plan detail
-function Checklist({ plan }: { plan: TimeframePlan }) {
+export function Checklist({ plan }: { plan: Pick<TimeframePlan, "factors"> }) {
   return (
     <div className="space-y-3" data-testid="checklist">
       {plan.factors.map((f) => (

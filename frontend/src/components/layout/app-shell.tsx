@@ -15,6 +15,7 @@ import {
   Crosshair,
   Settings,
   Target,
+  Wallet,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -26,6 +27,7 @@ import { cn } from "@/lib/utils";
 export const NAV = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/signals", label: "Signals", icon: Activity },
+  { href: "/paper", label: "Paper Trading", icon: Wallet },
   { href: "/opportunities", label: "Trade Opportunities", icon: Crosshair },
   { href: "/chart", label: "Chart Analysis", icon: LineChart },
   { href: "/scanner", label: "Market Scanner", icon: Radar },

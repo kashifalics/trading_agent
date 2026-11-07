@@ -76,12 +76,38 @@ def test_config_track_record_and_validation_errors(client):
 
 def test_sync_fetches_only_due_timeframes_from_keyless_providers(client, monkeypatch):
     calls = []
-    monkeypatch.setattr(service, "ensure_data", lambda s, inst, prov, pi, tf, n, auto: calls.append((prov.code, tf)) or [])
+    monkeypatch.setattr(service, "fetch_candles", lambda s, inst, prov, pi, tf: calls.append((prov.code, tf)) or [])
     r = client.post("/api/v1/signals/BTCUSDT/sync")
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["provider"] == "binance" and body["synced"] is True  # BTCUSDT is routed to Binance (deep history, keyless)
     assert ("binance", "1H") in calls and body["analysis"]["symbol"] == "BTCUSDT"
+
+
+def test_a_timeframe_is_due_only_when_a_candle_closed_since_the_last_attempt(session):
+    from app.database.models import DataCoverage
+
+    btc = service.resolve(session, "BTCUSDT")[0]  # 24/7
+    gold = service.resolve(session, "XAUUSD")[0]  # closed at the weekend
+    now = datetime(2025, 3, 8, 18, 25, tzinfo=timezone.utc)  # a Saturday
+
+    def cov(last_ts, count, last_sync):
+        return DataCoverage(last_ts=last_ts, candle_count=count, last_sync_at=last_sync)
+
+    four_h = datetime(2025, 3, 8, 8, 0, tzinfo=timezone.utc)  # the 12:00-16:00 candle is complete but not stored
+    assert service.is_due(cov(four_h, 1539, datetime(2025, 3, 8, 14, 38, tzinfo=timezone.utc)), "4H", now, btc)  # long series, one missing
+    asked_after_close = datetime(2025, 3, 8, 16, 5, tzinfo=timezone.utc)
+    assert not service.is_due(cov(four_h, 1539, asked_after_close), "4H", datetime(2025, 3, 8, 16, 20, tzinfo=timezone.utc), btc)
+    assert service.is_due(cov(four_h, 1539, asked_after_close), "4H", datetime(2025, 3, 8, 16, 40, tzinfo=timezone.utc), btc)  # retry
+    fresh = datetime(2025, 3, 8, 17, 0, tzinfo=timezone.utc)
+    assert not service.is_due(cov(fresh, 1664, now - timedelta(minutes=20)), "1H", now, btc)  # nothing new yet
+    month = datetime(2025, 2, 1, tzinfo=timezone.utc)
+    assert not service.is_due(cov(month, 111, now - timedelta(hours=1)), "1M", now, btc)  # short series: not every cycle
+    assert service.is_due(cov(month, 111, now - timedelta(hours=7)), "1M", now, btc)
+    friday = datetime(2025, 3, 7, 21, 30, tzinfo=timezone.utc)  # thin feed: the last candles before the close never arrived
+    assert not service.is_due(cov(friday, 192, now - timedelta(minutes=10)), "15m", now, gold)
+    assert service.is_due(cov(friday, 192, now - timedelta(minutes=31)), "15m", now, gold)
+    assert service.is_due(None, "15m", now, gold)
 
 
 def test_replay_runs_the_live_engine_and_accounts_trades_consistently(session):

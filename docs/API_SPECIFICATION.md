@@ -32,6 +32,10 @@ Interactive, always-current reference: **`/docs`** (Swagger UI) and **`/openapi.
 | `GET /signals/{symbol}` | Full top-down analysis: 14 per-timeframe plans (state, instruction, entry/stop/targets, 100-point checklist, reasons for/against, track record), multi-timeframe table, analyst report |
 | `POST /signals/{symbol}/sync` | Fetch due candles from the instrument's keyless provider (BiQuote/Binance), then return the fresh analysis |
 | `GET /signals/config` · `GET /signals/track-record` | Chains, weights, thresholds, spreads in force · historical replay results (docs/SIGNAL_ENGINE.md) |
+| `GET /paper/summary` | Paper trading: account (balance, equity, today's P&L, rule status), forward-test metrics and verdict, equity curves, breakdowns (with the backtest beside each instrument × timeframe), open/pending trades, worker status (docs/PAPER_TRADING.md) |
+| `GET /paper/trades?status&symbol&timeframe&limit&offset` · `GET /paper/trades/{id}` | Recorded signals and their simulated outcome; `status` ∈ pending/open/closed/cancelled/missed/expired/skipped/live/finished/unfilled/all. The detail includes the plan as shown when the signal fired |
+| `GET /paper/account` · `PATCH /paper/account` · `POST /paper/account/reset` | Active paper account; change risk per trade (≤ 5%), max open trades, daily loss limit; start a new account (signal history kept). Audited |
+| `POST /paper/run?sync=true` | Run one paper-trading cycle now (sync keyless providers → analyse → simulate → record). `409 busy` while another cycle runs. Audited |
 | `POST /backtests/run` → `202` · `GET /backtests` · `GET /backtests/{id}` · `GET /backtests/strategies` | Backtests |
 | `GET /models` · `GET /models/{id}` · `POST /models/train` → `202` · `POST /models/{id}/activate` | Model registry |
 | `GET/POST/DELETE /watchlists…` | Per-user watchlists |

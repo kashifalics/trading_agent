@@ -73,6 +73,7 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 export const api = {
   get: <T>(path: string, params?: Params, signal?: AbortSignal) => request<T>(path, { params, signal }),
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: "POST", body }),
+  patch: <T>(path: string, body?: unknown) => request<T>(path, { method: "PATCH", body }),
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
   upload: <T>(path: string, form: FormData) => request<T>(path, { method: "POST", form }),
 };

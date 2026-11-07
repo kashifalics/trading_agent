@@ -1,5 +1,5 @@
 """In-memory lifecycle of actionable plans: reports TRADE_INVALIDATED / TRADE_EXPIRED when a plan that was actionable on a timeframe
-stops qualifying. Kept in process memory (resets when the API restarts); persistent signal history is a later sub-project."""
+stops qualifying. Kept in process memory (resets when the API restarts); the persistent signal history is paper trading (app/paper)."""
 import numpy as np
 
 from app.signals.context import fmt

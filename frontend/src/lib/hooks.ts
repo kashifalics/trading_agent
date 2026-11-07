@@ -27,6 +27,7 @@ import type {
 } from "@/lib/types";
 
 import type { OppSummary, OppValidation, OpportunityDetail, ScanAccepted } from "@/lib/opportunity-types";
+import type { PaperAccount, PaperAccountChanges, PaperRunResult, PaperSummary, PaperTradeDetail, PaperTradesPage } from "@/lib/paper-types";
 import type { SignalAnalysis, SignalsSummary, SignalSync } from "@/lib/signal-types";
 
 export const retryPolicy = (failureCount: number, error: unknown) =>
@@ -252,4 +253,40 @@ export function useSyncSignal() {
       void qc.invalidateQueries({ queryKey: ["signal-candles", symbol] });
     },
   });
+}
+
+// ---- Paper trading (simulated orders on live candles) ----
+export const usePaperSummary = () =>
+  useQuery({ queryKey: ["paper-summary"], queryFn: () => api.get<PaperSummary>("/paper/summary"), refetchInterval: 30_000, retry: retryPolicy });
+
+export const usePaperTrades = (status: string) =>
+  useQuery({
+    queryKey: ["paper-trades", status],
+    queryFn: () => api.get<PaperTradesPage>("/paper/trades", { status, limit: 200 }),
+    refetchInterval: 30_000,
+    placeholderData: keepPreviousData,
+    retry: retryPolicy,
+  });
+
+export const usePaperTrade = (id: number | null) =>
+  useQuery({ queryKey: ["paper-trade", id], queryFn: () => api.get<PaperTradeDetail>(`/paper/trades/${id}`), enabled: id !== null, retry: retryPolicy });
+
+function invalidatePaper(qc: ReturnType<typeof useQueryClient>) {
+  void qc.invalidateQueries({ queryKey: ["paper-summary"] });
+  void qc.invalidateQueries({ queryKey: ["paper-trades"] });
+}
+
+export function useRunPaperCycle() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: () => api.post<PaperRunResult>("/paper/run"), onSuccess: () => invalidatePaper(qc) });
+}
+
+export function useUpdatePaperAccount() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (c: PaperAccountChanges) => api.patch<PaperAccount>("/paper/account", c), onSuccess: () => invalidatePaper(qc) });
+}
+
+export function useResetPaperAccount() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (c: PaperAccountChanges) => api.post<PaperAccount>("/paper/account/reset", c), onSuccess: () => invalidatePaper(qc) });
 }

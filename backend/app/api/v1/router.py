@@ -8,6 +8,7 @@ from app.api.v1.routes import (
     market,
     models,
     opportunities,
+    paper,
     patterns,
     predictions,
     signals,
@@ -15,5 +16,5 @@ from app.api.v1.routes import (
 )
 
 api_router = APIRouter()
-for module in (health, market, analysis, charts, predictions, backtesting, patterns, signals, opportunities, models, watchlists):
+for module in (health, market, analysis, charts, predictions, backtesting, patterns, signals, paper, opportunities, models, watchlists):
     api_router.include_router(module.router)

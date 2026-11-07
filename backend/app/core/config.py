@@ -58,6 +58,13 @@ class Settings(BaseSettings):
     # instrument:provider used by the signal engine (one provider per instrument, never mixed). Binance gives BTCUSDT deep history keyless.
     signal_provider_overrides: str = "BTCUSDT:binance"
     signal_refresh_providers: str = "biquote,binance"  # providers the Signals page may sync (quota-limited providers stay manual)
+
+    # Paper trading (docs/PAPER_TRADING.md): simulated orders only, no broker connectivity
+    paper_trading_interval_seconds: int = 60  # in-process cycle (sync -> analyse -> record -> simulate); 0 = off (run via the API only)
+    paper_start_balance: float = 10_000.0  # defaults for a new paper account (editable from the Paper Trading page)
+    paper_risk_pct: float = 0.5
+    paper_max_open_positions: int = 5
+    paper_max_daily_loss_pct: float = 2.0
     model_dir: str = "./model_store"
     upload_dir: str = "./uploads"
     max_upload_bytes: int = 8_000_000

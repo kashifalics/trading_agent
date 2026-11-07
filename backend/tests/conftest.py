@@ -3,6 +3,7 @@ import os
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ["PREFERRED_PROVIDER"] = ""  # legacy tests assert status-based routing; preference has its own tests
 os.environ["TWELVE_DATA_API_KEY"] = ""  # unit tests must never reach a real provider, whatever .env contains
+os.environ["PAPER_TRADING_INTERVAL_SECONDS"] = "0"  # no background paper-trading loop (it would sync from real providers)
 os.environ.setdefault("MODEL_DIR", "./.test_model_store")
 os.environ.setdefault("UPLOAD_DIR", "./.test_uploads")
 

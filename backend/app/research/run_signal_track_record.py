@@ -35,6 +35,7 @@ from app.services.data_service import tf_step, trading_hours_only
 from app.signals.config import CHAINS, CONFIG_VERSION, GROUPS, PARAMS, spread_for
 from app.signals.context import session_name
 from app.signals.engine import Frame, evaluate_timeframe
+from app.signals.execution import exit_on_candle, limit_touch, market_entry_ok, r_multiple
 from app.signals.track_record import TRACK_PATH, bucket_of
 
 SOURCES = {"BTCUSDT": "binance", "XAUUSD": "twelve_data"}
@@ -107,29 +108,27 @@ def replay(symbol: str, tf: str, max_steps: int | None = None) -> dict:
         # 1) manage an open position on candle i
         if pos is not None:
             d = pos["d"]
-            hit_sl = lo[i] <= pos["sl"] if d == 1 else h[i] >= pos["sl"]
-            hit_tp = (h[i] >= pos["tp"] if d == 1 else lo[i] <= pos["tp"]) and not (pos["fill_i"] == i and pos["limit"])
-            if hit_sl or hit_tp:
-                exit_px = pos["sl"] if hit_sl else pos["tp"]  # both on one candle: the stop (conservative)
-                gross = d * (exit_px - pos["entry"]) / pos["risk"]
+            ex = exit_on_candle(d, pos["sl"], pos["tp"], o[i], h[i], lo[i], tp_allowed=not (pos["fill_i"] == i and pos["limit"]))
+            if ex is not None:  # both levels on one candle: the stop (conservative)
+                gross = r_multiple(d, pos["entry"], ex[0], pos["risk"])
                 trades.append({**pos["meta"], "exit_ts": int(setup.t[i]), "r": float(gross - pos["spread_r"]), "r_gross": float(gross),
-                               "tp_hit": bool(hit_tp and not hit_sl), "bars": i - pos["fill_i"] + 1})
+                               "tp_hit": ex[1] == "target", "bars": i - pos["fill_i"] + 1})
                 pos = None
             continue
         # 2) a resting limit order on candle i
         if pend is not None:
             d = pend["d"]
+            touch = limit_touch(d, pend["entry"], pend["tp"], h[i], lo[i])
             if i > pend["expires_i"] or (d == 1 and c[i - 1] < pend["inv"]) or (d == -1 and c[i - 1] > pend["inv"]):
                 pend = None
-            elif (d == 1 and h[i] >= pend["tp"] and lo[i] > pend["entry"]) or (d == -1 and lo[i] <= pend["tp"] and h[i] < pend["entry"]):
+            elif touch == "missed":
                 pend = None  # target traded before the fill: missed, never chased
-            elif (d == 1 and lo[i] <= pend["entry"]) or (d == -1 and h[i] >= pend["entry"]):
+            elif touch == "filled":
                 risk = abs(pend["entry"] - pend["sl"])
                 pos = {"d": d, "entry": pend["entry"], "sl": pend["sl"], "tp": pend["tp"], "risk": risk, "fill_i": i, "limit": True,
                        "spread_r": spread / risk, "meta": {**pend["meta"], "entry_ts": int(setup.t[i])}}
                 pend = None
-                hit_sl = lo[i] <= pos["sl"] if d == 1 else h[i] >= pos["sl"]
-                if hit_sl:
+                if exit_on_candle(d, pos["sl"], pos["tp"], o[i], h[i], lo[i], tp_allowed=False) is not None:  # only the stop counts
                     trades.append({**pos["meta"], "exit_ts": int(setup.t[i]), "r": float(-1 - pos["spread_r"]), "r_gross": -1.0,
                                    "tp_hit": False, "bars": 1})
                     pos = None
@@ -154,7 +153,7 @@ def replay(symbol: str, tf: str, max_steps: int | None = None) -> dict:
             entry = float(o[i + 1])
             sl, tp = p["stop_loss"], p["targets"][0]["price"]
             risk = d * (entry - sl)
-            if risk <= 0 or d * (tp - entry) <= 0:
+            if not market_entry_ok(d, entry, sl, tp):
                 continue  # gapped beyond the stop or the target: no trade
             pos = {"d": d, "entry": entry, "sl": sl, "tp": tp, "risk": risk, "fill_i": i + 1, "limit": False, "spread_r": spread / risk,
                    "meta": {**meta, "entry_ts": int(setup.t[i + 1]), "planned_rr": p["risk_reward"]}}

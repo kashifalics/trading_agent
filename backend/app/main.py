@@ -35,16 +35,21 @@ async def lifespan(app: FastAPI):
             sentry_sdk.init(dsn=s.sentry_dsn, environment=s.app_env)
         except ImportError:
             log.warning("SENTRY_DSN set but sentry-sdk is not installed")
-    task = None
-    if s.opportunity_scan_interval_minutes > 0:
-        import asyncio
+    import asyncio
 
+    tasks = []
+    if s.opportunity_scan_interval_minutes > 0:
         from app.opportunities.scheduler import scheduler_loop
 
-        task = asyncio.create_task(scheduler_loop())
+        tasks.append(asyncio.create_task(scheduler_loop()))
         log.info("automatic opportunity scan every %d min", s.opportunity_scan_interval_minutes)
+    if s.paper_trading_interval_seconds > 0:
+        from app.paper.worker import paper_loop
+
+        tasks.append(asyncio.create_task(paper_loop()))
+        log.info("paper trading cycle every %d s (simulated orders only)", s.paper_trading_interval_seconds)
     yield
-    if task:
+    for task in tasks:
         task.cancel()
 
 

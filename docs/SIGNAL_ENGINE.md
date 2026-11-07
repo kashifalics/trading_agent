@@ -127,5 +127,6 @@ the Brier score and reliability of `score/100` read as a probability (to show wh
 ## Limitations
 * Single provider per instrument (no mixing). BTCUSDT uses Binance (deep history); XAUUSD uses BiQuote broker quotes
   (shallow history: ~1 week of 1H, ~500 days of 1D, no weekly/monthly), so some timeframes report insufficient data.
-* Lifecycle states (invalidated / expired) are kept in memory and reset when the API restarts; signal history is sub-project 3.
+* Lifecycle states (invalidated / expired) shown on the Signals page are kept in memory and reset when the API restarts. The persistent signal
+  history and its simulated outcomes are in paper trading (`docs/PAPER_TRADING.md`).
 * No position sizing beyond the page's lot-size calculator (sub-project 2), no alerts (4), no execution (6).

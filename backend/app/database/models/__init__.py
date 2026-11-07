@@ -25,6 +25,10 @@ from app.database.models.opportunity import (  # noqa: F401
     TimeframeAnalysis,
     TradeOpportunity,
 )
+from app.database.models.paper import (  # noqa: F401
+    PaperAccount,
+    PaperTrade,
+)
 from app.database.models.user import (  # noqa: F401
     AuditEvent,
     User,

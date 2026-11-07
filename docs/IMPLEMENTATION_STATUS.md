@@ -5,10 +5,10 @@ _Last verified: 2026-11-07 (local, Windows 10, Python 3.12, Node 24). Update thi
 ## Verification results
 | Check | Result |
 |---|---|
-| Backend `pytest` | **231 passed, 30 skipped** (skipped = live-provider tests) on 2026-11-07, including 26 new signal-engine tests; earlier milestones added the backtester audit, resumable backfill, data-quality auditor, snapshots, reproduction, provider retry/quota behaviour |
+| Backend `pytest` | **249 passed, 30 skipped** (skipped = live-provider tests) on 2026-11-07, including 26 signal-engine and 18 paper-trading/sync tests; earlier milestones added the backtester audit, resumable backfill, data-quality auditor, snapshots, reproduction, provider retry/quota behaviour |
 | Backend `ruff check` | clean |
-| Frontend `vitest` / `tsc` / `eslint` / `next build` / Playwright | 48 passed / clean / clean / 17 routes incl. `/signals` / e2e not re-run this milestone |
-| Alembic | `0001`, `0002` upgrade/downgrade verified on SQLite; `0001` verified on PostgreSQL 16 (`0002` is plain additive DDL, not yet run on PostgreSQL) |
+| Frontend `vitest` / `tsc` / `eslint` / `next build` / Playwright | 54 passed / clean / clean / 18 routes incl. `/signals`, `/paper` / e2e not re-run this milestone |
+| Alembic | `0001`, `0002`, `0004` upgrade/downgrade verified on SQLite (`0004`: columns match the models, downgrade and re-upgrade clean); `0001` verified on PostgreSQL 16 (later revisions are plain additive DDL, not yet run on PostgreSQL) |
 | Live Binance | **Verified**: 3.2 years of BTCUSDT 1H (28,799) and 4H (7,199) candles, 0 missing, 0 invalid, re-run is a no-op |
 | Live Twelve Data (XAUUSD) | **Verified with a real key** — see `reports/XAUUSD_COVERAGE.md` and the Twelve Data section below |
 | Docker Compose | Verified in the previous milestone (postgres, redis, backend, worker, frontend); not re-run this milestone |
@@ -35,7 +35,8 @@ Legend: ✅ working & tested · 🟡 working with stated limits · ⛔ blocked/u
 | **Experiment registry & reproduction** | ✅ | `experiments` table: dataset snapshot id, config, code hash, library versions, results. `python -m app.research.reproduce <id>` re-runs and diffs; 22 independent duplicate runs agreed on 994/994 numeric fields; 4 re-executions matched exactly |
 | Decision policy, MTF, outcome tracking, screenshot analysis, REST API, 12-page UI, Celery jobs | ✅ / 🟡 | As in the previous milestone (OCR verified on synthetic charts only) |
 | Auth | 🟡 | API-key auth + isolation; no registration UI |
-| LLM explanations, paper trading, S3 | ⬜ | |
+| **Paper trading (forward test)** | 🟡 | Working and verified live; the record starts empty and needs ~100 closed trades before it says anything (section below) |
+| LLM explanations, S3 | ⬜ | |
 
 ## Signal engine + Signals page (2026-11-07)
 New sidebar tab **Signals** (directly below Overview) — sub-project 1 of the trading-bot brief; design and methodology in `docs/SIGNAL_ENGINE.md`.
@@ -60,8 +61,33 @@ New sidebar tab **Signals** (directly below Overview) — sub-project 1 of the t
   win probability is shown. Signal frequency on history: roughly one trade per 40–100 candles per intraday timeframe.
 * **Tests:** `tests/test_signals_engine.py` (21: plan, stop/targets, must-pass rules, score, states, live downgrades, no look-ahead across
   timeframes, lifecycle), `tests/test_signals_api.py` (5: API end to end, sync routing, replay accounting); frontend `signals.test.tsx` (6).
-* **Not built yet (later sub-projects):** risk manager / persistent position sizing, paper trading + signal history, alerts, AI chat analyst,
-  broker execution. News filter: unavailable (reported on every plan).
+* **Not built yet (later sub-projects):** alerts, AI chat analyst, broker execution. Paper trading and signal history: see the next section.
+  News filter: unavailable (reported on every plan).
+
+## Paper trading (2026-11-07)
+New sidebar tab **Paper Trading** (below Signals), sub-project 3 of the trading-bot brief. Design: `docs/PAPER_TRADING.md`.
+* **What it does:** while the backend runs, a cycle every 60 s (`PAPER_TRADING_INTERVAL_SECONDS`) syncs due candles, records every EXECUTE NOW
+  (market) and PLACE LIMIT ORDER (limit) signal the moment it appears, with the plan exactly as shown, and simulates it on later candles. Stop or
+  TP1, 1-minute exits, gaps honoured, the configured spread charged, one trade per instrument × timeframe, nothing backfilled. A paper account
+  applies risk rules on top: risk % per trade, max open trades, daily loss limit. Skipped signals are still tracked for the forward test.
+* **Backend:** `app/paper/` (pure simulator, service, stats, in-process worker), `app/signals/execution.py` (fill/exit rules now shared with the
+  replay), tables `paper_accounts` and `paper_trades` (migration `0004`, unique per instrument/timeframe/setup), endpoints `/api/v1/paper/summary`,
+  `/trades`, `/trades/{id}`, `/account` (GET/PATCH), `/account/reset`, `/run`. The verdict uses the backtest's rule; below 100 closed trades it
+  draws no conclusion.
+* **Replay refactor proven safe:** `run_signal_track_record` now calls the shared execution functions. Re-running three series (XAUUSD 4H, BTCUSDT
+  1H, XAUUSD 15m; 600 steps each) gave byte-identical trades before and after (33 trades), so the published track record still matches the code.
+* **Fixed in the signal sync (affects the Signals page too):** (1) `ensure_data` tolerates one missing candle on long series, so BTCUSDT (Binance,
+  more than 540 stored candles) was analysed one candle late on most timeframes (seen live: the 12:00–16:00 4H candle was still missing at 18:25 UTC).
+  `signals.sync` now ingests a due timeframe directly. (2) A candle the provider never delivers (thin feeds at the Friday close, provider gaps) used
+  to be re-downloaded every cycle, and short series every cycle too. Now a timeframe is fetched only when a candle closed since the last attempt,
+  missing candles are retried every 30 min and short series every 6 h (`signals.service.is_due`).
+* **Verified live (2026-11-07, Saturday):** migration `0004` applied to `dev.db` at startup; the worker synced and analysed all four instruments
+  every cycle with no errors; the page rendered with no console errors. Cycle time fell from ~100 s to 11–12 s with the sync fix below. No signal fired during the check (gold, US30 and oil closed; BTC setups
+  blocked), so the live record is empty. The page shows the backtest's out-of-sample part beside it: −0.19 R per trade over 414 trades.
+* **Tests:** `tests/test_paper_simulator.py` (11: execution rules, candle path, market/limit fills, chase/gap skips, gap exits, expiry,
+  invalidation, idempotency), `tests/test_paper_api.py` (6: record once → fill at next open → TP1 with exact R and P&L, account rules, daily loss
+  limit, account endpoints and validation, run endpoint and lock, worker timing), `tests/test_signals_api.py` (+1: when a timeframe is due);
+  frontend `paper.test.tsx` (6).
 
 ## Data provider routing (2026-11-01)
 **BiQuote** (free keyless API, MT5 broker-CFD quotes; `docs/BIQUOTE_PROVIDER_EVALUATION.md`) is the default provider for BTCUSDT, XAUUSD, US30 and USOIL (`PREFERRED_PROVIDER=biquote`); Binance, Twelve Data and OANDA stay registered and selectable with `provider=`. Trade-off: BiQuote keeps only a fixed recent window (1H ~7 days, 4H ~30 days, 1D ~500 bars, no 1W/1M), so most analysis beyond 1D/4H reports insufficient data. Live streaming during market hours for XAUUSD/US30/USOIL is not yet verified.
