@@ -96,17 +96,18 @@ def _signature(inst: Instrument, prov: DataProvider, t: TF) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()[:32]
 
 
-def _derive(session: Session, inst: Instrument, prov: DataProvider, tf: str) -> tuple[Bars | None, str | None]:
+def _derive(session: Session, inst: Instrument, prov: DataProvider, tf: str,
+            lookback: int = SCAN_LOOKBACK_BARS) -> tuple[Bars | None, str | None]:
     base = DERIVE_FROM.get(tf)
     if not base:
         return None, None
     ratio = int(np.ceil(approx_seconds(get_timeframe(tf)) / approx_seconds(get_timeframe(base))))
-    candles = load_candles(session, inst.id, prov.id, base, limit=min(SCAN_LOOKBACK_BARS * ratio, 60_000), complete_only=True)
+    candles = load_candles(session, inst.id, prov.id, base, limit=min(lookback * ratio, 60_000), complete_only=True)
     candles = trading_hours_only(candles, inst.calendar)
     if not candles:
         return None, base
     agg = aggregate_candles(candles, base, tf, anchor_for(inst), inst.calendar)
-    return _tail(Bars.from_candles(agg, tf_step(tf)), SCAN_LOOKBACK_BARS), base
+    return _tail(Bars.from_candles(agg, tf_step(tf)), lookback), base
 
 
 def _tail(b: Bars, n: int) -> Bars:
@@ -124,14 +125,14 @@ def window_gaps(bars: Bars, tf: str, inst: Instrument) -> tuple[int, int]:
 
 
 def prepare_tf(session: Session, inst: Instrument, prov: DataProvider, pi: ProviderInstrument, tf: str,
-               now: datetime | None = None) -> TF:
+               now: datetime | None = None, lookback: int = SCAN_LOOKBACK_BARS) -> TF:
     """Load (or, only when the native series is too short, derive) completed candles for one timeframe. Never fabricates bars."""
     now = now or datetime.now(timezone.utc)
     try:
-        bars = load_bars(session, inst, prov, tf, SCAN_LOOKBACK_BARS)
+        bars = load_bars(session, inst, prov, tf, lookback)
         derived = None
         if len(bars) < MIN_STRUCTURE_BARS:
-            d_bars, base = _derive(session, inst, prov, tf)
+            d_bars, base = _derive(session, inst, prov, tf, lookback)
             if d_bars is not None and len(d_bars) > len(bars):
                 bars, derived = d_bars, base
         n = len(bars)

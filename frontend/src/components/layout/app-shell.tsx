@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 
 export const NAV = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
+  { href: "/signals", label: "Signals", icon: Activity },
   { href: "/opportunities", label: "Trade Opportunities", icon: Crosshair },
   { href: "/chart", label: "Chart Analysis", icon: LineChart },
   { href: "/scanner", label: "Market Scanner", icon: Radar },

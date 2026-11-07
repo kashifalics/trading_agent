@@ -100,9 +100,10 @@ beforeEach(() => useSettings.setState({ symbol: "BTCUSDT", timeframe: "1H" }));
 afterEach(() => vi.unstubAllGlobals());
 
 describe("navigation", () => {
-  it("places Trade Opportunities directly below Overview", () => {
+  it("places Signals directly below Overview, followed by Trade Opportunities", () => {
     expect(NAV[0].label).toBe("Overview");
-    expect(NAV[1]).toMatchObject({ label: "Trade Opportunities", href: "/opportunities" });
+    expect(NAV[1]).toMatchObject({ label: "Signals", href: "/signals" });
+    expect(NAV[2]).toMatchObject({ label: "Trade Opportunities", href: "/opportunities" });
   });
 });
 

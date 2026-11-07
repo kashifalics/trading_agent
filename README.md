@@ -14,6 +14,9 @@ An **analysis-only** market-intelligence terminal. It reads candles, detects pri
 
 Full detail: [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md).
 
+## Signals
+The **Signals** tab (directly below Overview) analyses every timeframe top-down (higher-timeframe bias → setup → lower-timeframe confirmation) and gives, per timeframe: an entry state (`ENTRY_READY`, `WAITING_FOR_CONFIRMATION`, `SETUP_DEVELOPING`, `WATCHLIST`, `NO_SETUP`, …), a final instruction (EXECUTE NOW / WAIT FOR CONFIRMATION / PLACE LIMIT ORDER / NO TRADE), a structural entry, stop loss and up to three targets (minimum 1:2 reward:risk), a 100-point confluence checklist with reasons for and against, and a lot-size calculator. The page syncs fresh candles every 60 s (BiQuote / Binance, keyless). The score is **setup quality, not a win probability**; the measured track record of the same rules is in [`docs/reports/SIGNAL_TRACK_RECORD.md`](docs/reports/SIGNAL_TRACK_RECORD.md). Design: [`docs/SIGNAL_ENGINE.md`](docs/SIGNAL_ENGINE.md).
+
 ## Trade Opportunities
 The **Trade Opportunities** tab (below Overview) scans every supported instrument on all 14 timeframes and ranks scalping / intraday / swing / long-term setups by an *evidence score* (not a win probability). WAIT is a normal result. Start a scan from the page, or `POST /api/v1/opportunities/scan`; set `OPPORTUNITY_SCAN_INTERVAL_MINUTES` to scan automatically. See [`docs/TRADE_OPPORTUNITIES_ARCHITECTURE.md`](docs/TRADE_OPPORTUNITIES_ARCHITECTURE.md) and [`docs/STRATEGY_VALIDATION.md`](docs/STRATEGY_VALIDATION.md) (no rule set is validated yet).
 

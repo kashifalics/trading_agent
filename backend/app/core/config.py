@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     opportunity_scan_interval_minutes: int = 0  # 0 = automatic scanning disabled (manual / API-triggered only)
     opportunity_refresh_providers: str = "biquote,binance"  # providers the SCHEDULED scan may sync (quota-limited providers stay manual)
     opportunity_max_sync_tfs: int = 4  # timeframes refreshed per instrument when a scan is asked to refresh data
+
+    # Signal engine (docs/SIGNAL_ENGINE.md)
+    signal_symbols: str = "XAUUSD,BTCUSDT,US30,USOIL"
+    signal_spreads: str = "BTCUSDT:2,XAUUSD:0.30"  # round-trip spread in PRICE units per instrument (your broker's typical spread)
+    # instrument:provider used by the signal engine (one provider per instrument, never mixed). Binance gives BTCUSDT deep history keyless.
+    signal_provider_overrides: str = "BTCUSDT:binance"
+    signal_refresh_providers: str = "biquote,binance"  # providers the Signals page may sync (quota-limited providers stay manual)
     model_dir: str = "./model_store"
     upload_dir: str = "./uploads"
     max_upload_bytes: int = 8_000_000
@@ -72,6 +79,14 @@ class Settings(BaseSettings):
     @property
     def opportunity_list(self) -> list[str]:
         return [s.strip().upper() for s in self.opportunity_symbols.split(",") if s.strip()]
+
+    @property
+    def signal_list(self) -> list[str]:
+        return [s.strip().upper() for s in self.signal_symbols.split(",") if s.strip()]
+
+    @property
+    def signal_refresh_list(self) -> list[str]:
+        return [s.strip().lower() for s in self.signal_refresh_providers.split(",") if s.strip()]
 
     @property
     def opportunity_refresh_list(self) -> list[str]:

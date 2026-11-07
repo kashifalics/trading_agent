@@ -1,13 +1,13 @@
 # Implementation status — single source of truth
 
-_Last verified: 2026-11-01 (local, Windows 10, Python 3.12, Node 24). Update this file whenever a status changes._
+_Last verified: 2026-11-07 (local, Windows 10, Python 3.12, Node 24). Update this file whenever a status changes._
 
 ## Verification results
 | Check | Result |
 |---|---|
-| Backend `pytest` | **135 passed** — adds backtester audit (accounting identity, sizing, costs, no overlap/duplicates, no look-ahead on the real strategy), resumable/idempotent backfill, data-quality auditor, dataset snapshots, experiment reproduction, baselines/verdict logic, Binance retry/backoff, Twelve Data error/quota/paging behaviour |
+| Backend `pytest` | **231 passed, 30 skipped** (skipped = live-provider tests) on 2026-11-07, including 26 new signal-engine tests; earlier milestones added the backtester audit, resumable backfill, data-quality auditor, snapshots, reproduction, provider retry/quota behaviour |
 | Backend `ruff check` | clean |
-| Frontend `vitest` / `tsc` / `eslint` / `next build` / Playwright | 28 passed / clean / clean / 12 pages / 6 passed (e2e not re-run this milestone) |
+| Frontend `vitest` / `tsc` / `eslint` / `next build` / Playwright | 48 passed / clean / clean / 17 routes incl. `/signals` / e2e not re-run this milestone |
 | Alembic | `0001`, `0002` upgrade/downgrade verified on SQLite; `0001` verified on PostgreSQL 16 (`0002` is plain additive DDL, not yet run on PostgreSQL) |
 | Live Binance | **Verified**: 3.2 years of BTCUSDT 1H (28,799) and 4H (7,199) candles, 0 missing, 0 invalid, re-run is a no-op |
 | Live Twelve Data (XAUUSD) | **Verified with a real key** — see `reports/XAUUSD_COVERAGE.md` and the Twelve Data section below |
@@ -36,6 +36,32 @@ Legend: ✅ working & tested · 🟡 working with stated limits · ⛔ blocked/u
 | Decision policy, MTF, outcome tracking, screenshot analysis, REST API, 12-page UI, Celery jobs | ✅ / 🟡 | As in the previous milestone (OCR verified on synthetic charts only) |
 | Auth | 🟡 | API-key auth + isolation; no registration UI |
 | LLM explanations, paper trading, S3 | ⬜ | |
+
+## Signal engine + Signals page (2026-11-07)
+New sidebar tab **Signals** (directly below Overview) — sub-project 1 of the trading-bot brief; design and methodology in `docs/SIGNAL_ENGINE.md`.
+* **What it does:** every timeframe is analysed top-down (two higher timeframes set the bias, the setup timeframe supplies the structural entry, a lower
+  timeframe confirms). Each timeframe gets an entry state (`ENTRY_READY`, `WAITING_FOR_CONFIRMATION`, `SETUP_DEVELOPING`, `WATCHLIST`, `NO_SETUP`,
+  `TRADE_INVALIDATED`, `TRADE_EXPIRED`), a final instruction (EXECUTE NOW / WAIT FOR CONFIRMATION / PLACE LIMIT ORDER / NO TRADE), a structural entry
+  (market at a zone, limit at a zone ahead, or sweep + structure break), a structural stop, up to three structural targets (min 1:2; none invented), a
+  100-point confluence checklist (HTF 20 · structure 20 · liquidity 15 · entry zone 15 · LTF confirmation 15 · R:R 10 · session/volatility 5; signal
+  at ≥ 60, limit orders only at ≥ 70), reasons for/against and a deterministic analyst report. Spreads: BTC $2, gold $0.30 (`SIGNAL_SPREADS`).
+* **Backend:** `app/signals/*` (pure engine shared by live and replay), `/api/v1/signals`, `/signals/{symbol}`, `/signals/{symbol}/sync`,
+  `/signals/config`, `/signals/track-record`; BTCUSDT is routed to Binance (deep history) and the others to BiQuote (`SIGNAL_PROVIDER_OVERRIDES`).
+  `opportunities.analysis.prepare_tf` gained a backward-compatible `lookback` argument; nothing else in existing modules changed.
+* **Frontend:** `/signals` page (instrument tabs, overview, best setup, 14-timeframe table, checklist, levels, reasons, chart, lot-size calculator,
+  live refresh every 60 s). Trade Opportunities stays available one row lower.
+* **Verified live (2026-11-07):** sync from Binance (BTCUSDT, 11 timeframes) and BiQuote (XAUUSD, US30) and full analysis through the API and the page.
+  At that moment every instrument was NO TRADE (BTC setups blocked by wide stops / nearby opposing order blocks; gold and US30 markets closed).
+* **Track record:** `python -m app.research.run_signal_track_record run|export|report` replays the exact engine on the research database →
+  `app/data/signal_track_record.json` (shown next to every plan), `docs/reports/SIGNAL_TRACK_RECORD.md`. First run (BTCUSDT Binance, XAUUSD Twelve
+  Data; 5m/15m/1H/4H/1D): **1,027 trades, −0.048 R per trade pooled after spread — no demonstrated edge**. Every series is `no_edge` (fewer than 100
+  out-of-sample trades). Out-of-sample CIs entirely below zero: BTCUSDT 1H, BTCUSDT 5m, XAUUSD 15m. Entirely above zero but tiny: XAUUSD 1D (10 trades).
+  XAUUSD 4H +0.15 R (78 OOS trades, CI −0.22…+0.54). Higher scores do not reliably mean better outcomes, so the score stays a quality checklist and no
+  win probability is shown. Signal frequency on history: roughly one trade per 40–100 candles per intraday timeframe.
+* **Tests:** `tests/test_signals_engine.py` (21: plan, stop/targets, must-pass rules, score, states, live downgrades, no look-ahead across
+  timeframes, lifecycle), `tests/test_signals_api.py` (5: API end to end, sync routing, replay accounting); frontend `signals.test.tsx` (6).
+* **Not built yet (later sub-projects):** risk manager / persistent position sizing, paper trading + signal history, alerts, AI chat analyst,
+  broker execution. News filter: unavailable (reported on every plan).
 
 ## Data provider routing (2026-11-01)
 **BiQuote** (free keyless API, MT5 broker-CFD quotes; `docs/BIQUOTE_PROVIDER_EVALUATION.md`) is the default provider for BTCUSDT, XAUUSD, US30 and USOIL (`PREFERRED_PROVIDER=biquote`); Binance, Twelve Data and OANDA stay registered and selectable with `provider=`. Trade-off: BiQuote keeps only a fixed recent window (1H ~7 days, 4H ~30 days, 1D ~500 bars, no 1W/1M), so most analysis beyond 1D/4H reports insufficient data. Live streaming during market hours for XAUUSD/US30/USOIL is not yet verified.

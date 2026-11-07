@@ -32,3 +32,6 @@ test-results/
 # deployment tooling state
 .vercel/
 .railway/
+
+# Signal-engine replay intermediates (merged into backend/app/data/signal_track_record.json by `run_signal_track_record export`)
+backend/app/data/track_record_parts/

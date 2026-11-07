@@ -27,6 +27,7 @@ import type {
 } from "@/lib/types";
 
 import type { OppSummary, OppValidation, OpportunityDetail, ScanAccepted } from "@/lib/opportunity-types";
+import type { SignalAnalysis, SignalsSummary, SignalSync } from "@/lib/signal-types";
 
 export const retryPolicy = (failureCount: number, error: unknown) =>
   failureCount < 2 && (!(error instanceof ApiError) || error.retryable);
@@ -214,5 +215,41 @@ export function useStartScan() {
   return useMutation({
     mutationFn: (req: { symbols?: string[]; refresh_data?: boolean }) => api.post<ScanAccepted>("/opportunities/scan", req),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["opp-summary"] }),
+  });
+}
+
+// ---- Signals (top-down multi-timeframe engine) ----
+export const useSignalsSummary = () =>
+  useQuery({ queryKey: ["signals"], queryFn: () => api.get<SignalsSummary>("/signals"), refetchInterval: 60_000, retry: retryPolicy });
+
+export const useSignal = (symbol: string | null) =>
+  useQuery({
+    queryKey: ["signal", symbol],
+    queryFn: () => api.get<SignalAnalysis>(`/signals/${symbol}`),
+    enabled: !!symbol,
+    refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
+    retry: retryPolicy,
+  });
+
+/** Candles from the SAME provider the signal engine used for this instrument (never mixed). */
+export const useSignalCandles = (symbol: string, timeframe: string, provider: string, enabled = true) =>
+  useQuery({
+    queryKey: ["signal-candles", symbol, timeframe, provider],
+    queryFn: () => api.get<CandlesResponse>("/market/candles", { symbol, timeframe, provider, limit: 300 }),
+    enabled,
+    placeholderData: keepPreviousData,
+    retry: retryPolicy,
+  });
+
+export function useSyncSignal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (symbol: string) => api.post<SignalSync>(`/signals/${symbol}/sync`),
+    onSuccess: (d, symbol) => {
+      qc.setQueryData(["signal", symbol], d.analysis);
+      void qc.invalidateQueries({ queryKey: ["signals"] });
+      void qc.invalidateQueries({ queryKey: ["signal-candles", symbol] });
+    },
   });
 }
