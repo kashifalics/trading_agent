@@ -89,6 +89,18 @@ New sidebar tab **Paper Trading** (below Signals), sub-project 3 of the trading-
   limit, account endpoints and validation, run endpoint and lock, worker timing), `tests/test_signals_api.py` (+1: when a timeframe is due);
   frontend `paper.test.tsx` (6).
 
+## Production deployment (2026-11-08)
+* **Frontend:** Vercel project `trading-agent-frontend`, https://trading-agent-frontend-sigma.vercel.app, deployed with `vercel --prod` from
+  `frontend/` (Git-triggered Vercel builds fail: the project builds from the wrong folder; fix in Vercel → Settings → Root Directory = `frontend`).
+* **Backend:** new Railway project `trading-agent`, service `backend`, https://backend-production-dd47.up.railway.app, region Singapore
+  (`asia-southeast1`; Binance refuses US-based servers), SQLite on a volume mounted at `/data` (`DATABASE_URL=sqlite:////data/app.db`,
+  `RAILWAY_RUN_UID=0` so the non-root image can write it), `APP_ENV=production`, `AUTH_REQUIRED=true`, `FRONTEND_URL` = the Vercel URL.
+  Deployed with `railway up` from `backend/` (`.railwayignore` keeps `.venv`, databases and tests out of the upload). Railway could not fetch
+  the GitHub repo (snapshot never created), so the GitHub source is disconnected until Railway's GitHub app is given access to the repo.
+* **Owner key:** `BOOTSTRAP_API_KEY` makes the server create or rotate the owner's API key at startup, so no shell access is needed.
+  Verified live: requests without a key get 401, the owner key works, migrations `0001`–`0004` ran on the volume, and the paper-trading loop
+  syncs and analyses all four instruments from Singapore (BiQuote and Binance both reachable).
+
 ## Data provider routing (2026-11-01)
 **BiQuote** (free keyless API, MT5 broker-CFD quotes; `docs/BIQUOTE_PROVIDER_EVALUATION.md`) is the default provider for BTCUSDT, XAUUSD, US30 and USOIL (`PREFERRED_PROVIDER=biquote`); Binance, Twelve Data and OANDA stay registered and selectable with `provider=`. Trade-off: BiQuote keeps only a fixed recent window (1H ~7 days, 4H ~30 days, 1D ~500 bars, no 1W/1M), so most analysis beyond 1D/4H reports insufficient data. Live streaming during market hours for XAUUSD/US30/USOIL is not yet verified.
 

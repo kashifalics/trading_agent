@@ -38,3 +38,7 @@ def init_db() -> None:
         return
     with session_scope() as session:
         seed_reference_data(session)
+        from app.core.security import ensure_bootstrap_user
+
+        if ensure_bootstrap_user(session):
+            log.info("owner API key from BOOTSTRAP_API_KEY is active")

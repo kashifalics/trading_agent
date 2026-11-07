@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     # Instruments shown by default in the UI/API (comma separated). Others stay registered and reachable with ?all=true.
     focus_symbols: str = "BTCUSDT,XAUUSD"
     auth_required: bool = False
+    bootstrap_api_key: str | None = Field(None, repr=False)  # owner's API key, ensured at startup (no shell needed on hosts)
     rate_limit_per_minute: int = 240
     job_backend: str = "inline"  # inline | celery
     auto_migrate: bool = True
