@@ -1,0 +1,22 @@
+{
+ "symbol": "XAUUSD",
+ "development": {
+  "start": "2003-05-05T00:01:00+00:00",
+  "end_exclusive": "2015-01-03T00:00:00+00:00"
+ },
+ "screening": {
+  "start": "2015-01-03T00:00:00+00:00",
+  "end_exclusive": "2020-02-08T00:00:00+00:00",
+  "note": "previously examined in experiment 1 (aggregates); screening and comparison only, NOT independent validation"
+ },
+ "not_used": {
+  "experiment1_validation": [
+   "2020-02-08T00:00:00+00:00",
+   "2023-06-24T00:00:00+00:00"
+  ],
+  "sealed_final_test_from": "2023-06-24T00:00:00+00:00"
+ },
+ "experiment1_split_sha256": "c2e8d3f85d7d3879b4a94257834bd9045757b07d09540279483a882b434b5e29",
+ "created": "2026-11-09T21:10:50+00:00",
+ "sha256": "48668241642f8b66c131ffd7614d793c937191eac7c44c60384996b8eebb922d"
+}

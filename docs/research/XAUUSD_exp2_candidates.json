@@ -1,0 +1,19 @@
+{
+ "symbol": "XAUUSD",
+ "created": "2026-11-09T21:10:57+00:00",
+ "candidates": [],
+ "tests": 7,
+ "main_setting": {
+  "target_r": 2.0,
+  "holds": {
+   "H4": 60,
+   "H8": 30,
+   "D1": 20
+  },
+  "fill": "conservative (trade through by the spread)",
+  "financing": "fixed $0.10/oz/night",
+  "wait": 20
+ },
+ "exp2_split_sha256": "48668241642f8b66c131ffd7614d793c937191eac7c44c60384996b8eebb922d",
+ "sha256": "47a3f644999ab9733266635dfe84db6f56240cb1ad1014ccbe989868f1c7a1c3"
+}
