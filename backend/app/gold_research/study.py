@@ -19,8 +19,8 @@ import numpy as np
 import polars as pl
 
 from app.feature_engineering.indicators import atr as atr_fn
+from app.gold_research import combos, regimes, sim
 from app.gold_research import controls as C
-from app.gold_research import regimes, sim
 from app.gold_research import stats as Stt
 from app.gold_research.events import ATR_PERIOD, bars_from_frame, find_events
 from app.historical.config import CLEAN, DATA_ROOT, REPO_ROOT, TF_SECONDS
@@ -111,6 +111,9 @@ def run_timeframe(symbol: str, tf: str, segment: str, log_file: str | None = Non
     log(f"{S.n:,} candles to {df['ts'].max():%Y-%m-%d}; finding patterns")
     levels = compute_levels(df.sort("ts")["ts"], bar_close(tf, b.t), b.h, b.l)
     ev, trend = find_events(b, atr, log=log, label=tf, cache_dir=out_dir(symbol) / "event_chunks" / tf, levels=levels)
+    out = out_dir(symbol)
+    out.mkdir(parents=True, exist_ok=True)
+    ev.select("pattern", "direction", "idx").write_parquet(out / f"events_{tf}_{segment}.parquet", compression="zstd")
     ev = ev.filter(pl.col("direction") != 0)
     log(f"{ev.height:,} directional events; simulating")
     res = sim.simulate(S, build_orders(S, ev, atr))
@@ -148,8 +151,6 @@ def run_timeframe(symbol: str, tf: str, segment: str, log_file: str | None = Non
     bars = np.sort(rng.choice(eligible, min(POOL_BARS, len(eligible)), replace=False))
     log(f"{trades.height:,} trades kept; simulating {len(bars):,} control candles")
     pool = C.pool(S, atr, vol, bars, segment)
-    out = out_dir(symbol)
-    out.mkdir(parents=True, exist_ok=True)
     trades.write_parquet(out / f"trades_{tf}_{segment}.parquet", compression="zstd")
     pool.write_parquet(out / f"pool_{tf}_{segment}.parquet", compression="zstd")
     log(f"saved trades_{tf}_{segment}.parquet and pool_{tf}_{segment}.parquet")
@@ -181,7 +182,8 @@ KEEP = ["pattern", "family", "entry_ts", "risk_px", "spread_entry", "structure",
 
 def _with_ctrl(trades: pl.DataFrame, pool: pl.DataFrame, k: float, h: int, prefix: str = "") -> pl.DataFrame:
     """Trades (only the columns statistics need) with R for target k / hold h and their matched control expectation."""
-    t = trades.select(*KEYS, *KEEP).with_columns(r=pl.Series(_r(trades, k, h, prefix)))
+    flags = [c for c in trades.columns if c.startswith(("combo:", "mtf:"))]
+    t = trades.select(*KEYS, *KEEP, *flags).with_columns(r=pl.Series(_r(trades, k, h, prefix)))
     p = pool.select(*KEYS).with_columns(r=pl.Series(_r(pool, k, h)))
     return C.expectation(t, p, "r")
 
@@ -192,10 +194,26 @@ def _edge(df: pl.DataFrame, tf: str, h: int, r_override: np.ndarray | None = Non
                           df["ctrl_cell"].to_numpy(), df["entry_ts"].to_numpy(), h * TF_SECONDS[tf])
 
 
-def load_frames(symbol: str, tfs, segment: str) -> dict[str, tuple[pl.DataFrame, pl.DataFrame]]:
+def load_frames(symbol: str, tfs, segment: str, log: Callable[[str], None] = print) -> dict[str, tuple[pl.DataFrame, pl.DataFrame]]:
+    """Trades (with combination and multi-timeframe flags) and control pools per timeframe."""
     o = out_dir(symbol)
-    return {tf: (pl.read_parquet(o / f"trades_{tf}_{segment}.parquet"), pl.read_parquet(o / f"pool_{tf}_{segment}.parquet"))
-            for tf in tfs if (o / f"trades_{tf}_{segment}.parquet").exists()}
+    tfs = [tf for tf in tfs if (o / f"trades_{tf}_{segment}.parquet").exists()]
+    need = sorted({p[k] for p in combos.PROFILES.values() if p["setup"] in tfs for k in ("bias", "context", "confirm")})
+    states = {}
+    for tf in need:
+        try:
+            states[tf] = combos.tf_state(symbol, tf, segment)
+        except FileNotFoundError:
+            log(f"{tf}: no candles, multi-timeframe profiles using it are skipped")
+    frames = {}
+    for tf in tfs:
+        tr = pl.read_parquet(o / f"trades_{tf}_{segment}.parquet")
+        evp = o / f"events_{tf}_{segment}.parquet"
+        if evp.exists():
+            tr = combos.combo_flags(tr, pl.read_parquet(evp))
+        tr = combos.mtf_flags(tr, tf, states)
+        frames[tf] = (tr, pl.read_parquet(o / f"pool_{tf}_{segment}.parquet"))
+    return frames
 
 
 def _breakdown(g: pl.DataFrame, tf: str, col: str) -> dict:
@@ -219,7 +237,7 @@ def _opt_share(tr: pl.DataFrame, pat: str, d: int) -> float:
 
 def discover(symbol: str, tfs, log: Callable[[str], None] = print) -> dict:
     """Training segment only. Primary test per (timeframe, pattern, direction); BH; freeze the candidate list."""
-    frames = load_frames(symbol, tfs, "train")
+    frames = load_frames(symbol, tfs, "train", log)
     rows = []
     for tf, (tr, pool) in frames.items():
         prim = _with_ctrl(tr, pool, PRIMARY_TARGET, PRIMARY_HOLD)
@@ -244,6 +262,19 @@ def discover(symbol: str, tfs, log: Callable[[str], None] = print) -> dict:
                    "grid": grid.get((pat, d), {})}
             row["mde"] = Stt.mde(e.get("edge_se", float("nan")), ALPHA)
             rows.append(row)
+        for name, trig, flag, fam in combos.extra_tests(tf):  # combinations and multi-timeframe variants: subsets of trigger trades
+            if flag not in prim.columns:
+                continue
+            sub = prim.filter((pl.col("pattern") == trig) & pl.col(flag))
+            subl = late.filter((pl.col("pattern") == trig) & pl.col(flag))
+            for (d,), g in sub.group_by(["direction"]):
+                e = _edge(g, tf, PRIMARY_HOLD)
+                gl = subl.filter(pl.col("direction") == d)
+                rows.append({"tf": tf, "pattern": name, "trigger": trig, "flag": flag, "direction": "long" if d > 0 else "short",
+                             "family": fam, "entry": g["entry"][0], "primary": e,
+                             "late": _edge(gl, tf, PRIMARY_HOLD) if gl.height else {"n": 0}, "optimistic_share_changed": 0.0,
+                             "by": {col: _breakdown(g, tf, col) for col in ("session", "trend_regime", "vol_level")},
+                             "grid": {}, "mde": Stt.mde(e.get("edge_se", float("nan")), ALPHA)})
         log(f"{symbol} {tf}: {len([r for r in rows if r['tf'] == tf])} pattern/direction tests evaluated")
     tested = [r for r in rows if r["primary"].get("n", 0) >= MIN_N and np.isfinite(r["primary"].get("edge_se", np.nan))]
     if tested:
@@ -252,7 +283,8 @@ def discover(symbol: str, tfs, log: Callable[[str], None] = print) -> dict:
     for r in rows:
         r["status"] = ("not enough trades" if "q" not in r else
                        "candidate" if r["q"] < FDR_Q and r["primary"]["edge"] > 0 else "no edge in training")
-    cands = [{"tf": r["tf"], "pattern": r["pattern"], "direction": r["direction"]} for r in rows if r["status"] == "candidate"]
+    cands = [{"tf": r["tf"], "pattern": r["pattern"], "direction": r["direction"], "trigger": r.get("trigger", r["pattern"]),
+              "flag": r.get("flag")} for r in rows if r["status"] == "candidate"]
     summary = {"symbol": symbol, "segment": "train", "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                "primary": {"target_r": PRIMARY_TARGET, "hold_candles": PRIMARY_HOLD, "costs": "Dukascopy bid/ask"},
                "tests": len(tested), "candidates": cands, "rows": rows, "split_sha256": load_split(symbol)["sha256"]}
@@ -276,12 +308,14 @@ def validate(symbol: str, log: Callable[[str], None] = print) -> dict:
     if hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest() != frozen["sha256"]:
         raise RuntimeError("candidate list was edited after it was frozen")
     tfs = sorted({c["tf"] for c in frozen["candidates"]})
-    frames = load_frames(symbol, tfs, "validation")
+    frames = load_frames(symbol, tfs, "validation", log)
     rows = []
     for c in frozen["candidates"]:
         tr, pool = frames[c["tf"]]
         d = 1 if c["direction"] == "long" else -1
-        g = tr.filter((pl.col("pattern") == c["pattern"]) & (pl.col("direction") == d))
+        g = tr.filter((pl.col("pattern") == c.get("trigger", c["pattern"])) & (pl.col("direction") == d))
+        if c.get("flag"):
+            g = g.filter(pl.col(c["flag"]))
         prim = _with_ctrl(g, pool, PRIMARY_TARGET, PRIMARY_HOLD)
         late = _with_ctrl(g, pool, PRIMARY_TARGET, PRIMARY_HOLD, prefix="late_")
         e = _edge(prim, c["tf"], PRIMARY_HOLD)
