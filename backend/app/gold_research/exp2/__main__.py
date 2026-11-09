@@ -1,4 +1,4 @@
-"""python -m app.gold_research.exp2 simulate|develop|screen|report|scope [--tfs H4,H8,D1] [--log FILE]   (analysis only)"""
+"""python -m app.gold_research.exp2 simulate|develop|screen|report|scope|diagnose|diagnose-report [--tfs H4,H8,D1] [--log FILE]   (analysis only)"""
 import argparse
 import json
 from datetime import datetime
@@ -20,7 +20,7 @@ def log(msg: str) -> None:
 def main() -> None:
     global LOG
     ap = argparse.ArgumentParser(prog="python -m app.gold_research.exp2")
-    ap.add_argument("command", choices=("simulate", "develop", "screen", "report", "scope"))
+    ap.add_argument("command", choices=("simulate", "develop", "screen", "report", "scope", "diagnose", "diagnose-report"))
     ap.add_argument("--symbol", default="XAUUSD")
     ap.add_argument("--tfs", default=",".join(run.TFS))
     ap.add_argument("--log", type=Path)
@@ -37,6 +37,11 @@ def main() -> None:
         s = run.screen(a.symbol, log=log)
         log(f"screened {len(s['rows'])} candidates: {[(r['tf'], r['setup'], r['direction'], r['verdict']) for r in s['rows']]}")
         report.write(a.symbol, log=log)
+    elif a.command in ("diagnose", "diagnose-report"):  # signal-scarcity counts (no outcomes); diagnose-report only re-renders
+        from app.gold_research.exp2 import diagnostics
+        if a.command == "diagnose":
+            diagnostics.run(a.symbol, log=log)
+        diagnostics.write(a.symbol, log=log)
     elif a.command == "scope":
         log(json.dumps(run.verify_scope(a.symbol)))
     else:

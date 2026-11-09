@@ -70,3 +70,25 @@ def test_development_finds_nothing_in_a_world_without_memory(world):
     assert "NOT independent" in md and "FRED data:** NOT available" in md and "sealed final test" in md
     scope = R.verify_scope("XAUUSD")
     assert all(v.get("all_exits_before_training_end", True) for k, v in scope.items() if isinstance(v, dict))
+
+
+def test_signal_scarcity_diagnostics_are_consistent_counts(world):
+    """The read-only diagnostic reproduces the experiment's own counts and never increases along a funnel."""
+    R = world
+    from app.gold_research.exp2 import diagnostics as G
+    dev = R.develop("XAUUSD", log=lambda m: None)
+    res = G.run("XAUUSD", log=lambda m: None)
+    by_test = {(r["tf"], r["setup"], r["direction"]): r["trades"] for r in dev["rows"]}
+    for tf in R.TFS:
+        for k, v in res["fills"][tf]["setups"].items():
+            setup, dn = k.split("|")
+            assert v["development_trades"] == by_test[(tf, setup, dn)]
+            assert v["orders_dev"] >= v["reasons_dev"]["touched"] >= v["fills_dev"]["conservative (open spread, as run)"]
+            assert v["dev_fill_in_period"] >= v["dev_exit_before_boundary"] >= v["dev_no_gap"] >= v["development_trades"]
+        for s in ("S1", "S2", "S3", "S6"):
+            counts = [c for name, c in res["funnels"][tf][s]["conditions"] if not name.startswith(("zones emitted", "order blocks emitted",
+                                                                                                  "emitted by"))]
+            assert all(a >= b for a, b in zip(counts, counts[1:])), (tf, s, counts)
+        assert res["s4_refresh"][tf]["refresh_every_200_candles"]["breakouts_dev_unique"] == res["extras"][tf]["S4_dedup"]["unique_candle_direction"]
+    md = G.render("XAUUSD")
+    assert "Counts only" in md and "sealed final test was not read" in md
