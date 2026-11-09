@@ -180,9 +180,9 @@ REGIME_COLS = ["trend_regime", "range_regime", "vol_level", "vol_change", "struc
 KEEP = ["pattern", "family", "entry_ts", "risk_px", "spread_entry", "structure", *REGIME_COLS]
 
 
-def _with_ctrl(trades: pl.DataFrame, pool: pl.DataFrame, k: float, h: int, prefix: str = "") -> pl.DataFrame:
+def _with_ctrl(trades: pl.DataFrame, pool: pl.DataFrame, k: float, h: int, prefix: str = "", flags: bool = True) -> pl.DataFrame:
     """Trades (only the columns statistics need) with R for target k / hold h and their matched control expectation."""
-    flags = [c for c in trades.columns if c.startswith(("combo:", "mtf:"))]
+    flags = [c for c in trades.columns if c.startswith(("combo:", "mtf:"))] if flags else []
     t = trades.select(*KEYS, *KEEP, *flags).with_columns(r=pl.Series(_r(trades, k, h, prefix)))
     p = pool.select(*KEYS).with_columns(r=pl.Series(_r(pool, k, h)))
     return C.expectation(t, p, "r")
@@ -194,8 +194,8 @@ def _edge(df: pl.DataFrame, tf: str, h: int, r_override: np.ndarray | None = Non
                           df["ctrl_cell"].to_numpy(), df["entry_ts"].to_numpy(), h * TF_SECONDS[tf])
 
 
-def load_frames(symbol: str, tfs, segment: str, log: Callable[[str], None] = print) -> dict[str, tuple[pl.DataFrame, pl.DataFrame]]:
-    """Trades (with combination and multi-timeframe flags) and control pools per timeframe."""
+def load_frames(symbol: str, tfs, segment: str, log: Callable[[str], None] = print):
+    """Yields (timeframe, (trades with combination and multi-timeframe flags, control pool)), one timeframe at a time (memory)."""
     o = out_dir(symbol)
     tfs = [tf for tf in tfs if (o / f"trades_{tf}_{segment}.parquet").exists()]
     need = sorted({p[k] for p in combos.PROFILES.values() if p["setup"] in tfs for k in ("bias", "context", "confirm")})
@@ -205,15 +205,13 @@ def load_frames(symbol: str, tfs, segment: str, log: Callable[[str], None] = pri
             states[tf] = combos.tf_state(symbol, tf, segment)
         except FileNotFoundError:
             log(f"{tf}: no candles, multi-timeframe profiles using it are skipped")
-    frames = {}
     for tf in tfs:
         tr = pl.read_parquet(o / f"trades_{tf}_{segment}.parquet")
         evp = o / f"events_{tf}_{segment}.parquet"
         if evp.exists():
             tr = combos.combo_flags(tr, pl.read_parquet(evp))
         tr = combos.mtf_flags(tr, tf, states)
-        frames[tf] = (tr, pl.read_parquet(o / f"pool_{tf}_{segment}.parquet"))
-    return frames
+        yield tf, (tr, pl.read_parquet(o / f"pool_{tf}_{segment}.parquet"))
 
 
 def _breakdown(g: pl.DataFrame, tf: str, col: str) -> dict:
@@ -237,15 +235,14 @@ def _opt_share(tr: pl.DataFrame, pat: str, d: int) -> float:
 
 def discover(symbol: str, tfs, log: Callable[[str], None] = print) -> dict:
     """Training segment only. Primary test per (timeframe, pattern, direction); BH; freeze the candidate list."""
-    frames = load_frames(symbol, tfs, "train", log)
     rows = []
-    for tf, (tr, pool) in frames.items():
+    for tf, (tr, pool) in load_frames(symbol, tfs, "train", log):
         prim = _with_ctrl(tr, pool, PRIMARY_TARGET, PRIMARY_HOLD)
         late = _with_ctrl(tr, pool, PRIMARY_TARGET, PRIMARY_HOLD, prefix="late_")
         grid: dict[tuple, dict] = {}
         for k in TARGETS:  # descriptive grid, one target/hold at a time (memory)
             for h in sim.HOLDS:
-                full = _with_ctrl(tr, pool, k, h)
+                full = _with_ctrl(tr, pool, k, h, flags=False)
                 for (pat, d), gg in full.group_by(["pattern", "direction"], maintain_order=True):
                     e = _edge(gg, tf, h)
                     grid.setdefault((pat, d), {})[f"{k:g}R/{h}"] = {kk: e.get(kk) for kk in ("n", "mean_r", "edge", "edge_se", "win_rate")}
@@ -308,7 +305,7 @@ def validate(symbol: str, log: Callable[[str], None] = print) -> dict:
     if hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest() != frozen["sha256"]:
         raise RuntimeError("candidate list was edited after it was frozen")
     tfs = sorted({c["tf"] for c in frozen["candidates"]})
-    frames = load_frames(symbol, tfs, "validation", log)
+    frames = dict(load_frames(symbol, tfs, "validation", log))  # only the candidates' timeframes, few trades each
     rows = []
     for c in frozen["candidates"]:
         tr, pool = frames[c["tf"]]
