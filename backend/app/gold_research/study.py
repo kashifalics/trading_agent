@@ -112,8 +112,11 @@ def _compact(res: dict, prefix: str = "") -> dict:
     return out
 
 
-def run_timeframe(symbol: str, tf: str, segment: str, log_file: str | None = None, final_test: bool = False) -> str:
-    """Simulate every directional pattern event and the control pool of one timeframe inside one segment."""
+def run_timeframe(symbol: str, tf: str, segment: str, log_file: str | None = None, final_test: bool = False,
+                  source: str = "library") -> str:
+    """Simulate every directional pattern event and the control pool of one timeframe inside one segment.
+    source="unsup": the frozen unnamed-pattern model (phase 6) instead of the pattern library; files get an "unsup_" prefix and
+    the control pool of the segment is reused when it already exists."""
     def log(m: str) -> None:
         line = f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {symbol} {tf} {segment}: {m}"
         print(line, flush=True)
@@ -131,10 +134,19 @@ def run_timeframe(symbol: str, tf: str, segment: str, log_file: str | None = Non
     atr = atr_fn(b.h, b.l, b.c, ATR_PERIOD)
     log(f"{S.n:,} candles to {df['ts'].max():%Y-%m-%d}; finding patterns")
     levels = compute_levels(df.sort("ts")["ts"], bar_close(tf, b.t), b.h, b.l)
-    ev, trend = find_events(b, atr, log=log, label=tf, cache_dir=out_dir(symbol) / "event_chunks" / tf, levels=levels)
+    pre = "unsup_" if source == "unsup" else ""
+    if source == "unsup":
+        from app.gold_research import unsupervised
+        from app.market_structure.bos import detect_structure_breaks
+        from app.market_structure.swings import find_swings
+        model = unsupervised.fit(symbol, tf, log=log) if segment == "train" else joblib_load(unsupervised.model_path(symbol, tf))
+        ev = unsupervised.events(b, atr, model)
+        trend = detect_structure_breaks(b, find_swings(b))[1]
+    else:
+        ev, trend = find_events(b, atr, log=log, label=tf, cache_dir=out_dir(symbol) / "event_chunks" / tf, levels=levels)
     out = out_dir(symbol)
     out.mkdir(parents=True, exist_ok=True)
-    ev.select("pattern", "direction", "idx").write_parquet(out / f"events_{tf}_{segment}.parquet", compression="zstd")
+    ev.select("pattern", "direction", "idx").write_parquet(out / f"events_{pre}{tf}_{segment}.parquet", compression="zstd")
     ev = ev.filter(pl.col("direction") != 0)
     log(f"{ev.height:,} directional events; simulating")
     res = sim.simulate(S, build_orders(S, ev, atr))
@@ -170,20 +182,33 @@ def run_timeframe(symbol: str, tf: str, segment: str, log_file: str | None = Non
     rng = np.random.default_rng(sum(map(ord, f"{symbol}{tf}{segment}")))
     eligible = np.flatnonzero((S.t >= seg_start) & np.isfinite(atr) & (np.arange(S.n) + sim.HMAX + 2 < S.n))
     bars = np.sort(rng.choice(eligible, min(POOL_BARS, len(eligible)), replace=False))
+    pool_p = out / f"pool_{tf}_{segment}.parquet"
+    if source == "unsup" and pool_p.exists():
+        trades.write_parquet(out / f"trades_{pre}{tf}_{segment}.parquet", compression="zstd")
+        log(f"{trades.height:,} trades kept; saved trades_{pre}{tf}_{segment}.parquet (control pool reused)")
+        return tf
     log(f"{trades.height:,} trades kept; simulating {len(bars):,} control candles")
     pool = C.pool(S, atr, vol, bars, segment)
-    trades.write_parquet(out / f"trades_{tf}_{segment}.parquet", compression="zstd")
-    pool.write_parquet(out / f"pool_{tf}_{segment}.parquet", compression="zstd")
-    log(f"saved trades_{tf}_{segment}.parquet and pool_{tf}_{segment}.parquet")
+    trades.write_parquet(out / f"trades_{pre}{tf}_{segment}.parquet", compression="zstd")
+    pool.write_parquet(pool_p, compression="zstd")
+    log(f"saved trades_{pre}{tf}_{segment}.parquet and pool_{tf}_{segment}.parquet")
     return tf
 
 
+def joblib_load(path):
+    import joblib
+    if not path.exists():
+        raise RuntimeError(f"{path.name} missing: the unsupervised model is fitted on the training run first")
+    return joblib.load(path)
+
+
 def run(symbol: str, tfs: list[str], segment: str, workers: int = 3, log: Callable[[str], None] = print,
-        log_file: str | None = None) -> None:
+        log_file: str | None = None, source: str = "library") -> None:
     import os
     os.environ.setdefault("POLARS_MAX_THREADS", "1")
     with ProcessPoolExecutor(max_workers=max(1, min(workers, len(tfs)))) as ex:
-        for tf in ex.map(run_timeframe, [symbol] * len(tfs), tfs, [segment] * len(tfs), [log_file] * len(tfs)):
+        for tf in ex.map(run_timeframe, [symbol] * len(tfs), tfs, [segment] * len(tfs), [log_file] * len(tfs), [False] * len(tfs),
+                         [source] * len(tfs)):
             log(f"{symbol} {tf} {segment}: done")
 
 
@@ -228,6 +253,9 @@ def load_frames(symbol: str, tfs, segment: str, log: Callable[[str], None] = pri
             log(f"{tf}: no candles, multi-timeframe profiles using it are skipped")
     for tf in tfs:
         tr = pl.read_parquet(o / f"trades_{tf}_{segment}.parquet")
+        up = o / f"trades_unsup_{tf}_{segment}.parquet"
+        if up.exists():  # phase-6 unnamed patterns join as extra patterns of the same timeframe
+            tr = pl.concat([tr, pl.read_parquet(up)], how="diagonal_relaxed")
         evp = o / f"events_{tf}_{segment}.parquet"
         if evp.exists():
             tr = combos.combo_flags(tr, pl.read_parquet(evp))

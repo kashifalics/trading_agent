@@ -181,3 +181,8 @@ def test_whole_pipeline_finds_no_candidates_in_a_brownian_world(tmp_path, monkey
     s2 = study.discover("XAUUSD", ["H1", "H4"], log=lambda m: None)  # a second stage on the same library: nothing new to test
     assert s2["stage"] == 2 and s2["tests"] == 0 and not s2["candidates"]
     assert study.candidates_path("XAUUSD", 2).exists() and len(study.frozen_stages("XAUUSD")) == 2
+    # phase 6: unnamed patterns fitted on training only, tested as stage 3 with the same machinery; Brownian world -> no edges
+    study.run_timeframe("XAUUSD", "H1", "train", source="unsup")
+    s3 = study.discover("XAUUSD", ["H1", "H4"], log=lambda m: None)
+    assert s3["stage"] == 3 and s3["tests"] > 20 and len(s3["candidates"]) <= 2, s3["candidates"]
+    assert all(r["pattern"].startswith(("seq", "kmeans")) for r in s3["rows"] if "q" in r)

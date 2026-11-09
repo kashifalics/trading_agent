@@ -41,6 +41,8 @@ def main() -> None:
     ap.add_argument("--segment", default="train", choices=("train", "validation"))
     ap.add_argument("--workers", type=int, default=3)
     ap.add_argument("--log", type=Path)
+    ap.add_argument("--source", default="library", choices=("library", "unsup"),
+                    help="run: the pattern library, or the frozen unnamed-pattern model (phase 6, H1/H4)")
     ap.add_argument("--version", help="model version (ml-validate, promote)")
     ap.add_argument("--approve", action="store_true", help="explicit approval to promote a validated challenger")
     ap.add_argument("--confirm-final-test", action="store_true", help="explicitly run the one-time final test on the sealed period")
@@ -50,7 +52,10 @@ def main() -> None:
     if a.command == "run":
         if a.segment == "validation" and not study.frozen_stages(a.symbol):
             raise SystemExit("validation runs only after `discover` has frozen the candidate list")
-        study.run(a.symbol, tfs, a.segment, workers=a.workers, log=log, log_file=str(LOG) if LOG else None)
+        if a.source == "unsup":
+            from app.gold_research.unsupervised import UNSUP_TFS
+            tfs = [t for t in tfs if t in UNSUP_TFS] if a.tfs != ",".join(study.STUDY_TFS) else list(UNSUP_TFS)
+        study.run(a.symbol, tfs, a.segment, workers=a.workers, log=log, log_file=str(LOG) if LOG else None, source=a.source)
     elif a.command == "discover":
         s = study.discover(a.symbol, tfs, log=log)
         log(f"{s['tests']} tests, {len(s['candidates'])} candidates: {json.dumps(s['candidates'])}")
