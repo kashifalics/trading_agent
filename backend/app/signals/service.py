@@ -32,7 +32,7 @@ from app.market_data.ingestion.service import (
 from app.market_data.registry import get_provider
 from app.market_data.timeframes import bucket_end, get_timeframe
 from app.opportunities.analysis import prepare_tf, provider_configured
-from app.signals import track_record
+from app.signals import classify, track_record
 from app.signals.config import (
     CONFIG_VERSION,
     PARAMS,
@@ -141,8 +141,9 @@ def analyze(session: Session, symbol: str, now: datetime | None = None) -> dict:
             p["probability_note"] = f"Historical win rate {tr['win_probability']:.0%}: {tr['win_probability_basis']}"
     last_close = next((r["last_close"] for r in res["timeframes"] if r.get("last_close") is not None), None)
     ref_price = (quote or {}).get("price") or last_close
-    return to_jsonable({**base, "status": "ok", "market_open": open_now, "calendar": inst.calendar, "quote": quote,
-                        "spread_model": spread_for(sym, ref_price) if ref_price else None, **res})
+    out = {**base, "status": "ok", "market_open": open_now, "calendar": inst.calendar, "quote": quote,
+           "spread_model": spread_for(sym, ref_price) if ref_price else None, **res}
+    return to_jsonable(classify.enrich(sym, out))
 
 
 def _compact_plan(p: dict | None) -> dict | None:

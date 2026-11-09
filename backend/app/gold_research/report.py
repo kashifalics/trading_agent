@@ -94,7 +94,40 @@ def render(symbol: str) -> str:
     return "\n".join(L) + "\n"
 
 
+def export_summary(symbol: str) -> dict:
+    """Small JSON for the live engine and the dashboard (bundled in app/data so the hosted backend can serve it): per test, the
+    training statistics and, when validation has run, the validation verdict. Never contains final-test figures."""
+    o = study.out_dir(symbol)
+    disc = json.loads((o / "discovery.json").read_text()) if (o / "discovery.json").exists() else None
+    val = json.loads((o / "validation.json").read_text()) if (o / "validation.json").exists() else None
+    sp = load_split(symbol)
+    rows = []
+    vmap = {(r["tf"], r["pattern"], r["direction"]): r for r in (val or {}).get("rows", [])}
+    for r in (disc or {}).get("rows", []):
+        p = r["primary"]
+        if p.get("n", 0) == 0:
+            continue
+        v = vmap.get((r["tf"], r["pattern"], r["direction"]))
+        rows.append({"tf": r["tf"], "pattern": r["pattern"], "direction": r["direction"], "family": r["family"], "entry": r["entry"],
+                     "training": {k: p.get(k) for k in ("n", "win_rate", "mean_r", "ctrl_mean_r", "edge", "edge_se", "profit_factor")},
+                     "q": r.get("q"), "status": r["status"], "smallest_detectable_edge": r.get("mde"),
+                     "validation": None if v is None else {**{k: v["validation"].get(k) for k in ("n", "win_rate", "mean_r", "edge", "edge_se")},
+                                                           "holm_p": v.get("holm_p"), "verdict": v["verdict"]}})
+    summary = {"symbol": symbol, "generated": (disc or {}).get("generated"),
+               "split": {k: {kk: sp[k][kk] for kk in ("start", "end_exclusive") if kk in sp[k]} for k in ("train", "validation")} | {
+                   "test": {"start": sp["test"]["start"], "sealed": True}},
+               "main_test": {"target_r": study.PRIMARY_TARGET, "hold_candles": study.PRIMARY_HOLD},
+               "costs": "Dukascopy bid/ask spread of each trade", "rows": rows,
+               "counts": {s_: sum(1 for x in rows if x["status"] == s_) for s_ in ("candidate", "no edge in training", "not enough trades")}}
+    from app.signals.classify import DATA
+    DATA.write_text(json.dumps(summary, default=float), encoding="utf8")
+    return summary
+
+
 def write(symbol: str, log=print) -> None:
     p = study.report_path(symbol)
     p.write_text(render(symbol), encoding="utf8")
     log(f"report written: {p}")
+    if (study.out_dir(symbol) / "discovery.json").exists():
+        export_summary(symbol)
+        log("live-engine summary written: app/data/gold_research_summary.json")
