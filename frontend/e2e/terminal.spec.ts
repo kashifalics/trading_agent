@@ -59,7 +59,7 @@ async function mockBackend(page: Page) {
   });
 }
 
-const ROUTES = ["/", "/signals", "/paper", "/chart", "/scanner", "/predictions", "/patterns", "/backtesting", "/performance", "/watchlists", "/data-sources", "/models", "/settings"];
+const ROUTES = ["/", "/signals", "/paper", "/gold-research", "/chart", "/scanner", "/predictions", "/patterns", "/backtesting", "/performance", "/watchlists", "/data-sources", "/models", "/settings"];
 
 test.beforeEach(async ({ page }) => mockBackend(page));
 

@@ -2,6 +2,7 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "@/lib/api";
+import type { GoldResearch } from "@/lib/research-types";
 import type {
   AnaloguesResponse,
   Analysis,
@@ -290,3 +291,7 @@ export function useResetPaperAccount() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (c: PaperAccountChanges) => api.post<PaperAccount>("/paper/account/reset", c), onSuccess: () => invalidatePaper(qc) });
 }
+
+// ---- Gold Research (historical study; refreshed when the research pipeline rebuilds its summary) ----
+export const useGoldResearch = () =>
+  useQuery({ queryKey: ["gold-research"], queryFn: () => api.get<GoldResearch>("/research/gold"), staleTime: 300_000, retry: retryPolicy });

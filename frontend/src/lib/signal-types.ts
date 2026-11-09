@@ -81,6 +81,8 @@ export interface TimeframePlan {
   direction: Side | null;
   side?: Side;
   score: number | null;
+  signal_class?: string;
+  confluence_band?: string;
   grade: "A" | "B" | null;
   buy_score: number | null;
   sell_score: number | null;
@@ -180,6 +182,7 @@ export interface SignalAnalysis {
   session?: string | null;
   news_filter?: { available: boolean; note: string };
   report?: { final_instruction: Instruction; text: string } | null;
+  analysis_report?: { final_decision: string; signal_class?: string; confluence_band?: string; market_regime?: string | null } | null;
   disclaimer: string;
 }
 
@@ -190,6 +193,8 @@ export interface CompactPlan {
   decision: string;
   direction: Side | null;
   score: number | null;
+  signal_class?: string;
+  confluence_band?: string;
   grade: "A" | "B" | null;
   setup_type?: string;
   entry_type?: string;
