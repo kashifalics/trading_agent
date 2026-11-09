@@ -20,7 +20,7 @@ import polars as pl
 
 from app.feature_engineering.indicators import atr as atr_fn
 from app.gold_research import controls as C
-from app.gold_research import sim
+from app.gold_research import regimes, sim
 from app.gold_research import stats as Stt
 from app.gold_research.events import ATR_PERIOD, bars_from_frame, find_events
 from app.historical.config import CLEAN, DATA_ROOT, REPO_ROOT, TF_SECONDS
@@ -139,6 +139,8 @@ def run_timeframe(symbol: str, tf: str, segment: str, log_file: str | None = Non
         **{k: pl.Series(v) for k, v in _compact(res).items()}, **{k: pl.Series(v) for k, v in _compact(late, "late_").items()},
     ).rename({"entry": "entry_rule"}).rename({"entry_kind": "entry"})
     trades = trades.with_columns(period=pl.Series(C.period_key(fill_ts, segment)), segment=pl.lit(segment))
+    reg = regimes.compute(S.t, S.bo, S.bh, S.bl, S.bc, atr, trend, levels, S.ao - S.bo)
+    trades = trades.with_columns(**{k: pl.Series(np.asarray(reg[k])[idx]) for k in REGIME_COLS})
     trades = trades.filter(pl.col("simulated") & ~pl.col("data_gap") & (pl.col("entry_ts") >= seg_start))
     # control pool: random candles of this segment only
     rng = np.random.default_rng(sum(map(ord, f"{symbol}{tf}{segment}")))
@@ -173,7 +175,8 @@ def _r(df: pl.DataFrame, k: float, h: int, prefix: str = "", optimistic: bool = 
 
 
 KEYS = ["entry", "direction", "risk_b", "dist_b", "width_b", "session", "vol", "period", "segment"]
-KEEP = ["pattern", "family", "entry_ts", "risk_px", "spread_entry", "structure"]
+REGIME_COLS = ["trend_regime", "range_regime", "vol_level", "vol_change", "structural_regime", "near_level", "low_liquidity", "spike"]
+KEEP = ["pattern", "family", "entry_ts", "risk_px", "spread_entry", "structure", *REGIME_COLS]
 
 
 def _with_ctrl(trades: pl.DataFrame, pool: pl.DataFrame, k: float, h: int, prefix: str = "") -> pl.DataFrame:
@@ -193,6 +196,17 @@ def load_frames(symbol: str, tfs, segment: str) -> dict[str, tuple[pl.DataFrame,
     o = out_dir(symbol)
     return {tf: (pl.read_parquet(o / f"trades_{tf}_{segment}.parquet"), pl.read_parquet(o / f"pool_{tf}_{segment}.parquet"))
             for tf in tfs if (o / f"trades_{tf}_{segment}.parquet").exists()}
+
+
+def _breakdown(g: pl.DataFrame, tf: str, col: str) -> dict:
+    """Descriptive only: trades, mean R and edge per category of one context column (never used to select anything)."""
+    out = {}
+    if col not in g.columns:
+        return out
+    for (k,), x in g.group_by([col]):
+        e = _edge(x, tf, PRIMARY_HOLD)
+        out[str(k)] = {"n": e.get("n", 0), "mean_r": e.get("mean_r"), "edge": e.get("edge"), "edge_se": e.get("edge_se")}
+    return out
 
 
 def _opt_share(tr: pl.DataFrame, pat: str, d: int) -> float:
@@ -225,8 +239,8 @@ def discover(symbol: str, tfs, log: Callable[[str], None] = print) -> dict:
                    "primary": e, "late": _edge(gl, tf, PRIMARY_HOLD) if gl.height else {"n": 0},
                    "optimistic_share_changed": _opt_share(tr, pat, d),
                    "ctrl_levels": g["ctrl_level"].value_counts().sort("ctrl_level").rows(),
-                   "by_session": {k: _edge(x, tf, PRIMARY_HOLD).get("mean_r") for (k,), x in g.group_by(["session"])},
-                   "by_structure": {k: _edge(x, tf, PRIMARY_HOLD).get("mean_r") for (k,), x in g.group_by(["structure"])},
+                   "by": {col: _breakdown(g, tf, col) for col in ("session", "structure", "trend_regime", "range_regime", "vol_level",
+                                                                    "structural_regime", "near_level")},
                    "grid": grid.get((pat, d), {})}
             row["mde"] = Stt.mde(e.get("edge_se", float("nan")), ALPHA)
             rows.append(row)
