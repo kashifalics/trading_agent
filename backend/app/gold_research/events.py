@@ -34,7 +34,7 @@ from app.price_action.order_blocks import detect_order_blocks
 from app.price_action.supply_demand import detect_supply_demand
 
 CHUNK, WARMUP, LEVEL_STEP = 20_000, 1_000, 200
-LIB_VERSION = "lib-3"  # part of every chunk-cache key: bump when any detector changes
+LIB_VERSION = "lib-4"  # part of every chunk-cache key: bump when any detector changes
 ATR_PERIOD = 14
 ZONES = ("fvg", "order_block", "breaker_block", "demand_zone", "supply_zone")
 DIRECTION = {"bullish": 1, "bearish": -1, "neutral": 0}

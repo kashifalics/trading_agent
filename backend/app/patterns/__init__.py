@@ -3,6 +3,7 @@
 FAMILY_DETECTORS lists the detect(ctx) functions run on every chunk; importing the modules registers their PatternSpecs."""
 from app.patterns import (  # noqa: F401  (registration side effects)
     candles,
+    chart,
     imbalance,
     liquidity,
     platform,
@@ -13,4 +14,4 @@ from app.patterns import (  # noqa: F401  (registration side effects)
 )
 
 FAMILY_DETECTORS = [candles.detect_ctx, structure.detect, liquidity.detect, imbalance.detect, zones.detect, sr.detect,
-                    volatility.detect]
+                    volatility.detect, chart.detect]
