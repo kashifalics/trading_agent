@@ -178,3 +178,6 @@ def test_whole_pipeline_finds_no_candidates_in_a_brownian_world(tmp_path, monkey
     assert np.median(np.abs(edges)) < 0.12, edges
     limit_tests = [r for r in tested if r["entry"] == "limit"]
     assert limit_tests and np.median([abs(r["primary"]["edge"]) for r in limit_tests]) < 0.15
+    s2 = study.discover("XAUUSD", ["H1", "H4"], log=lambda m: None)  # a second stage on the same library: nothing new to test
+    assert s2["stage"] == 2 and s2["tests"] == 0 and not s2["candidates"]
+    assert study.candidates_path("XAUUSD", 2).exists() and len(study.frozen_stages("XAUUSD")) == 2

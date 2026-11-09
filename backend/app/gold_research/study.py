@@ -44,8 +44,28 @@ def out_dir(symbol: str):
     return DATA_ROOT / "research" / symbol
 
 
-def candidates_path(symbol: str):
-    return SPLIT_DIR / f"{symbol}_candidates.json"
+def candidates_path(symbol: str, stage: int = 1):
+    """Frozen candidate list of one discovery stage (stage 1 = the first library; later stages add only new tests)."""
+    return SPLIT_DIR / (f"{symbol}_candidates.json" if stage == 1 else f"{symbol}_candidates_stage{stage}.json")
+
+
+def frozen_stages(symbol: str) -> list[dict]:
+    """Every frozen candidate list, hash-checked, in stage order."""
+    out = []
+    for stage in range(1, 50):
+        p = candidates_path(symbol, stage)
+        if not p.exists():
+            continue
+        f = json.loads(p.read_text())
+        body = {k: v for k, v in f.items() if k != "sha256"}
+        if hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest() != f["sha256"]:
+            raise RuntimeError(f"{p.name} was edited after it was frozen")
+        out.append({**f, "stage": stage})
+    return out
+
+
+def _key(r: dict) -> str:
+    return f"{r['tf']}|{r['pattern']}|{r['direction']}"
 
 
 def _ts(x: np.ndarray) -> np.ndarray:
@@ -233,8 +253,16 @@ def _opt_share(tr: pl.DataFrame, pat: str, d: int) -> float:
     return float(np.mean(a[ok] != b[ok])) if ok.any() else 0.0
 
 
-def discover(symbol: str, tfs, log: Callable[[str], None] = print) -> dict:
-    """Training segment only. Primary test per (timeframe, pattern, direction); BH; freeze the candidate list."""
+def discover(symbol: str, tfs, log: Callable[[str], None] = print, stage: int | None = None) -> dict:
+    """Training segment only. Primary test per (timeframe, pattern, direction); BH; freeze the candidate list.
+
+    Staged discovery: stage 1 freezes the first list. A later stage (patterns added to the library afterwards) tests only what no
+    earlier stage tested, applies BH within itself and freezes its own list; validation judges all stages in one Holm family."""
+    earlier = frozen_stages(symbol)
+    stage = stage or (max((f["stage"] for f in earlier), default=0) + 1)
+    if stage > 1 and any(f["stage"] < stage and "tested_keys" not in f for f in earlier):
+        raise RuntimeError("an earlier stage has no list of tested keys; cannot tell which tests are new")
+    done = {k for f in earlier if f["stage"] < stage for k in f.get("tested_keys", [])}
     rows = []
     for tf, (tr, pool) in load_frames(symbol, tfs, "train", log):
         prim = _with_ctrl(tr, pool, PRIMARY_TARGET, PRIMARY_HOLD)
@@ -273,24 +301,31 @@ def discover(symbol: str, tfs, log: Callable[[str], None] = print) -> dict:
                              "by": {col: _breakdown(g, tf, col) for col in ("session", "trend_regime", "vol_level")},
                              "grid": {}, "mde": Stt.mde(e.get("edge_se", float("nan")), ALPHA)})
         log(f"{symbol} {tf}: {len([r for r in rows if r['tf'] == tf])} pattern/direction tests evaluated")
-    tested = [r for r in rows if r["primary"].get("n", 0) >= MIN_N and np.isfinite(r["primary"].get("edge_se", np.nan))]
+    for r in rows:
+        if _key(r) in done:
+            r["earlier_stage"] = True
+    tested = [r for r in rows if not r.get("earlier_stage") and r["primary"].get("n", 0) >= MIN_N
+              and np.isfinite(r["primary"].get("edge_se", np.nan))]
     if tested:
         for r, q in zip(tested, Stt.bh(np.array([r["primary"]["p_edge"] for r in tested]))):
             r["q"] = float(q)
     for r in rows:
-        r["status"] = ("not enough trades" if "q" not in r else
+        r["status"] = ("tested in an earlier stage" if r.get("earlier_stage") else "not enough trades" if "q" not in r else
                        "candidate" if r["q"] < FDR_Q and r["primary"]["edge"] > 0 else "no edge in training")
+        r["stage"] = stage
     cands = [{"tf": r["tf"], "pattern": r["pattern"], "direction": r["direction"], "trigger": r.get("trigger", r["pattern"]),
               "flag": r.get("flag")} for r in rows if r["status"] == "candidate"]
     summary = {"symbol": symbol, "segment": "train", "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                "primary": {"target_r": PRIMARY_TARGET, "hold_candles": PRIMARY_HOLD, "costs": "Dukascopy bid/ask"},
-               "tests": len(tested), "candidates": cands, "rows": rows, "split_sha256": load_split(symbol)["sha256"]}
+               "tests": len(tested), "candidates": cands, "rows": rows, "split_sha256": load_split(symbol)["sha256"], "stage": stage}
     out_dir(symbol).mkdir(parents=True, exist_ok=True)
+    (out_dir(symbol) / f"discovery_stage{stage}.json").write_text(json.dumps(summary, indent=1, default=float), encoding="utf8")
     (out_dir(symbol) / "discovery.json").write_text(json.dumps(summary, indent=1, default=float), encoding="utf8")
     freeze = {"symbol": symbol, "created": summary["generated"], "primary": summary["primary"], "fdr_q": FDR_Q, "min_n": MIN_N,
-              "tests": len(tested), "candidates": cands, "split_sha256": summary["split_sha256"]}
+              "tests": len(tested), "candidates": cands, "split_sha256": summary["split_sha256"], "stage": stage,
+              "tested_keys": sorted(_key(r) for r in tested)}
     freeze["sha256"] = hashlib.sha256(json.dumps(freeze, sort_keys=True).encode()).hexdigest()
-    p = candidates_path(symbol)
+    p = candidates_path(symbol, stage)
     if p.exists():
         log(f"{p.name} exists: not overwritten (candidates are frozen once). Delete it only if discovery itself was wrong, and say so.")
     else:
@@ -300,10 +335,11 @@ def discover(symbol: str, tfs, log: Callable[[str], None] = print) -> dict:
 
 def validate(symbol: str, log: Callable[[str], None] = print) -> dict:
     """Validation segment, frozen candidates only: Holm, one-candle-later entry, profitability under each cost scenario."""
-    frozen = json.loads(candidates_path(symbol).read_text())
-    body = {k: v for k, v in frozen.items() if k != "sha256"}
-    if hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest() != frozen["sha256"]:
-        raise RuntimeError("candidate list was edited after it was frozen")
+    stages = frozen_stages(symbol)
+    if not stages:
+        raise RuntimeError("no frozen candidate list: run discover first")
+    frozen = {"candidates": [{**c, "stage": f["stage"]} for f in stages for c in f["candidates"]],
+              "sha256": hashlib.sha256("".join(f["sha256"] for f in stages).encode()).hexdigest()}
     tfs = sorted({c["tf"] for c in frozen["candidates"]})
     frames = dict(load_frames(symbol, tfs, "validation", log))  # only the candidates' timeframes, few trades each
     rows = []

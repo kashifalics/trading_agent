@@ -43,7 +43,7 @@ def main() -> None:
     LOG = a.log
     tfs = [t.strip().upper() for t in a.tfs.split(",") if t.strip()]
     if a.command == "run":
-        if a.segment == "validation" and not study.candidates_path(a.symbol).exists():
+        if a.segment == "validation" and not study.frozen_stages(a.symbol):
             raise SystemExit("validation runs only after `discover` has frozen the candidate list")
         study.run(a.symbol, tfs, a.segment, workers=a.workers, log=log, log_file=str(LOG) if LOG else None)
     elif a.command == "discover":

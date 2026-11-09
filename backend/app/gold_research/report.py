@@ -13,9 +13,31 @@ def _f(x, d=2, sign=True) -> str:
     return f"{x:+.{d}f}" if sign else f"{x:.{d}f}"
 
 
+def merged_discovery(symbol: str) -> dict | None:
+    """All discovery stages combined: each test keeps the result of the stage that tested it."""
+    o = study.out_dir(symbol)
+    files = sorted(o.glob("discovery_stage*.json"), key=lambda p: int(p.stem.replace("discovery_stage", "")))
+    if not files:
+        return json.loads((o / "discovery.json").read_text()) if (o / "discovery.json").exists() else None
+    out, seen = None, set()
+    for f in files:
+        d = json.loads(f.read_text())
+        out = out or {**d, "rows": []}
+        for r in d["rows"]:
+            k = f"{r['tf']}|{r['pattern']}|{r['direction']}"
+            if r.get("earlier_stage") or k in seen:
+                continue
+            seen.add(k)
+            out["rows"].append(r)
+        out["generated"] = d["generated"]
+    out["tests"] = sum(1 for r in out["rows"] if "q" in r)
+    out["stages"] = len(files)
+    return out
+
+
 def render(symbol: str) -> str:
     o = study.out_dir(symbol)
-    disc = json.loads((o / "discovery.json").read_text()) if (o / "discovery.json").exists() else None
+    disc = merged_discovery(symbol)
     val = json.loads((o / "validation.json").read_text()) if (o / "validation.json").exists() else None
     sp = load_split(symbol)
     L = [f"# {symbol} pattern study", "",
@@ -98,7 +120,7 @@ def export_summary(symbol: str) -> dict:
     """Small JSON for the live engine and the dashboard (bundled in app/data so the hosted backend can serve it): per test, the
     training statistics and, when validation has run, the validation verdict. Never contains final-test figures."""
     o = study.out_dir(symbol)
-    disc = json.loads((o / "discovery.json").read_text()) if (o / "discovery.json").exists() else None
+    disc = merged_discovery(symbol)
     val = json.loads((o / "validation.json").read_text()) if (o / "validation.json").exists() else None
     sp = load_split(symbol)
     rows = []
@@ -128,6 +150,6 @@ def write(symbol: str, log=print) -> None:
     p = study.report_path(symbol)
     p.write_text(render(symbol), encoding="utf8")
     log(f"report written: {p}")
-    if (study.out_dir(symbol) / "discovery.json").exists():
+    if merged_discovery(symbol) is not None:
         export_summary(symbol)
         log("live-engine summary written: app/data/gold_research_summary.json")
