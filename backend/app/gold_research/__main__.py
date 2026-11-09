@@ -7,6 +7,7 @@
   library   docs/PATTERN_LIBRARY.md from the pattern registry
   ml-train     walk-forward models on training trades (M15, H1, H4) -> challengers
   ml-validate  the frozen challenger --version on the validation segment (once) and the promotion gate
+  ml-validate-all  every latest challenger on the validation segment
   promote      --version X --approve: champion pointer, only for a challenger that passed validation
 """
 import argparse
@@ -31,7 +32,7 @@ def log(msg: str) -> None:
 def main() -> None:
     global LOG
     ap = argparse.ArgumentParser(prog="python -m app.gold_research")
-    ap.add_argument("command", choices=("run", "discover", "validate", "report", "library", "ml-train", "ml-validate", "promote"))
+    ap.add_argument("command", choices=("run", "discover", "validate", "report", "library", "ml-train", "ml-validate", "ml-validate-all", "promote"))
     ap.add_argument("--symbol", default="XAUUSD")
     ap.add_argument("--tfs", default=",".join(study.STUDY_TFS))
     ap.add_argument("--segment", default="train", choices=("train", "validation"))
@@ -62,6 +63,13 @@ def main() -> None:
     elif a.command == "ml-validate":
         from app.gold_research import ml
         log(f"{ml.validate_model(a.symbol, a.version, log=log)}")
+    elif a.command == "ml-validate-all":
+        from app.gold_research import ml
+        summ = json.loads((study.out_dir(a.symbol) / "ml_training.json").read_text())
+        for tf, r in summ["tfs"].items():
+            log(f"{tf} {r['challenger']}: {ml.validate_model(a.symbol, r['challenger'], log=log)['passed_gate']}")
+        from app.gold_research import dashboard
+        dashboard.build(a.symbol)
     elif a.command == "promote":
         from app.gold_research import ml
         log(f"{ml.promote(a.symbol, a.version, approve=a.approve)}")
