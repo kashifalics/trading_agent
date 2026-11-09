@@ -53,7 +53,7 @@ def test_every_registered_detector_is_causal(full):
 
 def test_registered_patterns_fire_and_stops_sit_on_the_right_side(full):
     df, _, ev = full
-    implemented = {k for k, s in REGISTRY.items() if s.status == "implemented" and s.family in "ABCDEFGJ"}
+    implemented = {k for k, s in REGISTRY.items() if s.status == "implemented" and s.family in "ABCDEFGHIJ"}
     fired = set(ev["pattern"].unique())
     rare = {"pm_high_sweep", "pm_low_sweep", "pw_high_sweep", "pw_low_sweep", "morning_doji_star", "evening_doji_star",
             "three_white_soldiers", "three_black_crows", "rising_three_methods", "falling_three_methods", "kicker", "multiple_sweeps",
@@ -61,7 +61,12 @@ def test_registered_patterns_fire_and_stops_sit_on_the_right_side(full):
             "multi_touch_rejection", "gap_continuation", "gap_fade", "squeeze_release", "balanced_price_range",
             "atr_compression", "compression_breakout", "cup_and_handle", "inverse_cup_and_handle", "rounding_bottom",
             "rounding_top", "bull_flag", "bear_flag", "bull_pennant", "bear_pennant", "triple_top", "triple_bottom",
-            "head_and_shoulders", "inverse_head_and_shoulders"}  # volatility-regime patterns need changing volatility
+            "head_and_shoulders", "inverse_head_and_shoulders",
+            "wyckoff_accumulation", "wyckoff_distribution", "wyckoff_reaccumulation", "wyckoff_redistribution", "preliminary_support",
+            "preliminary_supply", "selling_climax", "buying_climax", "automatic_rally", "automatic_reaction", "secondary_test",
+            "creek_breakout", "ice_breakdown", "last_point_of_support", "last_point_of_supply", "gartley", "bat", "butterfly", "crab",
+            "deep_crab", "cypher", "shark", "three_drives", "elliott_impulse", "elliott_wave5", "fib_extension", "sign_of_strength",
+            "sign_of_weakness"}  # climaxes need volume; range breakouts are rare on this short series  # volatility-regime patterns need changing volatility
     assert implemented - fired - rare == set(), sorted(implemented - fired - rare)
     h, lo = df["bid_high"].to_numpy(), df["bid_low"].to_numpy()
     d = ev.filter((pl.col("direction") != 0) & pl.col("stop_level").is_not_nan() & (pl.col("entry") == "next_open"))
@@ -78,7 +83,7 @@ def test_library_document_lists_every_pattern_and_scoped_items_have_reasons():
         assert s.family in FAMILIES
         if s.status == "scoped_out":
             assert s.reason
-    assert len(FAMILY_DETECTORS) >= 8
+    assert len(FAMILY_DETECTORS) >= 10
 
 
 def test_period_levels_are_point_in_time_and_first_touch_is_once_per_period():

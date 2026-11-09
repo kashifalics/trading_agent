@@ -132,7 +132,9 @@ def library_markdown() -> str:
         for s in specs:
             total[s.status] += 1
             st = "implemented" if s.status == "implemented" else f"scoped out: {s.reason}"
-            L.append(f"| `{s.id}` | {s.name} | {s.direction} | {s.definition} | {s.confirmation} | {s.invalidation} | {s.entry} | {st} |")
+            e = lambda x: str(x).replace("|", r"\|")  # noqa: E731  (a pipe inside a cell would break the table row)
+            L.append(f"| `{s.id}` | {e(s.name)} | {s.direction} | {e(s.definition)} | {e(s.confirmation)} | {e(s.invalidation)} | {s.entry} "
+                     f"| {e(st)} |")
         L.append("")
     L.insert(4, f"{total['implemented']} patterns implemented, {total['scoped_out']} scoped out with a reason.")
     L.insert(5, "")
