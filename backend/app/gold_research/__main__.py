@@ -4,6 +4,7 @@
   discover  training statistics -> data/historical/research/{SYMBOL}/discovery.json + frozen docs/research/{SYMBOL}_candidates.json
   validate  validation statistics for the frozen candidates only
   report    docs/reports/PATTERN_STUDY_{SYMBOL}.md from the stored results
+  library   docs/PATTERN_LIBRARY.md from the pattern registry
 """
 import argparse
 import json
@@ -27,7 +28,7 @@ def log(msg: str) -> None:
 def main() -> None:
     global LOG
     ap = argparse.ArgumentParser(prog="python -m app.gold_research")
-    ap.add_argument("command", choices=("run", "discover", "validate", "report"))
+    ap.add_argument("command", choices=("run", "discover", "validate", "report", "library"))
     ap.add_argument("--symbol", default="XAUUSD")
     ap.add_argument("--tfs", default=",".join(study.STUDY_TFS))
     ap.add_argument("--segment", default="train", choices=("train", "validation"))
@@ -48,6 +49,12 @@ def main() -> None:
         s = study.validate(a.symbol, log=log)
         log(f"validated {len(s['rows'])} candidates")
         rep.write(a.symbol, log=log)
+    elif a.command == "library":
+        from app.historical.config import REPO_ROOT
+        from app.patterns.registry import library_markdown
+        p = REPO_ROOT / "docs" / "PATTERN_LIBRARY.md"
+        p.write_text(library_markdown(), encoding="utf8")
+        log(f"written: {p}")
     else:
         rep.write(a.symbol, log=log)
 

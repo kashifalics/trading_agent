@@ -53,10 +53,13 @@ def test_every_registered_detector_is_causal(full):
 
 def test_registered_patterns_fire_and_stops_sit_on_the_right_side(full):
     df, _, ev = full
-    implemented = {k for k, s in REGISTRY.items() if s.status == "implemented" and s.family in "ABC"}
+    implemented = {k for k, s in REGISTRY.items() if s.status == "implemented" and s.family in "ABCDEFJ"}
     fired = set(ev["pattern"].unique())
     rare = {"pm_high_sweep", "pm_low_sweep", "pw_high_sweep", "pw_low_sweep", "morning_doji_star", "evening_doji_star",
-            "three_white_soldiers", "three_black_crows", "rising_three_methods", "falling_three_methods", "kicker", "multiple_sweeps"}
+            "three_white_soldiers", "three_black_crows", "rising_three_methods", "falling_three_methods", "kicker", "multiple_sweeps",
+            "round100_reaction", "round50_reaction", "climax_reversal", "parabolic_move", "strong_demand", "strong_supply",
+            "multi_touch_rejection", "gap_continuation", "gap_fade", "squeeze_release", "balanced_price_range",
+            "atr_compression", "compression_breakout"}  # volatility-regime patterns need changing volatility
     assert implemented - fired - rare == set(), sorted(implemented - fired - rare)
     h, lo = df["bid_high"].to_numpy(), df["bid_low"].to_numpy()
     d = ev.filter((pl.col("direction") != 0) & pl.col("stop_level").is_not_nan() & (pl.col("entry") == "next_open"))
@@ -73,7 +76,7 @@ def test_library_document_lists_every_pattern_and_scoped_items_have_reasons():
         assert s.family in FAMILIES
         if s.status == "scoped_out":
             assert s.reason
-    assert len(FAMILY_DETECTORS) >= 3
+    assert len(FAMILY_DETECTORS) >= 7
 
 
 def test_period_levels_are_point_in_time_and_first_touch_is_once_per_period():
