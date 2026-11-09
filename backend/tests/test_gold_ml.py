@@ -81,3 +81,17 @@ def test_dashboard_reports_models_and_never_a_final_test(world, monkeypatch, tmp
     assert d["models"] and "H1" in d["models"]["tfs"] and d["models"]["tfs"]["H1"]["champion"] is None
     assert "test" not in (d["patterns"] or {})
     assert dashboard.load()["available"] is True
+
+
+def test_category_codes_are_fixed_vocabularies():
+    a = ml._codes(np.array(["strong_bullish", "none", "weird"]), "trend_regime")
+    b = ml._codes(np.array(["none"]), "trend_regime")
+    assert list(a) == [3, 0, -1] and list(b) == [0]  # the same value always gets the same code, whatever else is present
+    import inspect
+
+    from app.gold_research import (
+        regimes,  # noqa: F401  (vocabularies must cover every label the regime engine emits)
+    )
+    src = inspect.getsource(regimes)
+    for v in ("strong", "moderate", "weak", "volatile_range", "tight_range", "wide_range", "balanced_range", "trend_transition"):
+        assert v in src

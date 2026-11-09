@@ -51,6 +51,7 @@ LABEL_TARGETS = (1.0, 1.5, 2.0, 3.0)
 PRIMARY_K = 2.0
 N_FOLDS = 5
 SEED = 7
+ML_MAX_ROWS = 300_000  # larger timeframes are thinned evenly in time (every k-th trade), keeping the chronology
 LGBM_GRID = [
     {"num_leaves": 15, "min_child_samples": 200, "learning_rate": 0.05, "colsample_bytree": 0.8},
     {"num_leaves": 31, "min_child_samples": 200, "learning_rate": 0.05, "colsample_bytree": 0.8},
@@ -63,9 +64,20 @@ FAMILY_CODE = {k: i for i, k in enumerate(FAMILIES)}
 
 
 # ------------------------------------------------------------------ features
-def _codes(x: np.ndarray) -> np.ndarray:
-    cats = {v: i for i, v in enumerate(sorted({str(v) for v in x}))}
-    return np.array([cats[str(v)] for v in x], dtype=np.int32)
+VOCAB = {  # fixed category codes, identical for training, validation and live data (unknown values -> -1, treated as missing)
+    "trend_regime": ["none", "weak_bullish", "moderate_bullish", "strong_bullish", "weak_bearish", "moderate_bearish", "strong_bearish"],
+    "range_regime": ["trending", "tight_range", "balanced_range", "wide_range", "volatile_range"],
+    "vol_level": ["unknown", "very_low", "low", "normal", "high", "extreme"],
+    "structural_regime": ["none", "trend_transition", "reaccumulation_like", "redistribution_like", "accumulation_like", "distribution_like"],
+    "session": ["asia", "london", "overlap", "new_york", "rollover"],
+    "near_level": ["none", "round_50", "prev_day_high", "prev_day_low", "prev_week_high", "prev_week_low", "prev_month_high",
+                   "prev_month_low"],
+}
+
+
+def _codes(x: np.ndarray, col: str) -> np.ndarray:
+    m = {v: i for i, v in enumerate(VOCAB[col])}
+    return np.array([m.get(str(v), -1) for v in x], dtype=np.int32)
 
 
 def build_features(symbol: str, tf: str, segment: str, trades: pl.DataFrame, events: pl.DataFrame | None = None,
@@ -122,7 +134,7 @@ def build_features(symbol: str, tf: str, segment: str, trades: pl.DataFrame, eve
     X["room_to_opposing_swing"] = np.where(d > 0, X["swing_hi_dist"], X["swing_lo_dist"])
     X["room_to_opposing_pd"] = np.where(d > 0, X["dist_pdh"], -X["dist_pdl"])
     for k in ("trend_regime", "range_regime", "vol_level", "structural_regime", "session", "near_level"):
-        X[k] = _codes(np.asarray(reg[k])[idx])
+        X[k] = _codes(np.asarray(reg[k])[idx], k)
     tr = trades
     X["pattern_code"] = np.array([PATTERN_CODE.get(p, -1) for p in tr["pattern"].to_list()], dtype=np.int32)
     X["family_code"] = np.array([FAMILY_CODE.get(REGISTRY[p].family, -1) if p in REGISTRY else -1 for p in tr["pattern"].to_list()],
@@ -250,12 +262,18 @@ def _model(kind: str, params: dict | None = None):
     raise ValueError(kind)
 
 
+ONEHOT_LEVELS = 60
+
+
 def _prep(X: pl.DataFrame, kind: str, scaler=None):
+    """Model matrix. Logistic: scaled numbers plus one-hot categories (the pattern id itself is represented by its family and its
+    own track record, pattern_prior_r, instead of ~200 sparse columns). Trees: raw values, categories declared in _fit_predict."""
     A = X.to_numpy().astype(float)
     if kind == "logistic":
         A = np.nan_to_num(A, nan=0.0)
-        cats = [X.columns.index(c) for c in CATEGORICAL if c in X.columns]
-        num = [i for i in range(A.shape[1]) if i not in cats]
+        cats = [X.columns.index(c) for c in CATEGORICAL if c in X.columns and c != "pattern_code"]
+        drop = [X.columns.index("pattern_code")] if "pattern_code" in X.columns else []
+        num = [i for i in range(A.shape[1]) if i not in cats and i not in drop]
         if scaler is None:
             scaler = StandardScaler().fit(A[:, num])
         A = np.c_[scaler.transform(A[:, num]), _onehot(A[:, cats])]
@@ -263,12 +281,13 @@ def _prep(X: pl.DataFrame, kind: str, scaler=None):
     return A, None
 
 
-def _onehot(C: np.ndarray, max_levels: int = 40) -> np.ndarray:
+def _onehot(C: np.ndarray, levels: int = ONEHOT_LEVELS) -> np.ndarray:
+    """Fixed-width one-hot (codes 0..levels-1) so training and later data line up; categories here have far fewer levels."""
     cols = []
     for j in range(C.shape[1]):
-        for v in range(max_levels):
-            cols.append((C[:, j] == v).astype(float))
-    return np.stack(cols, 1) if cols else np.zeros((len(C), 0))
+        for v in range(levels):
+            cols.append((C[:, j] == v).astype(np.float32))
+    return np.stack(cols, 1) if cols else np.zeros((len(C), 0), dtype=np.float32)
 
 
 def _fit_predict(kind: str, Xtr, ytr, Xte, params=None):
@@ -277,7 +296,10 @@ def _fit_predict(kind: str, Xtr, ytr, Xte, params=None):
     m = _model(kind, params)
     if len(np.unique(ytr)) < 2:
         return np.full(len(B), float(ytr.mean())), m
-    m.fit(A, ytr)
+    if kind in ("lgbm", "lgbm_rf"):
+        m.fit(A, ytr, categorical_feature=[Xtr.columns.index(c) for c in CATEGORICAL if c in Xtr.columns])
+    else:
+        m.fit(A, ytr)
     return m.predict_proba(B)[:, 1], (m, sc)
 
 
@@ -356,6 +378,10 @@ def train(symbol: str, tfs=ML_TFS, kinds=("logistic", "lgbm", "lgbm_rf", "xgb"),
             log(f"{tf}: no training trades, skipped")
             continue
         tr = dataset(pl.read_parquet(p)).sort("entry_ts")
+        if tr.height > ML_MAX_ROWS:
+            step = int(np.ceil(tr.height / ML_MAX_ROWS))
+            tr = tr.gather_every(step)
+            log(f"{tf}: thinned to every {step}th trade ({tr.height:,} rows) to fit this machine")
         evp = out_dir(symbol) / f"events_{tf}_train.parquet"
         X = build_features(symbol, tf, "train", tr, pl.read_parquet(evp) if evp.exists() else None)
         lab = labels(tr)
@@ -393,7 +419,10 @@ def register(symbol, tf, X, y, r, ts, hold_s, kind, wf, log) -> str:
         params = _select_params(X, y, ts, hold_s)
     A, sc = _prep(X, kind)
     m = _model(kind, params)
-    m.fit(A, y)
+    if kind in ("lgbm", "lgbm_rf"):
+        m.fit(A, y, categorical_feature=[X.columns.index(c) for c in CATEGORICAL if c in X.columns])
+    else:
+        m.fit(A, y)
     oof = wf["_oof"]
     ok = np.isfinite(oof)
     iso = IsotonicRegression(out_of_bounds="clip", y_min=0, y_max=1).fit(oof[ok], y[ok])
