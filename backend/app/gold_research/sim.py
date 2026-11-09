@@ -92,9 +92,11 @@ def _batches(n: int, width: int):
         yield slice(s, min(n, s + size))
 
 
-def fill_minutes(m1: M1, lo: np.ndarray, hi: np.ndarray, d: np.ndarray, limit: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """First minute in [lo, hi) a limit order trades through, and its fill price (the limit, or the minute's open if it opened
-    beyond it). Returns (absolute M1 row, price); row -1 if no minute fills (should not happen when the candle touched)."""
+def fill_minutes(m1: M1, lo: np.ndarray, hi: np.ndarray, d: np.ndarray, limit: np.ndarray,
+                 through: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
+    """First minute in [lo, hi) a limit order trades through (by more than `through` in price, 0 = any amount), and its fill price
+    (the limit, or the minute's open if it opened beyond it). Returns (absolute M1 row, price); row -1 if no minute fills."""
+    thr_all = np.zeros(len(lo)) if through is None else through
     n = len(lo)
     row, px = np.full(n, -1, dtype=np.int64), np.full(n, np.nan)
     width = int(max(1, (hi - lo).max(initial=1)))
@@ -102,7 +104,8 @@ def fill_minutes(m1: M1, lo: np.ndarray, hi: np.ndarray, d: np.ndarray, limit: n
         long = d[b] > 0
         J, valid, *_, en_lo, en_hi, en_op = _minutes(m1, lo[b], hi[b], long)
         L = limit[b, None]
-        hit = np.where(long[:, None], en_lo < L, en_hi > L) & valid
+        thr = thr_all[b, None]
+        hit = np.where(long[:, None], en_lo < L - thr, en_hi > L + thr) & valid
         f = _first(hit, -1)
         ok = f >= 0
         r = np.arange(len(f))
@@ -158,9 +161,14 @@ class Orders:
     limit: np.ndarray | None = None  # limit price (NaN = market order)
     cancel: np.ndarray | None = None  # limit cancelled if a candle CLOSES beyond this before the fill
     wait: int = 50
+    through: np.ndarray | None = None  # conservative fill: price must trade beyond the limit by this much (None/0 = touch)
 
 
-def simulate(S: Series, o: Orders, batch: int = 40_000) -> dict[str, np.ndarray]:
+def simulate(S: Series, o: Orders, batch: int = 40_000, holds: tuple[int, ...] = HOLDS,
+             hit_targets: tuple[float, ...] = ()) -> dict[str, np.ndarray]:
+    """holds: holding periods (candles) to store; hit_targets: R targets whose first candle is stored as hit_<k> (absolute candle
+    index, -1 if the target was not reached before the stop within max(holds))."""
+    hmax = max(holds)
     n = len(o.d)
     d = o.d.astype(np.int64)
     long = d > 0
@@ -179,32 +187,38 @@ def simulate(S: Series, o: Orders, batch: int = 40_000) -> dict[str, np.ndarray]
         real = (J < S.n) & (o.entry_bar[li, None] >= 0)
         Jc = np.clip(J, 0, S.n - 1)
         lim, can = o.limit[li, None], o.cancel[li, None]
+        thr = np.zeros((len(li), 1)) if o.through is None else o.through[li, None]
         Ll = long[li, None]
-        touch = np.where(Ll, S.al[Jc] < lim, S.bh[Jc] > lim) & real
+        touch = np.where(Ll, S.al[Jc] < lim - thr, S.bh[Jc] > lim + thr) & real
         cancel = np.where(Ll, S.bc[Jc] < can, S.bc[Jc] > can) & real
         ft, fc = _first(touch, o.wait), _first(cancel, o.wait)
         ok = (ft < o.wait) & (ft <= fc)
         fb = o.entry_bar[li] + ft
         fi = li[ok]
-        rows, px = fill_minutes(S.m1, S.m1_lo[fb[ok]], S.m1_hi[fb[ok]], d[fi], o.limit[fi])
+        rows, px = fill_minutes(S.m1, S.m1_lo[fb[ok]], S.m1_hi[fb[ok]], d[fi], o.limit[fi],
+                                None if o.through is None else o.through[fi])
         good = rows >= 0
         e[fi[good]], P[fi[good]], fill_row[fi[good]] = fb[ok][good], px[good], rows[good]
     raw = np.where(long, P - o.stop, o.stop - P)
     R = np.where(raw > 0, np.maximum(raw, MIN_RISK_ATR * o.atr), np.nan)
-    live = (e >= 0) & np.isfinite(R) & (e + HMAX <= S.n)
+    live = (e >= 0) & np.isfinite(R) & (e + hmax <= S.n)
     out = {"fill_bar": e, "fill_ts": np.where(fill_row >= 0, S.m1.ts[np.clip(fill_row, 0, len(S.m1.ts) - 1)], -1), "entry_px": P,
-           "risk_px": R, "stop_r": np.full(n, np.nan), "stop_bar": np.full(n, -1, dtype=np.int64), "simulated": live}
-    for h in HOLDS:
+           "risk_px": R, "stop_r": np.full(n, np.nan), "stop_bar": np.full(n, -1, dtype=np.int64), "simulated": live,
+           "stop_ts": np.full(n, -1, dtype=np.int64)}
+    for k in hit_targets:
+        out[f"hit_{k:g}"] = np.full(n, -1, dtype=np.int64)
+    for h in holds:
         out[f"mfe_{h}"], out[f"mfe_opt_{h}"] = np.full(n, np.nan, np.float32), np.full(n, np.nan, np.float32)
         out[f"stopped_{h}"], out[f"end_r_{h}"] = np.zeros(n, dtype=bool), np.full(n, np.nan, np.float32)
     w = np.flatnonzero(live)
     for s in range(0, len(w), batch):
         i = w[s:s + batch]
-        _resolve(S, i, d[i], e[i], P[i], R[i], is_lim[i], fill_row[i], out)
+        _resolve(S, i, d[i], e[i], P[i], R[i], is_lim[i], fill_row[i], out, holds, hit_targets)
     return out
 
 
-def _resolve(S: Series, i, d, e, P, R, is_lim, fill_row, out) -> None:
+def _resolve(S: Series, i, d, e, P, R, is_lim, fill_row, out, holds=HOLDS, hit_targets=()) -> None:
+    HMAX = max(holds)  # noqa: N806  (local window length)
     long = d > 0
     m = len(i)
     J = e[:, None] + np.arange(HMAX)
@@ -217,6 +231,7 @@ def _resolve(S: Series, i, d, e, P, R, is_lim, fill_row, out) -> None:
     fav_pre = np.full(m, -np.inf)
     fav_opt = np.full(m, -np.inf)
     stop_r = np.full(m, np.nan)
+    stop_row = np.full(m, -1, dtype=np.int64)
     if is_lim.any():  # the fill candle, minute by minute from the fill minute
         k = np.flatnonzero(is_lim)
         sc = scan_minutes(S.m1, fill_row[k], S.m1_hi[e[k]], d[k], P[k], R[k], np.ones(len(k), dtype=bool))
@@ -225,6 +240,7 @@ def _resolve(S: Series, i, d, e, P, R, is_lim, fill_row, out) -> None:
         adv[k, 0] = np.where(st, 1.0, 0.0)
         ks = k[st]
         stop_bar[ks], fav_pre[ks], fav_opt[ks], stop_r[ks] = 0, sc["fav"][st], sc["fav_opt"][st], sc["stop_r"][st]
+        stop_row[ks] = sc["stop_row"][st]
     need = stop_bar == HMAX
     sb = _first(adv >= 1.0, HMAX)
     q = np.flatnonzero(need & (sb < HMAX))
@@ -238,11 +254,17 @@ def _resolve(S: Series, i, d, e, P, R, is_lim, fill_row, out) -> None:
         fav_pre[q] = np.where(st, sc["fav"], -np.inf)
         fav_opt[q] = np.where(st, sc["fav_opt"], -np.inf)
         stop_r[q] = np.where(st, sc["stop_r"], -1.0)
+        stop_row[q] = np.where(st, sc["stop_row"], S.m1_hi[b] - 1)  # no single minute: the candle's last minute (conservative)
     cols = np.arange(HMAX)
     rows = np.arange(m)
     out["stop_bar"][i] = np.where(stop_bar < HMAX, e + stop_bar, -1)
     out["stop_r"][i] = stop_r
-    for h in HOLDS:
+    out["stop_ts"][i] = np.where(stop_row >= 0, S.m1.ts[np.clip(stop_row, 0, len(S.m1.ts) - 1)], -1)
+    for k in hit_targets:
+        th = _first(fav >= k, HMAX)
+        in_stop_candle = (stop_bar < HMAX) & (fav_pre >= k)
+        out[f"hit_{k:g}"][i] = np.where(th < stop_bar, e + th, np.where(in_stop_candle, e + stop_bar, -1))
+    for h in holds:
         upto = np.minimum(stop_bar, h)
         f_bars = np.where(cols[None, :] < upto[:, None], fav, -np.inf).max(1)
         stopped = stop_bar < h
