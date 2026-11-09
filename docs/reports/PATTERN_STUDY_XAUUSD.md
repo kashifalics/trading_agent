@@ -23,7 +23,7 @@ Split frozen 2026-11-09 (SHA-256 `c2e8d3f85d7d3879`). Dukascopy 1-minute bid/ask
 
 ## Training result
 
-1671 tests with enough trades. 62 candidate, 1609 no edge in training, 554 not enough trades.
+1931 tests with enough trades. 62 candidate, 1869 no edge in training, 554 not enough trades.
 
 ### Candidates sent to validation
 
@@ -1413,6 +1413,54 @@ Smallest detectable edge = the edge this sample would find 80% of the time; 'no 
 | inverted_hammer | long | market | 1,460 | 23 | -0.31 | +0.01 | 0.08 | 0.799 | no edge in training |
 | kicker | long | market | 26 | - | - | - | - | - | not enough trades |
 | kicker | short | market | 8 | - | - | - | - | - | not enough trades |
+| kmeans_c00 | long | market | 2,897 | 30 | -0.12 | +0.00 | 0.07 | 1.000 | no edge in training |
+| kmeans_c00 | short | market | 2,897 | 28 | -0.15 | +0.00 | 0.06 | 1.000 | no edge in training |
+| kmeans_c01 | long | market | 6,526 | 28 | -0.17 | -0.01 | 0.06 | 1.000 | no edge in training |
+| kmeans_c01 | short | market | 6,526 | 28 | -0.18 | -0.01 | 0.05 | 1.000 | no edge in training |
+| kmeans_c02 | long | market | 2,837 | 27 | -0.19 | -0.07 | 0.07 | 1.000 | no edge in training |
+| kmeans_c02 | short | market | 2,837 | 29 | -0.14 | +0.02 | 0.07 | 1.000 | no edge in training |
+| kmeans_c03 | long | market | 2,911 | 29 | -0.14 | -0.02 | 0.07 | 1.000 | no edge in training |
+| kmeans_c03 | short | market | 2,911 | 28 | -0.16 | +0.01 | 0.07 | 1.000 | no edge in training |
+| kmeans_c04 | long | market | 2,513 | 31 | -0.09 | +0.04 | 0.07 | 0.981 | no edge in training |
+| kmeans_c04 | short | market | 2,513 | 28 | -0.18 | -0.03 | 0.07 | 1.000 | no edge in training |
+| kmeans_c05 | long | market | 5,250 | 29 | -0.15 | +0.01 | 0.05 | 1.000 | no edge in training |
+| kmeans_c05 | short | market | 5,250 | 28 | -0.15 | -0.00 | 0.06 | 1.000 | no edge in training |
+| kmeans_c06 | long | market | 2,984 | 30 | -0.09 | +0.04 | 0.06 | 0.981 | no edge in training |
+| kmeans_c06 | short | market | 2,984 | 27 | -0.19 | -0.05 | 0.06 | 1.000 | no edge in training |
+| kmeans_c07 | long | market | 7,130 | 27 | -0.20 | -0.04 | 0.05 | 1.000 | no edge in training |
+| kmeans_c07 | short | market | 7,130 | 28 | -0.16 | +0.01 | 0.05 | 1.000 | no edge in training |
+| kmeans_c08 | long | market | 2,781 | 31 | -0.07 | +0.06 | 0.07 | 0.981 | no edge in training |
+| kmeans_c08 | short | market | 2,781 | 27 | -0.20 | -0.07 | 0.07 | 1.000 | no edge in training |
+| kmeans_c09 | long | market | 2,114 | 30 | -0.10 | +0.02 | 0.07 | 1.000 | no edge in training |
+| kmeans_c09 | short | market | 2,114 | 26 | -0.22 | -0.07 | 0.07 | 1.000 | no edge in training |
+| kmeans_c10 | long | market | 6,457 | 28 | -0.18 | -0.01 | 0.05 | 1.000 | no edge in training |
+| kmeans_c10 | short | market | 6,457 | 27 | -0.19 | -0.02 | 0.05 | 1.000 | no edge in training |
+| kmeans_c11 | long | market | 2,229 | 30 | -0.11 | +0.02 | 0.07 | 1.000 | no edge in training |
+| kmeans_c11 | short | market | 2,229 | 27 | -0.20 | -0.07 | 0.07 | 1.000 | no edge in training |
+| kmeans_c12 | long | market | 4,786 | 28 | -0.17 | -0.02 | 0.06 | 1.000 | no edge in training |
+| kmeans_c12 | short | market | 4,786 | 29 | -0.12 | +0.02 | 0.06 | 1.000 | no edge in training |
+| kmeans_c13 | long | market | 1,526 | 29 | -0.15 | -0.02 | 0.09 | 1.000 | no edge in training |
+| kmeans_c13 | short | market | 1,526 | 26 | -0.24 | -0.07 | 0.08 | 1.000 | no edge in training |
+| kmeans_c14 | long | market | 6,162 | 27 | -0.19 | -0.02 | 0.05 | 1.000 | no edge in training |
+| kmeans_c14 | short | market | 6,162 | 29 | -0.15 | +0.01 | 0.05 | 1.000 | no edge in training |
+| kmeans_c15 | long | market | 6,064 | 28 | -0.16 | -0.01 | 0.06 | 1.000 | no edge in training |
+| kmeans_c15 | short | market | 6,064 | 28 | -0.18 | -0.01 | 0.05 | 1.000 | no edge in training |
+| kmeans_c16 | long | market | 2,579 | 29 | -0.13 | -0.01 | 0.07 | 1.000 | no edge in training |
+| kmeans_c16 | short | market | 2,579 | 30 | -0.11 | +0.03 | 0.07 | 1.000 | no edge in training |
+| kmeans_c17 | long | market | 4,548 | 28 | -0.17 | -0.01 | 0.06 | 1.000 | no edge in training |
+| kmeans_c17 | short | market | 4,548 | 27 | -0.19 | -0.05 | 0.06 | 1.000 | no edge in training |
+| kmeans_c18 | long | market | 3,044 | 28 | -0.16 | -0.02 | 0.07 | 1.000 | no edge in training |
+| kmeans_c18 | short | market | 3,044 | 27 | -0.18 | -0.02 | 0.07 | 1.000 | no edge in training |
+| kmeans_c19 | long | market | 1,806 | 28 | -0.17 | -0.04 | 0.08 | 1.000 | no edge in training |
+| kmeans_c19 | short | market | 1,806 | 30 | -0.10 | +0.01 | 0.08 | 1.000 | no edge in training |
+| kmeans_c20 | long | market | 2,147 | 29 | -0.12 | +0.00 | 0.08 | 1.000 | no edge in training |
+| kmeans_c20 | short | market | 2,147 | 26 | -0.22 | -0.05 | 0.07 | 1.000 | no edge in training |
+| kmeans_c21 | long | market | 1,706 | 29 | -0.15 | -0.03 | 0.08 | 1.000 | no edge in training |
+| kmeans_c21 | short | market | 1,706 | 29 | -0.13 | -0.00 | 0.09 | 1.000 | no edge in training |
+| kmeans_c22 | long | market | 2,810 | 28 | -0.18 | -0.05 | 0.07 | 1.000 | no edge in training |
+| kmeans_c22 | short | market | 2,810 | 30 | -0.12 | +0.03 | 0.07 | 1.000 | no edge in training |
+| kmeans_c23 | long | market | 2,883 | 31 | -0.09 | +0.03 | 0.07 | 1.000 | no edge in training |
+| kmeans_c23 | short | market | 2,883 | 26 | -0.23 | -0.06 | 0.06 | 1.000 | no edge in training |
 | last_point_of_supply | short | market | 19 | - | - | - | - | - | not enough trades |
 | last_point_of_support | long | market | 25 | - | - | - | - | - | not enough trades |
 | liquidity_sweep | long | market | 3,823 | 29 | -0.16 | +0.03 | 0.06 | 0.488 | no edge in training |
@@ -1558,6 +1606,138 @@ Smallest detectable edge = the edge this sample would find 80% of the time; 'no 
 | secondary_test | long | market | 101 | 24 | -0.29 | -0.11 | 0.32 | 0.964 | no edge in training |
 | secondary_test | short | market | 93 | - | - | - | - | - | not enough trades |
 | selling_climax | long | market | 552 | 27 | -0.20 | -0.06 | 0.14 | 0.990 | no edge in training |
+| seq2_dl1-um3 | long | market | 951 | 29 | -0.13 | -0.00 | 0.11 | 1.000 | no edge in training |
+| seq2_dl1-um3 | short | market | 951 | 31 | -0.06 | +0.08 | 0.12 | 0.981 | no edge in training |
+| seq2_dm1-dl1 | long | market | 694 | 32 | -0.05 | +0.08 | 0.14 | 0.981 | no edge in training |
+| seq2_dm1-dl1 | short | market | 694 | 27 | -0.20 | -0.08 | 0.13 | 1.000 | no edge in training |
+| seq2_dm1-dm1 | long | market | 1,454 | 29 | -0.12 | +0.01 | 0.09 | 1.000 | no edge in training |
+| seq2_dm1-dm1 | short | market | 1,454 | 25 | -0.24 | -0.10 | 0.09 | 1.000 | no edge in training |
+| seq2_dm1-dm2 | long | market | 680 | 29 | -0.13 | +0.02 | 0.13 | 1.000 | no edge in training |
+| seq2_dm1-dm2 | short | market | 680 | 28 | -0.16 | -0.02 | 0.13 | 1.000 | no edge in training |
+| seq2_dm1-ds1 | long | market | 766 | 30 | -0.10 | +0.05 | 0.13 | 1.000 | no edge in training |
+| seq2_dm1-ds1 | short | market | 766 | 26 | -0.22 | -0.08 | 0.13 | 1.000 | no edge in training |
+| seq2_dm1-ds2 | long | market | 900 | 28 | -0.17 | -0.01 | 0.12 | 1.000 | no edge in training |
+| seq2_dm1-ds2 | short | market | 900 | 27 | -0.19 | -0.03 | 0.11 | 1.000 | no edge in training |
+| seq2_dm1-fs2 | long | market | 711 | 28 | -0.18 | -0.02 | 0.13 | 1.000 | no edge in training |
+| seq2_dm1-fs2 | short | market | 711 | 23 | -0.32 | -0.14 | 0.12 | 1.000 | no edge in training |
+| seq2_dm1-ul3 | long | market | 668 | 33 | -0.03 | +0.09 | 0.14 | 0.981 | no edge in training |
+| seq2_dm1-ul3 | short | market | 668 | 27 | -0.19 | -0.07 | 0.13 | 1.000 | no edge in training |
+| seq2_dm1-um2 | long | market | 614 | 29 | -0.15 | -0.01 | 0.14 | 1.000 | no edge in training |
+| seq2_dm1-um2 | short | market | 614 | 30 | -0.11 | +0.04 | 0.14 | 1.000 | no edge in training |
+| seq2_dm1-um3 | long | market | 2,258 | 28 | -0.15 | -0.01 | 0.08 | 1.000 | no edge in training |
+| seq2_dm1-um3 | short | market | 2,258 | 29 | -0.13 | +0.00 | 0.08 | 1.000 | no edge in training |
+| seq2_dm1-us2 | long | market | 1,083 | 30 | -0.09 | +0.05 | 0.11 | 1.000 | no edge in training |
+| seq2_dm1-us2 | short | market | 1,083 | 27 | -0.19 | -0.05 | 0.10 | 1.000 | no edge in training |
+| seq2_dm1-us3 | long | market | 1,026 | 27 | -0.20 | -0.05 | 0.12 | 1.000 | no edge in training |
+| seq2_dm1-us3 | short | market | 1,026 | 31 | -0.07 | +0.08 | 0.11 | 0.981 | no edge in training |
+| seq2_dm2-dm1 | long | market | 603 | 30 | -0.12 | +0.03 | 0.15 | 1.000 | no edge in training |
+| seq2_dm2-dm1 | short | market | 603 | 28 | -0.17 | -0.02 | 0.14 | 1.000 | no edge in training |
+| seq2_dm2-um3 | long | market | 844 | 26 | -0.23 | -0.08 | 0.12 | 1.000 | no edge in training |
+| seq2_dm2-um3 | short | market | 844 | 29 | -0.14 | +0.03 | 0.12 | 1.000 | no edge in training |
+| seq2_ds1-dm1 | long | market | 864 | 29 | -0.13 | +0.03 | 0.12 | 1.000 | no edge in training |
+| seq2_ds1-dm1 | short | market | 864 | 26 | -0.22 | -0.10 | 0.11 | 1.000 | no edge in training |
+| seq2_ds1-ds1 | long | market | 605 | 30 | -0.09 | +0.06 | 0.16 | 1.000 | no edge in training |
+| seq2_ds1-ds1 | short | market | 605 | 24 | -0.29 | -0.15 | 0.14 | 1.000 | no edge in training |
+| seq2_ds1-ds2 | long | market | 544 | 29 | -0.15 | -0.00 | 0.14 | 1.000 | no edge in training |
+| seq2_ds1-ds2 | short | market | 544 | 30 | -0.10 | +0.04 | 0.15 | 1.000 | no edge in training |
+| seq2_ds1-um3 | long | market | 1,032 | 30 | -0.11 | +0.04 | 0.11 | 1.000 | no edge in training |
+| seq2_ds1-um3 | short | market | 1,032 | 29 | -0.14 | -0.01 | 0.11 | 1.000 | no edge in training |
+| seq2_ds1-us2 | long | market | 664 | 31 | -0.08 | +0.07 | 0.14 | 1.000 | no edge in training |
+| seq2_ds1-us2 | short | market | 664 | 25 | -0.27 | -0.12 | 0.13 | 1.000 | no edge in training |
+| seq2_ds1-us3 | long | market | 667 | 25 | -0.24 | -0.10 | 0.13 | 1.000 | no edge in training |
+| seq2_ds1-us3 | short | market | 667 | 30 | -0.10 | +0.04 | 0.14 | 1.000 | no edge in training |
+| seq2_ds2-dm1 | long | market | 941 | 28 | -0.17 | -0.01 | 0.11 | 1.000 | no edge in training |
+| seq2_ds2-dm1 | short | market | 941 | 25 | -0.26 | -0.09 | 0.11 | 1.000 | no edge in training |
+| seq2_ds2-ds1 | long | market | 657 | 27 | -0.21 | -0.04 | 0.13 | 1.000 | no edge in training |
+| seq2_ds2-ds1 | short | market | 657 | 27 | -0.20 | -0.05 | 0.13 | 1.000 | no edge in training |
+| seq2_ds2-ds2 | long | market | 687 | 26 | -0.23 | -0.06 | 0.15 | 1.000 | no edge in training |
+| seq2_ds2-ds2 | short | market | 687 | 29 | -0.15 | +0.04 | 0.14 | 1.000 | no edge in training |
+| seq2_ds2-fs2 | long | market | 532 | 26 | -0.22 | -0.04 | 0.14 | 1.000 | no edge in training |
+| seq2_ds2-fs2 | short | market | 532 | 28 | -0.18 | +0.05 | 0.15 | 1.000 | no edge in training |
+| seq2_ds2-um3 | long | market | 1,191 | 28 | -0.17 | -0.02 | 0.11 | 1.000 | no edge in training |
+| seq2_ds2-um3 | short | market | 1,191 | 28 | -0.16 | +0.02 | 0.10 | 1.000 | no edge in training |
+| seq2_ds2-us2 | long | market | 671 | 26 | -0.24 | -0.08 | 0.13 | 1.000 | no edge in training |
+| seq2_ds2-us2 | short | market | 671 | 27 | -0.18 | +0.01 | 0.13 | 1.000 | no edge in training |
+| seq2_ds2-us3 | long | market | 727 | 28 | -0.18 | -0.02 | 0.13 | 1.000 | no edge in training |
+| seq2_ds2-us3 | short | market | 727 | 27 | -0.20 | +0.00 | 0.13 | 1.000 | no edge in training |
+| seq2_fs2-dm1 | long | market | 709 | 30 | -0.11 | +0.05 | 0.13 | 1.000 | no edge in training |
+| seq2_fs2-dm1 | short | market | 709 | 26 | -0.23 | -0.07 | 0.12 | 1.000 | no edge in training |
+| seq2_fs2-ds2 | long | market | 525 | 26 | -0.22 | -0.05 | 0.14 | 1.000 | no edge in training |
+| seq2_fs2-ds2 | short | market | 525 | 26 | -0.24 | -0.00 | 0.15 | 1.000 | no edge in training |
+| seq2_fs2-um3 | long | market | 847 | 27 | -0.19 | -0.03 | 0.12 | 1.000 | no edge in training |
+| seq2_fs2-um3 | short | market | 847 | 29 | -0.13 | +0.06 | 0.12 | 1.000 | no edge in training |
+| seq2_fs2-us2 | long | market | 501 | 29 | -0.13 | +0.05 | 0.16 | 1.000 | no edge in training |
+| seq2_fs2-us2 | short | market | 501 | 23 | -0.33 | -0.11 | 0.14 | 1.000 | no edge in training |
+| seq2_fs2-us3 | long | market | 521 | 30 | -0.09 | +0.07 | 0.16 | 1.000 | no edge in training |
+| seq2_fs2-us3 | short | market | 521 | 24 | -0.28 | -0.05 | 0.14 | 1.000 | no edge in training |
+| seq2_ul3-dm1 | long | market | 875 | 28 | -0.15 | -0.04 | 0.12 | 1.000 | no edge in training |
+| seq2_ul3-dm1 | short | market | 875 | 31 | -0.08 | +0.07 | 0.12 | 0.981 | no edge in training |
+| seq2_ul3-um3 | long | market | 625 | 28 | -0.18 | -0.06 | 0.13 | 1.000 | no edge in training |
+| seq2_ul3-um3 | short | market | 625 | 27 | -0.19 | -0.03 | 0.13 | 1.000 | no edge in training |
+| seq2_um2-dm1 | long | market | 676 | 30 | -0.09 | +0.05 | 0.14 | 1.000 | no edge in training |
+| seq2_um2-dm1 | short | market | 676 | 26 | -0.21 | -0.08 | 0.14 | 1.000 | no edge in training |
+| seq2_um2-um3 | long | market | 671 | 28 | -0.16 | -0.03 | 0.13 | 1.000 | no edge in training |
+| seq2_um2-um3 | short | market | 671 | 28 | -0.16 | +0.01 | 0.13 | 1.000 | no edge in training |
+| seq2_um3-dl1 | long | market | 692 | 28 | -0.15 | -0.02 | 0.13 | 1.000 | no edge in training |
+| seq2_um3-dl1 | short | market | 692 | 29 | -0.13 | -0.01 | 0.13 | 1.000 | no edge in training |
+| seq2_um3-dm1 | long | market | 2,253 | 29 | -0.15 | -0.00 | 0.08 | 1.000 | no edge in training |
+| seq2_um3-dm1 | short | market | 2,253 | 29 | -0.15 | -0.00 | 0.08 | 1.000 | no edge in training |
+| seq2_um3-dm2 | long | market | 766 | 27 | -0.21 | -0.05 | 0.13 | 1.000 | no edge in training |
+| seq2_um3-dm2 | short | market | 766 | 28 | -0.18 | +0.00 | 0.12 | 1.000 | no edge in training |
+| seq2_um3-ds1 | long | market | 1,078 | 29 | -0.14 | +0.00 | 0.11 | 1.000 | no edge in training |
+| seq2_um3-ds1 | short | market | 1,078 | 27 | -0.19 | -0.04 | 0.10 | 1.000 | no edge in training |
+| seq2_um3-ds2 | long | market | 1,304 | 25 | -0.25 | -0.10 | 0.10 | 1.000 | no edge in training |
+| seq2_um3-ds2 | short | market | 1,304 | 27 | -0.18 | +0.00 | 0.09 | 1.000 | no edge in training |
+| seq2_um3-fs2 | long | market | 869 | 28 | -0.17 | -0.01 | 0.12 | 1.000 | no edge in training |
+| seq2_um3-fs2 | short | market | 869 | 26 | -0.23 | -0.03 | 0.11 | 1.000 | no edge in training |
+| seq2_um3-ul3 | long | market | 758 | 29 | -0.14 | -0.01 | 0.12 | 1.000 | no edge in training |
+| seq2_um3-ul3 | short | market | 758 | 28 | -0.16 | -0.02 | 0.12 | 1.000 | no edge in training |
+| seq2_um3-um2 | long | market | 693 | 29 | -0.14 | +0.01 | 0.13 | 1.000 | no edge in training |
+| seq2_um3-um2 | short | market | 693 | 31 | -0.07 | +0.08 | 0.13 | 0.981 | no edge in training |
+| seq2_um3-um3 | long | market | 1,857 | 25 | -0.25 | -0.10 | 0.08 | 1.000 | no edge in training |
+| seq2_um3-um3 | short | market | 1,857 | 30 | -0.10 | +0.07 | 0.08 | 0.981 | no edge in training |
+| seq2_um3-us2 | long | market | 1,040 | 31 | -0.09 | +0.06 | 0.11 | 0.981 | no edge in training |
+| seq2_um3-us2 | short | market | 1,040 | 27 | -0.20 | -0.03 | 0.11 | 1.000 | no edge in training |
+| seq2_um3-us3 | long | market | 1,101 | 28 | -0.18 | -0.04 | 0.10 | 1.000 | no edge in training |
+| seq2_um3-us3 | short | market | 1,101 | 29 | -0.15 | +0.02 | 0.11 | 1.000 | no edge in training |
+| seq2_us2-dm1 | long | market | 960 | 29 | -0.14 | +0.01 | 0.11 | 1.000 | no edge in training |
+| seq2_us2-dm1 | short | market | 960 | 29 | -0.14 | +0.00 | 0.11 | 1.000 | no edge in training |
+| seq2_us2-ds1 | long | market | 627 | 27 | -0.21 | -0.07 | 0.14 | 1.000 | no edge in training |
+| seq2_us2-ds1 | short | market | 627 | 26 | -0.21 | -0.05 | 0.13 | 1.000 | no edge in training |
+| seq2_us2-ds2 | long | market | 693 | 28 | -0.17 | -0.01 | 0.13 | 1.000 | no edge in training |
+| seq2_us2-ds2 | short | market | 693 | 27 | -0.19 | -0.00 | 0.12 | 1.000 | no edge in training |
+| seq2_us2-fs2 | long | market | 459 | 32 | -0.06 | +0.11 | 0.17 | 0.981 | no edge in training |
+| seq2_us2-fs2 | short | market | 459 | 24 | -0.30 | -0.10 | 0.15 | 1.000 | no edge in training |
+| seq2_us2-um3 | long | market | 1,066 | 25 | -0.26 | -0.10 | 0.11 | 1.000 | no edge in training |
+| seq2_us2-um3 | short | market | 1,066 | 28 | -0.17 | -0.01 | 0.11 | 1.000 | no edge in training |
+| seq2_us2-us2 | long | market | 614 | 29 | -0.12 | +0.04 | 0.16 | 1.000 | no edge in training |
+| seq2_us2-us2 | short | market | 614 | 27 | -0.20 | -0.02 | 0.15 | 1.000 | no edge in training |
+| seq2_us2-us3 | long | market | 737 | 27 | -0.20 | -0.05 | 0.13 | 1.000 | no edge in training |
+| seq2_us2-us3 | short | market | 737 | 28 | -0.17 | +0.02 | 0.12 | 1.000 | no edge in training |
+| seq2_us3-dm1 | long | market | 1,093 | 31 | -0.08 | +0.07 | 0.11 | 0.981 | no edge in training |
+| seq2_us3-dm1 | short | market | 1,093 | 28 | -0.16 | -0.00 | 0.10 | 1.000 | no edge in training |
+| seq2_us3-ds1 | long | market | 688 | 29 | -0.13 | +0.02 | 0.14 | 1.000 | no edge in training |
+| seq2_us3-ds1 | short | market | 688 | 28 | -0.17 | -0.02 | 0.13 | 1.000 | no edge in training |
+| seq2_us3-ds2 | long | market | 784 | 27 | -0.21 | -0.06 | 0.12 | 1.000 | no edge in training |
+| seq2_us3-ds2 | short | market | 784 | 26 | -0.23 | -0.03 | 0.12 | 1.000 | no edge in training |
+| seq2_us3-um3 | long | market | 1,036 | 26 | -0.22 | -0.08 | 0.11 | 1.000 | no edge in training |
+| seq2_us3-um3 | short | market | 1,036 | 29 | -0.13 | +0.04 | 0.11 | 1.000 | no edge in training |
+| seq2_us3-us2 | long | market | 648 | 29 | -0.15 | +0.01 | 0.14 | 1.000 | no edge in training |
+| seq2_us3-us2 | short | market | 648 | 29 | -0.15 | +0.04 | 0.14 | 1.000 | no edge in training |
+| seq2_us3-us3 | long | market | 758 | 30 | -0.11 | +0.04 | 0.14 | 1.000 | no edge in training |
+| seq2_us3-us3 | short | market | 758 | 28 | -0.17 | +0.03 | 0.15 | 1.000 | no edge in training |
+| seq3_dm1-dm1-um3 | long | market | 284 | 27 | -0.20 | -0.06 | 0.20 | 1.000 | no edge in training |
+| seq3_dm1-dm1-um3 | short | market | 284 | 36 | +0.08 | +0.20 | 0.22 | 0.981 | no edge in training |
+| seq3_dm1-um3-dm1 | long | market | 368 | 30 | -0.09 | +0.05 | 0.19 | 1.000 | no edge in training |
+| seq3_dm1-um3-dm1 | short | market | 368 | 24 | -0.29 | -0.17 | 0.17 | 1.000 | no edge in training |
+| seq3_dm1-um3-um3 | long | market | 306 | 25 | -0.24 | -0.10 | 0.19 | 1.000 | no edge in training |
+| seq3_dm1-um3-um3 | short | market | 306 | 29 | -0.13 | -0.00 | 0.19 | 1.000 | no edge in training |
+| seq3_um3-dm1-dm1 | long | market | 307 | 26 | -0.22 | -0.07 | 0.19 | 1.000 | no edge in training |
+| seq3_um3-dm1-dm1 | short | market | 307 | 28 | -0.17 | -0.05 | 0.20 | 1.000 | no edge in training |
+| seq3_um3-dm1-um3 | long | market | 373 | 27 | -0.19 | -0.05 | 0.17 | 1.000 | no edge in training |
+| seq3_um3-dm1-um3 | short | market | 373 | 27 | -0.21 | -0.07 | 0.17 | 1.000 | no edge in training |
+| seq3_um3-um3-dm1 | long | market | 329 | 27 | -0.18 | -0.04 | 0.18 | 1.000 | no edge in training |
+| seq3_um3-um3-dm1 | short | market | 329 | 33 | -0.02 | +0.14 | 0.19 | 0.981 | no edge in training |
 | shark | long | market | 24 | - | - | - | - | - | not enough trades |
 | shark | short | market | 31 | - | - | - | - | - | not enough trades |
 | shooting_star | short | market | 1,590 | 26 | -0.24 | -0.04 | 0.09 | 1.000 | no edge in training |
@@ -1863,6 +2043,54 @@ Smallest detectable edge = the edge this sample would find 80% of the time; 'no 
 | inverse_head_and_shoulders | long | market | 10 | - | - | - | - | - | not enough trades |
 | inverted_hammer | long | market | 225 | 28 | -0.15 | +0.02 | 0.24 | 0.853 | no edge in training |
 | kicker | long | market | 4 | - | - | - | - | - | not enough trades |
+| kmeans_c00 | long | market | 545 | 36 | +0.08 | +0.09 | 0.16 | 0.981 | no edge in training |
+| kmeans_c00 | short | market | 545 | 28 | -0.18 | -0.09 | 0.15 | 1.000 | no edge in training |
+| kmeans_c01 | long | market | 1,111 | 33 | -0.02 | -0.00 | 0.12 | 1.000 | no edge in training |
+| kmeans_c01 | short | market | 1,111 | 30 | -0.09 | +0.02 | 0.11 | 1.000 | no edge in training |
+| kmeans_c02 | long | market | 724 | 31 | -0.06 | -0.04 | 0.14 | 1.000 | no edge in training |
+| kmeans_c02 | short | market | 724 | 26 | -0.22 | -0.11 | 0.12 | 1.000 | no edge in training |
+| kmeans_c03 | long | market | 689 | 31 | -0.08 | -0.07 | 0.14 | 1.000 | no edge in training |
+| kmeans_c03 | short | market | 689 | 32 | -0.05 | +0.04 | 0.14 | 1.000 | no edge in training |
+| kmeans_c04 | long | market | 704 | 34 | +0.01 | +0.01 | 0.14 | 1.000 | no edge in training |
+| kmeans_c04 | short | market | 704 | 30 | -0.09 | +0.02 | 0.13 | 1.000 | no edge in training |
+| kmeans_c05 | long | market | 1,046 | 35 | +0.05 | +0.07 | 0.12 | 0.981 | no edge in training |
+| kmeans_c05 | short | market | 1,046 | 31 | -0.06 | +0.05 | 0.12 | 1.000 | no edge in training |
+| kmeans_c06 | long | market | 686 | 29 | -0.12 | -0.12 | 0.13 | 1.000 | no edge in training |
+| kmeans_c06 | short | market | 686 | 30 | -0.12 | +0.01 | 0.14 | 1.000 | no edge in training |
+| kmeans_c07 | long | market | 731 | 32 | -0.03 | -0.01 | 0.14 | 1.000 | no edge in training |
+| kmeans_c07 | short | market | 731 | 27 | -0.20 | -0.08 | 0.12 | 1.000 | no edge in training |
+| kmeans_c08 | long | market | 592 | 33 | -0.01 | +0.00 | 0.15 | 1.000 | no edge in training |
+| kmeans_c08 | short | market | 592 | 27 | -0.18 | -0.06 | 0.15 | 1.000 | no edge in training |
+| kmeans_c09 | long | market | 592 | 32 | -0.03 | -0.04 | 0.15 | 1.000 | no edge in training |
+| kmeans_c09 | short | market | 592 | 28 | -0.15 | -0.03 | 0.15 | 1.000 | no edge in training |
+| kmeans_c10 | long | market | 1,064 | 35 | +0.06 | +0.08 | 0.13 | 0.981 | no edge in training |
+| kmeans_c10 | short | market | 1,064 | 29 | -0.12 | -0.03 | 0.12 | 1.000 | no edge in training |
+| kmeans_c11 | long | market | 747 | 32 | -0.04 | -0.03 | 0.13 | 1.000 | no edge in training |
+| kmeans_c11 | short | market | 747 | 29 | -0.13 | -0.02 | 0.13 | 1.000 | no edge in training |
+| kmeans_c12 | long | market | 759 | 36 | +0.06 | +0.06 | 0.13 | 1.000 | no edge in training |
+| kmeans_c12 | short | market | 759 | 26 | -0.22 | -0.09 | 0.12 | 1.000 | no edge in training |
+| kmeans_c13 | long | market | 1,042 | 35 | +0.05 | +0.06 | 0.13 | 1.000 | no edge in training |
+| kmeans_c13 | short | market | 1,042 | 32 | -0.05 | +0.07 | 0.12 | 0.981 | no edge in training |
+| kmeans_c14 | long | market | 883 | 36 | +0.09 | +0.09 | 0.13 | 0.981 | no edge in training |
+| kmeans_c14 | short | market | 883 | 29 | -0.14 | -0.03 | 0.13 | 1.000 | no edge in training |
+| kmeans_c15 | long | market | 925 | 34 | +0.03 | +0.05 | 0.14 | 1.000 | no edge in training |
+| kmeans_c15 | short | market | 925 | 28 | -0.15 | -0.03 | 0.13 | 1.000 | no edge in training |
+| kmeans_c16 | long | market | 524 | 31 | -0.06 | -0.05 | 0.15 | 1.000 | no edge in training |
+| kmeans_c16 | short | market | 524 | 31 | -0.08 | +0.02 | 0.15 | 1.000 | no edge in training |
+| kmeans_c17 | long | market | 686 | 31 | -0.08 | -0.06 | 0.14 | 1.000 | no edge in training |
+| kmeans_c17 | short | market | 686 | 32 | -0.05 | +0.03 | 0.13 | 1.000 | no edge in training |
+| kmeans_c18 | long | market | 576 | 34 | +0.01 | +0.01 | 0.15 | 1.000 | no edge in training |
+| kmeans_c18 | short | market | 576 | 23 | -0.30 | -0.16 | 0.14 | 1.000 | no edge in training |
+| kmeans_c19 | long | market | 724 | 27 | -0.21 | -0.22 | 0.13 | 1.000 | no edge in training |
+| kmeans_c19 | short | market | 724 | 34 | +0.01 | +0.12 | 0.13 | 0.981 | no edge in training |
+| kmeans_c20 | long | market | 1,157 | 33 | -0.01 | +0.00 | 0.12 | 1.000 | no edge in training |
+| kmeans_c20 | short | market | 1,157 | 32 | -0.04 | +0.05 | 0.12 | 1.000 | no edge in training |
+| kmeans_c21 | long | market | 422 | 30 | -0.12 | -0.11 | 0.17 | 1.000 | no edge in training |
+| kmeans_c21 | short | market | 422 | 31 | -0.07 | +0.06 | 0.17 | 1.000 | no edge in training |
+| kmeans_c22 | long | market | 567 | 29 | -0.14 | -0.11 | 0.14 | 1.000 | no edge in training |
+| kmeans_c22 | short | market | 567 | 32 | -0.03 | +0.06 | 0.15 | 1.000 | no edge in training |
+| kmeans_c23 | long | market | 621 | 33 | -0.03 | -0.01 | 0.14 | 1.000 | no edge in training |
+| kmeans_c23 | short | market | 621 | 29 | -0.12 | -0.05 | 0.14 | 1.000 | no edge in training |
 | last_point_of_supply | short | market | 1 | - | - | - | - | - | not enough trades |
 | last_point_of_support | long | market | 1 | - | - | - | - | - | not enough trades |
 | liquidity_sweep | long | market | 759 | 34 | +0.02 | +0.08 | 0.15 | 0.474 | no edge in training |
@@ -2004,6 +2232,38 @@ Smallest detectable edge = the edge this sample would find 80% of the time; 'no 
 | secondary_test | long | market | 17 | - | - | - | - | - | not enough trades |
 | secondary_test | short | market | 26 | - | - | - | - | - | not enough trades |
 | selling_climax | long | market | 121 | 31 | -0.11 | -0.05 | 0.30 | 0.890 | no edge in training |
+| seq2_dm1-dm1 | long | market | 299 | 34 | +0.01 | +0.05 | 0.21 | 1.000 | no edge in training |
+| seq2_dm1-dm1 | short | market | 299 | 29 | -0.12 | -0.04 | 0.22 | 1.000 | no edge in training |
+| seq2_dm1-um3 | long | market | 423 | 38 | +0.15 | +0.15 | 0.19 | 0.981 | no edge in training |
+| seq2_dm1-um3 | short | market | 423 | 29 | -0.14 | -0.04 | 0.17 | 1.000 | no edge in training |
+| seq2_dm1-us2 | long | market | 225 | 31 | -0.08 | -0.06 | 0.23 | 1.000 | no edge in training |
+| seq2_dm1-us2 | short | market | 225 | 32 | -0.03 | +0.06 | 0.23 | 1.000 | no edge in training |
+| seq2_dm1-us3 | long | market | 221 | 32 | -0.05 | -0.04 | 0.24 | 1.000 | no edge in training |
+| seq2_dm1-us3 | short | market | 221 | 26 | -0.23 | -0.13 | 0.22 | 1.000 | no edge in training |
+| seq2_ds1-um3 | long | market | 229 | 35 | +0.05 | +0.06 | 0.25 | 1.000 | no edge in training |
+| seq2_ds1-um3 | short | market | 229 | 27 | -0.19 | -0.11 | 0.22 | 1.000 | no edge in training |
+| seq2_ds2-dm1 | long | market | 221 | 33 | -0.01 | +0.01 | 0.23 | 1.000 | no edge in training |
+| seq2_ds2-dm1 | short | market | 221 | 31 | -0.06 | +0.04 | 0.24 | 1.000 | no edge in training |
+| seq2_ds2-um3 | long | market | 247 | 31 | -0.07 | -0.06 | 0.21 | 1.000 | no edge in training |
+| seq2_ds2-um3 | short | market | 247 | 30 | -0.11 | +0.00 | 0.23 | 1.000 | no edge in training |
+| seq2_um3-dm1 | long | market | 417 | 30 | -0.11 | -0.11 | 0.17 | 1.000 | no edge in training |
+| seq2_um3-dm1 | short | market | 417 | 32 | -0.04 | +0.06 | 0.18 | 1.000 | no edge in training |
+| seq2_um3-ds1 | long | market | 251 | 33 | -0.02 | +0.00 | 0.24 | 1.000 | no edge in training |
+| seq2_um3-ds1 | short | market | 251 | 30 | -0.10 | -0.02 | 0.23 | 1.000 | no edge in training |
+| seq2_um3-ds2 | long | market | 258 | 32 | -0.05 | -0.04 | 0.22 | 1.000 | no edge in training |
+| seq2_um3-ds2 | short | market | 258 | 26 | -0.22 | -0.10 | 0.21 | 1.000 | no edge in training |
+| seq2_um3-um3 | long | market | 431 | 32 | -0.04 | -0.04 | 0.19 | 1.000 | no edge in training |
+| seq2_um3-um3 | short | market | 431 | 28 | -0.15 | -0.04 | 0.17 | 1.000 | no edge in training |
+| seq2_um3-us2 | long | market | 224 | 40 | +0.20 | +0.21 | 0.25 | 0.981 | no edge in training |
+| seq2_um3-us2 | short | market | 224 | 30 | -0.10 | -0.01 | 0.23 | 1.000 | no edge in training |
+| seq2_um3-us3 | long | market | 244 | 31 | -0.07 | -0.07 | 0.22 | 1.000 | no edge in training |
+| seq2_um3-us3 | short | market | 244 | 30 | -0.12 | +0.01 | 0.22 | 1.000 | no edge in training |
+| seq2_us2-um3 | long | market | 263 | 38 | +0.14 | +0.14 | 0.23 | 0.981 | no edge in training |
+| seq2_us2-um3 | short | market | 263 | 30 | -0.09 | +0.03 | 0.22 | 1.000 | no edge in training |
+| seq2_us3-dm1 | long | market | 222 | 32 | -0.06 | -0.05 | 0.24 | 1.000 | no edge in training |
+| seq2_us3-dm1 | short | market | 222 | 30 | -0.09 | +0.01 | 0.24 | 1.000 | no edge in training |
+| seq2_us3-um3 | long | market | 268 | 32 | -0.04 | -0.04 | 0.22 | 1.000 | no edge in training |
+| seq2_us3-um3 | short | market | 268 | 32 | -0.04 | +0.08 | 0.22 | 1.000 | no edge in training |
 | shark | long | market | 6 | - | - | - | - | - | not enough trades |
 | shark | short | market | 6 | - | - | - | - | - | not enough trades |
 | shooting_star | short | market | 281 | 30 | -0.11 | -0.01 | 0.20 | 0.927 | no edge in training |
@@ -2355,7 +2615,7 @@ Intrabar assumption: if the favourable extreme of the stop minute had come first
 
 ## Validation result
 
-Candidate list SHA-256 `047938c959c1c277` (frozen before validation was read).
+Candidate list SHA-256 `cf89a31311ba4894` (frozen before validation was read).
 
 | TF | Pattern | Dir | Trades | Win % | Mean R | Edge | Holm p | Late edge | R with $0.30 spread | R with $0.10 slippage/side | Max DD (R) | Verdict |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
