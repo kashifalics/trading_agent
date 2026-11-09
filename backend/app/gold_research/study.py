@@ -26,6 +26,8 @@ from app.gold_research.events import ATR_PERIOD, bars_from_frame, find_events
 from app.historical.config import CLEAN, DATA_ROOT, REPO_ROOT, TF_SECONDS
 from app.historical.split import SPLIT_DIR, load_split
 from app.historical.store import load_m1, load_tf
+from app.historical.sync import bar_close
+from app.patterns.context import compute_levels
 
 STUDY_TFS = ("M5", "M15", "M30", "H1", "H4", "D1")
 PRIMARY_TARGET, PRIMARY_HOLD = 2.0, 48
@@ -107,7 +109,8 @@ def run_timeframe(symbol: str, tf: str, segment: str, log_file: str | None = Non
     b = bars_from_frame(df.sort("ts"), TF_SECONDS[tf])
     atr = atr_fn(b.h, b.l, b.c, ATR_PERIOD)
     log(f"{S.n:,} candles to {df['ts'].max():%Y-%m-%d}; finding patterns")
-    ev, trend = find_events(b, atr, log=log, label=tf, cache_dir=out_dir(symbol) / "event_chunks" / tf)
+    levels = compute_levels(df.sort("ts")["ts"], bar_close(tf, b.t), b.h, b.l)
+    ev, trend = find_events(b, atr, log=log, label=tf, cache_dir=out_dir(symbol) / "event_chunks" / tf, levels=levels)
     ev = ev.filter(pl.col("direction") != 0)
     log(f"{ev.height:,} directional events; simulating")
     res = sim.simulate(S, build_orders(S, ev, atr))

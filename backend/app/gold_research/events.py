@@ -1,4 +1,5 @@
-"""Every price-action pattern over a long history, found with the platform's own detectors, unchanged (docs/PATTERN_STUDY.md).
+"""Every price-action pattern over a long history (docs/PATTERN_STUDY.md): the platform's own detectors, unchanged, plus the pattern
+library families registered in app/patterns (docs/PATTERN_LIBRARY.md).
 
 The detectors were written for a few thousand bars, and some loop to the end of the series, so a 20-year M5 history is processed in
 chunks of CHUNK bars, each preceded by WARMUP bars of context. An event belongs to the chunk that contains its confirmation bar, so
@@ -16,13 +17,16 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-from app.candlestick.detectors import detect_candlestick_patterns
 from app.core.events import Event
 from app.feature_engineering.indicators import atr as atr_fn
 from app.market_data.bars import Bars
 from app.market_structure.bos import detect_structure_breaks
 from app.market_structure.liquidity import detect_equal_levels, detect_liquidity_sweeps
 from app.market_structure.swings import find_swings
+from app.patterns import FAMILY_DETECTORS
+from app.patterns.context import Levels
+from app.patterns.ctx import ChunkCtx
+from app.patterns.registry import FAMILIES, REGISTRY, Hits
 from app.price_action.breaker_blocks import detect_breaker_blocks
 from app.price_action.fvg import detect_fvg
 from app.price_action.levels import BreakoutParams, detect_breakouts, detect_levels
@@ -30,15 +34,9 @@ from app.price_action.order_blocks import detect_order_blocks
 from app.price_action.supply_demand import detect_supply_demand
 
 CHUNK, WARMUP, LEVEL_STEP = 20_000, 1_000, 200
+LIB_VERSION = "lib-2"  # part of every chunk-cache key: bump when any detector changes
 ATR_PERIOD = 14
 ZONES = ("fvg", "order_block", "breaker_block", "demand_zone", "supply_zone")
-FAMILY = {
-    **{k: "candlestick" for k in ("bullish_engulfing", "bearish_engulfing", "pin_bar", "hammer", "shooting_star", "doji",
-                                  "inside_bar", "outside_bar", "morning_star", "evening_star")},
-    "BOS": "structure", "CHoCH": "structure", "liquidity_sweep": "structure", "equal_highs": "structure", "equal_lows": "structure",
-    **{k: "zone" for k in ZONES},
-    "breakout": "level", "retest": "level", "failed_breakout": "level",
-}
 DIRECTION = {"bullish": 1, "bearish": -1, "neutral": 0}
 SCHEMA = {"pattern": pl.Utf8, "family": pl.Utf8, "direction": pl.Int8, "idx": pl.Int64, "stop_level": pl.Float64,
           "zone_lo": pl.Float64, "zone_hi": pl.Float64, "entry": pl.Utf8}
@@ -81,17 +79,32 @@ def _breakouts(b: Bars, swings, atr: np.ndarray) -> list[Event]:
     return out
 
 
-def chunk_events(b: Bars, atr: np.ndarray) -> tuple[list[Event], np.ndarray]:
+def family_name(pid: str) -> str:
+    return FAMILIES[REGISTRY[pid].family]
+
+
+def chunk_events(b: Bars, atr: np.ndarray, levels: Levels | None = None) -> tuple[list[Event], Hits, np.ndarray]:
+    """Platform detector events, pattern-library hits and the structure trend of one chunk."""
     swings = find_swings(b)
     breaks, trend = detect_structure_breaks(b, swings)
     obs = detect_order_blocks(b, breaks, atr)
-    evs = (detect_candlestick_patterns(b) + breaks + detect_liquidity_sweeps(b, swings) + detect_equal_levels(b, swings, atr)
-           + detect_fvg(b, atr) + obs + detect_breaker_blocks(b, obs) + detect_supply_demand(b, atr) + _breakouts(b, swings, atr))
-    return evs, trend
+    sweeps = detect_liquidity_sweeps(b, swings)
+    fvgs, zones = detect_fvg(b, atr), detect_supply_demand(b, atr)
+    breakers = detect_breaker_blocks(b, obs)
+    brk = _breakouts(b, swings, atr)
+    evs = breaks + sweeps + detect_equal_levels(b, swings, atr) + fvgs + obs + breakers + zones + brk
+    ctx = ChunkCtx(t=b.t, o=b.o, h=b.h, l=b.l, c=b.c, v=b.v, atr=atr, step=b.step, swings=swings, swings_int=find_swings(b, 2, 2),
+                   swings_ext=find_swings(b, 5, 5), levels=levels, trend=trend,
+                   events={"breaks": breaks, "sweeps": sweeps, "fvgs": fvgs, "obs": obs, "breakers": breakers, "zones": zones,
+                           "breakouts": brk})
+    hits = Hits()
+    for det in FAMILY_DETECTORS:
+        hits.extend(det(ctx))
+    return evs, hits, trend
 
 
 def find_events(b: Bars, atr: np.ndarray | None = None, log: Callable[[str], None] = lambda m: None,
-                label: str = "", cache_dir: Path | None = None) -> tuple[pl.DataFrame, np.ndarray]:
+                label: str = "", cache_dir: Path | None = None, levels: Levels | None = None) -> tuple[pl.DataFrame, np.ndarray]:
     """All pattern events of one series (global bar indices) and the structure trend (-1/0/1) known at each bar's close.
 
     With cache_dir, every chunk is saved (write-then-rename) under a name that includes a hash of the exact candles and ATR it was
@@ -105,8 +118,11 @@ def find_events(b: Bars, atr: np.ndarray | None = None, log: Callable[[str], Non
         a, e = max(0, s - WARMUP), min(n, s + CHUNK)
         f = None
         if cache_dir is not None:
-            h = hashlib.blake2b(digest_size=12)
-            for arr in (b.t[a:e], b.o[a:e], b.h[a:e], b.l[a:e], b.c[a:e], np.nan_to_num(atr[a:e])):
+            h = hashlib.blake2b(LIB_VERSION.encode(), digest_size=12)
+            arrs = [b.t[a:e], b.o[a:e], b.h[a:e], b.l[a:e], b.c[a:e], np.nan_to_num(atr[a:e])]
+            if levels is not None:
+                arrs += [np.nan_to_num(v[a:e]) for v in levels.__dict__.values()]
+            for arr in arrs:
                 h.update(np.ascontiguousarray(arr).tobytes())
             f = Path(cache_dir) / f"chunk_{s:09d}_{e - a}_{h.hexdigest()}.parquet"  # content hash: reused only for identical data
             if f.exists() and f.with_suffix(".trend.npy").exists():
@@ -115,22 +131,34 @@ def find_events(b: Bars, atr: np.ndarray | None = None, log: Callable[[str], Non
                 log(f"{label} patterns: bars {e:,}/{n:,} (cached chunk)")
                 continue
         sub = b.slice(a, e)
-        evs, tr = chunk_events(sub, atr[a:e])
+        evs, hits, tr = chunk_events(sub, atr[a:e], None if levels is None else levels.slice(a, e))
         trend[s:e] = tr[s - a:]
         rows = {k: [] for k in SCHEMA}
         for ev in evs:
-            if ev.idx + a < s or ev.kind not in FAMILY:
+            if ev.idx + a < s or ev.kind not in REGISTRY:
                 continue
             d = DIRECTION.get(ev.direction, 0)
             zone = ev.kind in ZONES
             rows["pattern"].append(ev.kind)
-            rows["family"].append(FAMILY[ev.kind])
+            rows["family"].append(family_name(ev.kind))
             rows["direction"].append(d)
             rows["idx"].append(ev.idx + a)
             rows["stop_level"].append(stop_level(ev, sub, d) if d else float("nan"))
             rows["zone_lo"].append(float(ev.low) if zone else float("nan"))
             rows["zone_hi"].append(float(ev.high) if zone else float("nan"))
             rows["entry"].append("zone_retest" if zone else "next_open")
+        pats, hidx, hdir, hstop, hlo, hhi = hits.rows()
+        keep = hidx + a >= s
+        for k in np.flatnonzero(keep):
+            pid = pats[k]
+            rows["pattern"].append(pid)
+            rows["family"].append(family_name(pid))
+            rows["direction"].append(int(hdir[k]))
+            rows["idx"].append(int(hidx[k]) + a)
+            rows["stop_level"].append(float(hstop[k]) if hdir[k] else float("nan"))
+            rows["zone_lo"].append(float(hlo[k]))
+            rows["zone_hi"].append(float(hhi[k]))
+            rows["entry"].append("zone_retest" if REGISTRY[pid].entry == "zone_limit" else "next_open")
         part = pl.DataFrame(rows, schema=SCHEMA)
         parts.append(part)
         if f is not None:

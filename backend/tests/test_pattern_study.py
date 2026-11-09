@@ -46,7 +46,7 @@ def test_no_lookahead_events_before_a_cut_do_not_change_when_future_bars_are_add
     part, _ = P.find_events(bars(o[:cut], h[:cut], lo[:cut], c[:cut]))
     early = lambda d: _keys(d.filter(pl.col("idx") < cut - 25))  # noqa: E731
     assert early(full) == early(part)
-    assert set(full["pattern"].unique()) >= {"BOS", "fvg", "order_block", "liquidity_sweep", "breakout", "pin_bar"}
+    assert set(full["pattern"].unique()) >= {"BOS", "fvg", "order_block", "liquidity_sweep", "breakout", "pin_bar_bull", "swing_failure", "failed_bos", "engulfing_bull"}
 
 
 def test_chunk_cache_resumes_and_is_reused_only_for_identical_data(tmp_path, monkeypatch):
