@@ -1,6 +1,6 @@
 # XAUUSD data-quality report
 
-_Generated 2026-11-09 15:37 UTC by `python -m app.historical quality`. Every number is measured from the files on disk._
+_Generated 2026-11-09 16:47 UTC by `python -m app.historical quality`. Every number is measured from the files on disk._
 
 ## What the data is
 
@@ -78,6 +78,15 @@ All timeframes are rebuilt from clean M1 (open first, high max, low min, close l
 | W1 | 2003-05-05T00:00 | 2026-11-02T00:00 | 1,227 | yes |
 | MN1 | 2003-05-01T00:00 | 2026-11-01T00:00 | 283 | yes |
 | D1_NY | 2003-05-04T21:00 | 2026-11-05T22:00 | 6,098 | yes |
+
+## Cross-check against Dukascopy's own hourly and daily candles
+
+Independent candles built by Dukascopy from ticks, compared on the timestamps both have (tolerance 1.5 points). Opens can differ when the first minutes of a period had no trade (their open is then the previous close).
+
+| Candles | Compared | Open match | High match | Low match | Close match |
+|---|---|---|---|---|---|
+| hourly | 12,186 | 99.09% | 98.06% | 97.83% | 99.16% |
+| daily | 3,745 | 93.17% | 96.58% | 96.26% | 92.5% |
 
 ## Per year
 
