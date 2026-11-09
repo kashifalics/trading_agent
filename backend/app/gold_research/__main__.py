@@ -5,6 +5,9 @@
   validate  validation statistics for the frozen candidates only
   report    docs/reports/PATTERN_STUDY_{SYMBOL}.md from the stored results
   library   docs/PATTERN_LIBRARY.md from the pattern registry
+  ml-train     walk-forward models on training trades (M15, H1, H4) -> challengers
+  ml-validate  the frozen challenger --version on the validation segment (once) and the promotion gate
+  promote      --version X --approve: champion pointer, only for a challenger that passed validation
 """
 import argparse
 import json
@@ -28,12 +31,14 @@ def log(msg: str) -> None:
 def main() -> None:
     global LOG
     ap = argparse.ArgumentParser(prog="python -m app.gold_research")
-    ap.add_argument("command", choices=("run", "discover", "validate", "report", "library"))
+    ap.add_argument("command", choices=("run", "discover", "validate", "report", "library", "ml-train", "ml-validate", "promote"))
     ap.add_argument("--symbol", default="XAUUSD")
     ap.add_argument("--tfs", default=",".join(study.STUDY_TFS))
     ap.add_argument("--segment", default="train", choices=("train", "validation"))
     ap.add_argument("--workers", type=int, default=3)
     ap.add_argument("--log", type=Path)
+    ap.add_argument("--version", help="model version (ml-validate, promote)")
+    ap.add_argument("--approve", action="store_true", help="explicit approval to promote a validated challenger")
     a = ap.parse_args()
     LOG = a.log
     tfs = [t.strip().upper() for t in a.tfs.split(",") if t.strip()]
@@ -49,6 +54,17 @@ def main() -> None:
         s = study.validate(a.symbol, log=log)
         log(f"validated {len(s['rows'])} candidates")
         rep.write(a.symbol, log=log)
+    elif a.command == "ml-train":
+        from app.gold_research import ml
+        ml_tfs = [t for t in tfs if t in ml.ML_TFS] if a.tfs != ",".join(study.STUDY_TFS) else list(ml.ML_TFS)
+        s = ml.train(a.symbol, ml_tfs, log=log)
+        log(f"challengers: {[v['challenger'] for v in s['tfs'].values()]}")
+    elif a.command == "ml-validate":
+        from app.gold_research import ml
+        log(f"{ml.validate_model(a.symbol, a.version, log=log)}")
+    elif a.command == "promote":
+        from app.gold_research import ml
+        log(f"{ml.promote(a.symbol, a.version, approve=a.approve)}")
     elif a.command == "library":
         from app.historical.config import REPO_ROOT
         from app.patterns.registry import library_markdown
