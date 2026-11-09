@@ -30,13 +30,23 @@ Real start dates come from the coverage report, not from file availability.
 4. **Gaps**: a scheduled-open minute with no traded candle. The market is closed from Friday 17:00 to Sunday 17:00 New York time, with daylight saving
    handled; gold is also closed 17:00–18:00 New York every day. A run of 30 or more such minutes is a material gap, saved in
    `clean/{SYMBOL}/gaps.parquet` for research to exclude. Gaps on 24–26 Dec and 1–2 Jan are labelled holidays.
-5. **Timeframes**: M5, M15, M30, H1, H4, D1 and W1 are rebuilt from clean M1 only: open = first, high = max, low = min, close = last, volume = sum.
-   Boundaries are UTC: days start at 00:00 and weeks on Monday 00:00. `n_minutes` gives the number of traded minutes in each candle; `spread` is
-   ask close minus bid close.
+5. **Timeframes**: M5, M15, M30, H1, H2, H4, H6, H8, H12, D1, W1 and MN1 are rebuilt from clean M1 only: open = first, high = max,
+   low = min, close = last, volume = sum. Boundaries are UTC: intraday candles are aligned to multiples of their length from 00:00, days start
+   at 00:00, weeks on Monday 00:00, months on the 1st. `D1_NY` candles are trading days that start at 17:00 New York, with daylight saving
+   handled. `n_minutes` gives the number of traded minutes in each candle; `spread` is ask close minus bid close. `verify` rebuilds every
+   timeframe straight from M1 and requires an identical result. `crosscheck` compares H1 and D1 with Dukascopy's own hourly and daily
+   candles for 24 sampled months.
 6. **Report**: `reports/{SYMBOL}_coverage.json` and `docs/reports/HISTORICAL_COVERAGE.md`. The report gives earliest and latest dates and bar counts
    per timeframe, the first traded minute, and traded coverage (minutes with ticks divided by scheduled-open minutes). Feed coverage, which counts
    filler, is shown separately and is never used as evidence of data. It also lists duplicates, invalid candles, outlier moves, material gaps and
    the raw download size.
+
+7. **Quality**: `docs/reports/XAUUSD_DATA_QUALITY.md` covers formats, sizes, time range, precision, bid/ask source, volume meaning,
+   validation checks, closures versus missing data, spreads per year, the timeframe checks, and a SHA-256 manifest of every raw file.
+8. **Split and seal**: `split` freezes the chronological 70/15/15 split once (`docs/research/XAUUSD_split.json`). `app/historical/store.py`
+   is the only loader research uses. It refuses the final-test period unless explicitly asked by the one-time final test, and logs every
+   such read. `m1store` writes the memory-mapped M1 arrays used for intrabar resolution. `app/historical/sync.py` gives, for any decision
+   time, the last candle of every timeframe that had already closed.
 
 ## Running and updating
 
@@ -52,6 +62,5 @@ To add an instrument, add a line to `INSTRUMENTS` in `app/historical/config.py`,
 
 * At a polite request rate, the first full download takes about 12 hours per instrument, roughly 4 days for all eight. The laptop must stay on and
   awake; interruptions only pause it.
-* Daily candles use UTC midnight, not the 17:00 New York FX close, so a short Sunday-evening session forms its own D1 candle.
-* Not yet done: checking rebuilt higher timeframes against an independent source. The planned comparison is Dukascopy's own hourly files and the
-  stored Twelve Data and BiQuote candles.
+* D1 uses UTC midnight, so a short Sunday-evening session forms its own D1 candle; D1_NY (17:00 New York days) avoids that.
+* The independent check uses Dukascopy's own aggregated candles; Twelve Data and BiQuote candles are a different feed and are not used.
