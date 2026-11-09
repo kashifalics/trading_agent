@@ -1,13 +1,13 @@
 # Implementation status — single source of truth
 
-_Last verified: 2026-11-07 (local, Windows 10, Python 3.12, Node 24). Update this file whenever a status changes._
+_Last verified: 2026-11-09 (local, Windows 10, Python 3.12, Node 24). Update this file whenever a status changes._
 
 ## Verification results
 | Check | Result |
 |---|---|
-| Backend `pytest` | **249 passed, 30 skipped** (skipped = live-provider tests) on 2026-11-07, including 26 signal-engine and 18 paper-trading/sync tests; earlier milestones added the backtester audit, resumable backfill, data-quality auditor, snapshots, reproduction, provider retry/quota behaviour |
+| Backend `pytest` | **344 passed, 30 skipped** (skipped = live-provider tests) on 2026-11-09, adding the gold research suite (data foundation, simulator vs minute reference, Brownian null pipeline, pattern-library causality, ML leakage checks, final-test guards); 2026-11-07: including 26 signal-engine and 18 paper-trading/sync tests; earlier milestones added the backtester audit, resumable backfill, data-quality auditor, snapshots, reproduction, provider retry/quota behaviour |
 | Backend `ruff check` | clean |
-| Frontend `vitest` / `tsc` / `eslint` / `next build` / Playwright | 54 passed / clean / clean / 18 routes incl. `/signals`, `/paper` / e2e not re-run this milestone |
+| Frontend `vitest` / `tsc` / `eslint` / `next build` / Playwright | 54 passed / clean / clean / not re-run since `/gold-research` was added / e2e route list includes `/gold-research`, not re-run |
 | Alembic | `0001`, `0002`, `0004` upgrade/downgrade verified on SQLite (`0004`: columns match the models, downgrade and re-upgrade clean); `0001` verified on PostgreSQL 16 (later revisions are plain additive DDL, not yet run on PostgreSQL) |
 | Live Binance | **Verified**: 3.2 years of BTCUSDT 1H (28,799) and 4H (7,199) candles, 0 missing, 0 invalid, re-run is a no-op |
 | Live Twelve Data (XAUUSD) | **Verified with a real key** — see `reports/XAUUSD_COVERAGE.md` and the Twelve Data section below |
@@ -37,6 +37,25 @@ Legend: ✅ working & tested · 🟡 working with stated limits · ⛔ blocked/u
 | Auth | 🟡 | API-key auth + isolation; no registration UI |
 | **Paper trading (forward test)** | 🟡 | Working and verified live; the record starts empty and needs ~100 closed trades before it says anything (section below) |
 | LLM explanations, S3 | ⬜ | |
+
+## Gold historical research (2026-11-09, branch `feature/gold-research`)
+Brief: "Advanced XAUUSD price-action intelligence & ML". Plan: phases 0-10. Analysis only.
+
+| Phase | Status | Notes |
+|---|---|---|
+| 0 Data foundation | ✅ | Dukascopy M1 bid/ask 2003-05-05 to 2026-11-06, 7,996,910 clean candles, 92.3% traded coverage. Timeframes M5-MN1 + D1_NY: all **identical** to direct M1 aggregation. Quality report, SHA-256 raw manifest. Split **frozen**: train to 2020-02-08, validation to 2023-06-24, **final test sealed** (`docs/research/XAUUSD_split.json`, seal log). Sync engine (completed candles only) |
+| 1 Simulator | ✅ | M1 intrabar resolution of fill and stop candles (stop first inside one minute; the optimistic reading changes 0.01% of results), real spread, matched control pools, clustered statistics; matches a minute-by-minute reference exactly; Brownian null pipeline finds no edge |
+| 2 Pattern library | ✅ | 194 implemented, 34 scoped out with reasons, families A-J (`docs/PATTERN_LIBRARY.md`); every detector passes a prefix-vs-full causality test. Families G, H, I were built by delegated agents and reviewed |
+| 3 Regimes | ✅ | Trend, range, volatility, structural, session, level proximity, liquidity; scale-free, causal |
+| 4 Combinations / multi-timeframe | ✅ | 35 pre-chosen pairs; scalp / intraday / swing profiles (bias, bias+context, full, countertrend) |
+| Stage 1 discovery (training) | ✅ | 1,452 tests, **52 candidates** (BH q < 0.10), frozen. Almost all still lose money after spread; only 3 have a positive training mean R |
+| Stage 2 + validation + models | 🟡 running | `Run Gold Research Stage 2.bat`: all 194 patterns, new-pattern discovery, validation run, validation (one Holm family), model training and validation |
+| 5 Machine learning | ✅ code | Logistic, LightGBM, LightGBM-RF, XGBoost; purged walk-forward (expanding + rolling), nested parameters, cross-fitted calibration, shuffled-label check, challengers only; promotion needs a passed gate **and** `--approve` |
+| 6 Unnamed-pattern discovery | ⬜ | Clustering / sequence mining / change points not built yet |
+| 7 Final test | ✅ code, not run | `preregister` then `final-test --confirm-final-test` (refuses unless the pre-registration is committed); run once, after validation, with the user's go-ahead |
+| 8 Signals | ✅ | Nine signal classes, brief score bands, research evidence per plan, XAUUSD sizing, Part-15 `analysis_report`; no probability shown (no validated model) |
+| 9 Dashboard | ✅ | `/gold-research` page, `GET /api/v1/research/gold` (bundled summary JSON; final-test figures never included) |
+| 10 Continuous update | 🟡 | `Update Gold Data.bat` / `historical update`; `monitor` waits for the final test because new days belong to the sealed period |
 
 ## Signal engine + Signals page (2026-11-07)
 New sidebar tab **Signals** (directly below Overview) — sub-project 1 of the trading-bot brief; design and methodology in `docs/SIGNAL_ENGINE.md`.

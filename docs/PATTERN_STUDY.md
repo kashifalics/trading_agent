@@ -78,7 +78,24 @@ cd backend
 
 `Run Gold Research.bat`, in the `trading project` folder, runs the data foundation and the training study unattended.
 
-## Limits of this phase
+## Library, combinations and stages
 
-- Patterns are the platform's existing detectors. The full library, regimes, combinations and multi-timeframe profiles come next and join the same validation family.
-- A single data source (Dukascopy). No news calendar.
+- Patterns: the registry in `backend/app/patterns` (194 implemented, families A-J, `docs/PATTERN_LIBRARY.md`).
+- Combinations: 35 pairs fixed in advance (`app/gold_research/combos.py`), each the subset of its trigger's trades preceded by
+  the other pattern. Multi-timeframe: the scalp, intraday and swing profiles of the brief, from completed higher-timeframe candles.
+- Staged discovery: each stage freezes its own candidate list and the tests it covered (`docs/research/XAUUSD_candidates*.json`).
+  A later stage tests only patterns added afterwards. Validation judges all stages as one Holm family.
+- Regimes (`regimes.py`) are attached to every trade and reported for description only.
+
+## Models, final test, updates
+
+- `ml-train`: event-level models on M15, H1 and H4 with purged walk-forward validation inside the training period;
+  `ml-validate-all` checks each challenger once on validation. `promote` needs a passed gate and `--approve`.
+- `preregister` then `final-test --confirm-final-test`: the one-time evaluation of the sealed period (see
+  `app/gold_research/final_test.py`).
+- `Update Gold Data.bat`: new days, rebuild, re-verification. Recent performance is not looked at before the final test.
+
+## Limits
+
+- One data source (Dukascopy). No news calendar. Overnight swap is not charged.
+- Phase 6 (unsupervised discovery of unnamed patterns) is not built yet.
