@@ -1,4 +1,4 @@
-"""python -m app.historical download|build|report|all|patterns|patterns-report [--symbols EURUSD,XAUUSD] [--interval 3] [--log FILE]   (docs/HISTORICAL_DATA.md)"""
+"""python -m app.historical download|build|report|all|verify|crosscheck|quality|split|m1store|foundation [--symbols EURUSD,XAUUSD] [--interval 3] [--log FILE]   (docs/HISTORICAL_DATA.md)"""
 import argparse
 import sys
 from datetime import datetime
@@ -40,13 +40,12 @@ def unattended_windows() -> None:
 def main() -> None:
     global LOG_FILE
     ap = argparse.ArgumentParser(prog="python -m app.historical")
-    ap.add_argument("command", choices=("download", "build", "report", "all", "patterns", "patterns-report"))
+    ap.add_argument("command", choices=("download", "build", "report", "all", "verify", "crosscheck", "quality", "split", "m1store",
+                                        "foundation"))
     ap.add_argument("--symbols", default=",".join(INSTRUMENTS))
     ap.add_argument("--interval", type=float, default=3.0, help="minimum seconds between Dukascopy requests")
     ap.add_argument("--force", action="store_true", help="rebuild normalized files even if unchanged")
     ap.add_argument("--log", type=Path, help="also append progress to this UTF-8 file")
-    ap.add_argument("--tfs", default="M5,M15,M30,H1,H4,D1", help="timeframes for the pattern study")
-    ap.add_argument("--workers", type=int, default=3, help="timeframes studied in parallel")
     a = ap.parse_args()
     LOG_FILE = a.log
     if LOG_FILE:
@@ -61,15 +60,22 @@ def main() -> None:
         symbols = [s for s in symbols if s in allowed]
         if not symbols:
             return
-    if a.command in ("patterns", "patterns-report"):
-        from app.historical import study
+    if a.command in ("verify", "crosscheck", "quality", "split", "m1store", "foundation"):
+        from app.historical import quality, reference, split, store
 
-        tfs = [t.strip().upper() for t in a.tfs.split(",") if t.strip()]
+        steps = ("verify", "crosscheck", "quality", "split", "m1store") if a.command == "foundation" else (a.command,)
         for s in symbols:
-            if a.command == "patterns":
-                study.run(s, tfs, workers=a.workers, log=log, log_file=str(LOG_FILE) if LOG_FILE else None)
-            else:
-                study.report(s, tfs, log=log)
+            for step in steps:
+                if step == "verify":
+                    builder.verify_timeframes(s, log=log)
+                elif step == "crosscheck":
+                    log(f"{s}: Dukascopy cross-check {reference.cross_check(s, log=log)['summary']}")
+                elif step == "quality":
+                    quality.report(s, log=log)
+                elif step == "split":
+                    split.freeze_split(s, log=log)
+                else:
+                    store.build_m1_store(s, log=log)
         return
     if a.command in ("download", "all"):
         log(f"download summary: {download(symbols, min_interval=a.interval, log=log)}")

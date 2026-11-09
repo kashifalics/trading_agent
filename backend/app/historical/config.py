@@ -25,6 +25,16 @@ INSTRUMENTS = {i.symbol: i for i in (
     Instrument("USDCAD", 1e-5), Instrument("AUDUSD", 1e-5), Instrument("NZDUSD", 1e-5), Instrument("XAUUSD", 1e-3, daily_break=True),
 )}
 
-# Rebuilt from M1 only (never the other way round). polars duration strings; weeks start Monday 00:00 UTC, days at 00:00 UTC.
-TIMEFRAMES = {"M5": "5m", "M15": "15m", "M30": "30m", "H1": "1h", "H4": "4h", "D1": "1d", "W1": "1w"}
+# Rebuilt from M1 only (never the other way round). polars duration strings on UTC boundaries: intraday windows are aligned to
+# multiples of their length since 00:00 UTC, days start 00:00 UTC, weeks Monday 00:00 UTC, months on the 1st.
+TIMEFRAMES = {"M5": "5m", "M15": "15m", "M30": "30m", "H1": "1h", "H2": "2h", "H4": "4h", "H6": "6h", "H8": "8h", "H12": "12h",
+              "D1": "1d", "W1": "1w", "MN1": "1mo"}
+# Each timeframe is aggregated from a finer one whose boundaries nest inside it, which gives identical OHLC to aggregating M1
+# directly (verified by verify_timeframes). M5 itself comes from M1.
+PARENT = {"M15": "M5", "M30": "M15", "H1": "M30", "H2": "H1", "H4": "H2", "H6": "H2", "H8": "H4", "H12": "H4", "D1": "H4",
+          "W1": "D1", "MN1": "D1"}
+# Optional trading-day candles that start at 17:00 New York (the FX/metals daily close), daylight saving handled. Saved as "D1_NY".
+NY_DAY_TF = "D1_NY"
+TF_SECONDS = {"M1": 60, "M5": 300, "M15": 900, "M30": 1800, "H1": 3600, "H2": 7200, "H4": 14400, "H6": 21600, "H8": 28800,
+              "H12": 43200, "D1": 86400, "D1_NY": 86400, "W1": 604800, "MN1": 2_678_400}  # MN1: nominal 31 days (calendar-aware close in sync.py)
 MATERIAL_GAP_MIN = 30  # consecutive missing open-market minutes that make a gap material (flagged, excluded from research)

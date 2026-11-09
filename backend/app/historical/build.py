@@ -9,8 +9,9 @@
   traded minutes (Dukascopy publishes filler for months before real trading starts, e.g. XAUUSD Jan-Apr 2003); feed coverage, which
   counts filler, is reported separately and never used as evidence of data.
 * Higher timeframes are rebuilt from clean M1 only (open = first, high = max, low = min, close = last, volume = sum), on UTC boundaries
-  (weeks start Monday 00:00). Each M5 is built from M1 inside one year file; every coarser timeframe from the previous one, which gives
-  identical OHLC because the boundaries nest. `n_minutes` says how many traded minutes a candle contains.
+  (weeks start Monday 00:00, months on the 1st). Each M5 is built from M1 inside one year file; every coarser timeframe from a finer
+  one whose boundaries nest in it (config.PARENT), which gives identical OHLC; verify_timeframes() proves it against direct M1
+  aggregation. `n_minutes` says how many traded minutes a candle contains. D1_NY candles start at 17:00 New York instead of 00:00 UTC.
 * Outliers (one-minute moves beyond OUTLIER_MOVE) are reported, not removed: flash crashes such as CHF on 2015-01-15 are real.
 """
 import json
@@ -23,6 +24,8 @@ from app.historical.config import (
     INSTRUMENTS,
     MATERIAL_GAP_MIN,
     NORMALIZED,
+    NY_DAY_TF,
+    PARENT,
     RAW,
     REPORTS,
     TIMEFRAMES,
@@ -121,15 +124,67 @@ def find_gaps(symbol: str, published: pl.Series, start: datetime, end: datetime)
 
 
 # ---- resampling ----------------------------------------------------------------------------------------------------------------------
-def resample(df: pl.DataFrame, every: str, minutes_col: str | None = None) -> pl.DataFrame:
+def _aggs(minutes_col: str | None) -> list[pl.Expr]:
+    """OHLC per side (first / max / min / last), summed volumes and the number of traded minutes."""
     aggs = []
     for p in ("bid", "ask"):
         aggs += [pl.col(f"{p}_open").first(), pl.col(f"{p}_high").max(), pl.col(f"{p}_low").min(), pl.col(f"{p}_close").last()]
-    aggs += [pl.col("bid_volume").sum(), pl.col("ask_volume").sum(),
-             (pl.col(minutes_col).sum() if minutes_col else pl.len()).alias("n_minutes")]
+    return aggs + [pl.col("bid_volume").sum(), pl.col("ask_volume").sum(),
+                   (pl.col(minutes_col).sum() if minutes_col else pl.len()).alias("n_minutes")]
+
+
+def resample(df: pl.DataFrame, every: str, minutes_col: str | None = None) -> pl.DataFrame:
     out = (df.sort("ts").group_by_dynamic("ts", every=every, closed="left", label="left",
-                                          start_by="monday" if every == "1w" else "window").agg(aggs))
+                                          start_by="monday" if every == "1w" else "window").agg(_aggs(minutes_col)))
     return out.with_columns((pl.col("ask_close") - pl.col("bid_close")).alias("spread"))
+
+
+def resample_ny_day(df: pl.DataFrame, minutes_col: str | None = None) -> pl.DataFrame:
+    """Trading-day candles from 17:00 New York to 17:00 the next day (daylight saving handled), labelled with their UTC start.
+    `df` must have boundaries that nest in New York hours (M1 ... H1)."""
+    ny = pl.col("ts").dt.convert_time_zone("America/New_York")
+    day = (ny + pl.duration(hours=7)).dt.date().alias("trading_day")
+    out = df.sort("ts").with_columns(day).group_by("trading_day", maintain_order=True).agg(_aggs(minutes_col))
+    start = (pl.col("trading_day").cast(pl.Datetime("us")).dt.replace_time_zone("America/New_York", ambiguous="earliest")
+             - pl.duration(hours=7)).dt.convert_time_zone("UTC").alias("ts")
+    return (out.with_columns(start).drop("trading_day").select("ts", pl.exclude("ts"))
+            .with_columns((pl.col("ask_close") - pl.col("bid_close")).alias("spread")).sort("ts"))
+
+
+def build_timeframes(m5: pl.DataFrame) -> dict[str, pl.DataFrame]:
+    """Every timeframe from M5, each from its nesting parent (config.PARENT), plus the New York trading day from H1."""
+    frames = {"M5": m5}
+    for tf in TIMEFRAMES:
+        if tf != "M5":
+            frames[tf] = resample(frames[PARENT[tf]], TIMEFRAMES[tf], "n_minutes")
+    frames[NY_DAY_TF] = resample_ny_day(frames["H1"], "n_minutes")
+    return frames
+
+
+def verify_timeframes(symbol: str, tfs: list[str] | None = None, log=print) -> dict:
+    """Independent check: aggregate every timeframe straight from clean M1 and compare with the chained build, column by column.
+    OHLC and minute counts must be identical; volumes (float sums in a different order) within 1e-6 relative."""
+    m1 = pl.concat([pl.read_parquet(f) for f in sorted((CLEAN / symbol / "M1").glob("*.parquet"))]).sort("ts")
+    out = {}
+    for tf in tfs or [*TIMEFRAMES, NY_DAY_TF]:
+        built = pl.read_parquet(CLEAN / symbol / tf / "all.parquet")
+        direct = resample_ny_day(m1) if tf == NY_DAY_TF else resample(m1, TIMEFRAMES[tf])
+        res = {"bars_built": built.height, "bars_direct": direct.height}
+        if built.height == direct.height and (built["ts"] == direct["ts"]).all():
+            exact = [c for c in direct.columns if c not in ("ts", "bid_volume", "ask_volume")]
+            res["mismatched_values"] = {c: int((built[c] != direct[c]).sum()) for c in exact if (built[c] != direct[c]).any()}
+            for c in ("bid_volume", "ask_volume"):
+                rel = ((built[c] - direct[c]).abs() / direct[c].abs().clip(lower_bound=1e-9))
+                if (rel > 1e-6).any():
+                    res["mismatched_values"][c] = int((rel > 1e-6).sum())
+            res["identical"] = not res["mismatched_values"]
+        else:
+            res["identical"] = False
+        out[tf] = res
+        log(f"{symbol} {tf}: {'identical to direct M1 aggregation' if res['identical'] else 'MISMATCH ' + str(res)}")
+    REPORTS.mkdir(parents=True, exist_ok=True)
+    (REPORTS / f"{symbol}_timeframe_check.json").write_text(json.dumps(out, indent=1))
+    return out
 
 
 # ---- whole pipeline -----------------------------------------------------------------------------------------------------------------
@@ -161,14 +216,8 @@ def build(symbol: str, log=print, force: bool = False) -> dict:
         m5.append(resample(clean, "5m"))
         log(f"{symbol} {y}: {st['clean_rows']:,} clean M1, {st['quiet_minutes']:,} quiet, {st['invalid_candles']} invalid, "
             f"{g.filter(pl.col('material')).height} material gaps")
-    frames = {"M1": None, "M5": pl.concat(m5).sort("ts")}
-    prev = "M5"
-    for tf in ("M15", "M30", "H1", "H4", "D1", "W1"):
-        frames[tf] = resample(frames[prev], TIMEFRAMES[tf], "n_minutes")
-        prev = tf
+    frames = build_timeframes(pl.concat(m5).sort("ts"))
     for tf, df in frames.items():
-        if df is None:
-            continue
         path = CLEAN / symbol / tf / "all.parquet"
         path.parent.mkdir(parents=True, exist_ok=True)
         df.write_parquet(path, compression="zstd")
@@ -180,7 +229,7 @@ def build(symbol: str, log=print, force: bool = False) -> dict:
 
 def coverage(symbol: str, stats: list[dict], gaps: pl.DataFrame, expected: int, present: int) -> dict:
     tfs = {}
-    for tf in ("M1", *TIMEFRAMES):
+    for tf in ("M1", *TIMEFRAMES, NY_DAY_TF):
         files = sorted((CLEAN / symbol / tf).glob("*.parquet"))
         if not files:
             continue
