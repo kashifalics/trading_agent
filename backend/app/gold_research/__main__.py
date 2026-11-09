@@ -35,7 +35,7 @@ def log(msg: str) -> None:
 def main() -> None:
     global LOG
     ap = argparse.ArgumentParser(prog="python -m app.gold_research")
-    ap.add_argument("command", choices=("run", "discover", "validate", "report", "library", "ml-train", "ml-validate", "ml-validate-all", "promote", "preregister", "final-test", "monitor"))
+    ap.add_argument("command", choices=("run", "discover", "validate", "report", "library", "ml-train", "ml-validate", "ml-validate-all", "promote", "preregister", "final-test", "monitor", "audit"))
     ap.add_argument("--symbol", default="XAUUSD")
     ap.add_argument("--tfs", default=",".join(study.STUDY_TFS))
     ap.add_argument("--segment", default="train", choices=("train", "validation"))
@@ -85,6 +85,9 @@ def main() -> None:
     elif a.command == "final-test":
         from app.gold_research import final_test
         final_test.run_final_test(a.symbol, log=log, i_understand_this_is_once=a.confirm_final_test)
+    elif a.command == "audit":
+        from app.gold_research import audit
+        audit.run(a.symbol, log=log)
     elif a.command == "monitor":
         from app.gold_research import final_test
         sealed_runs = (study.SPLIT_DIR / f"{a.symbol}_seal_log.md")
