@@ -41,7 +41,7 @@ def main() -> None:
     global LOG_FILE
     ap = argparse.ArgumentParser(prog="python -m app.historical")
     ap.add_argument("command", choices=("download", "build", "report", "all", "verify", "crosscheck", "quality", "split", "m1store",
-                                        "foundation"))
+                                        "foundation", "update"))
     ap.add_argument("--symbols", default=",".join(INSTRUMENTS))
     ap.add_argument("--interval", type=float, default=3.0, help="minimum seconds between Dukascopy requests")
     ap.add_argument("--force", action="store_true", help="rebuild normalized files even if unchanged")
@@ -60,6 +60,21 @@ def main() -> None:
         symbols = [s for s in symbols if s in allowed]
         if not symbols:
             return
+    if a.command == "update":
+        # Continuous update: new days only (the downloader resumes), then rebuild, re-verify and refresh the M1 store.
+        # The frozen split never moves: new days belong to the sealed final-test period (then to the forward paper test).
+        from app.historical import store
+        log(f"download summary: {download(symbols, min_interval=a.interval, log=log)}")
+        for s in symbols:
+            r = builder.build(s, log=log, force=a.force)
+            log(f"{s}: coverage {r['coverage_pct']}%, {r['material_gaps']} material gaps")
+            bad = [tf for tf, v in builder.verify_timeframes(s, log=lambda m: None).items() if not v["identical"]]
+            log(f"{s}: timeframe check {'passed' if not bad else 'FAILED for ' + ', '.join(bad)}")
+            store.build_m1_store(s, log=log)
+        md = builder.report_markdown(symbols)
+        DOC.write_text(md, encoding="utf8")
+        log(f"report written: {DOC}")
+        return
     if a.command in ("verify", "crosscheck", "quality", "split", "m1store", "foundation"):
         from app.historical import quality, reference, split, store
 

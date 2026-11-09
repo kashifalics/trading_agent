@@ -10,6 +10,7 @@
   ml-validate-all  every latest challenger on the validation segment
   preregister  freeze the final-test hypotheses (commit the file afterwards)
   final-test   --confirm-final-test: the one-time evaluation on the sealed period
+  monitor      recent-performance check (only after the final test; the sealed period is never peeked at)
   promote      --version X --approve: champion pointer, only for a challenger that passed validation
 """
 import argparse
@@ -34,7 +35,7 @@ def log(msg: str) -> None:
 def main() -> None:
     global LOG
     ap = argparse.ArgumentParser(prog="python -m app.gold_research")
-    ap.add_argument("command", choices=("run", "discover", "validate", "report", "library", "ml-train", "ml-validate", "ml-validate-all", "promote", "preregister", "final-test"))
+    ap.add_argument("command", choices=("run", "discover", "validate", "report", "library", "ml-train", "ml-validate", "ml-validate-all", "promote", "preregister", "final-test", "monitor"))
     ap.add_argument("--symbol", default="XAUUSD")
     ap.add_argument("--tfs", default=",".join(study.STUDY_TFS))
     ap.add_argument("--segment", default="train", choices=("train", "validation"))
@@ -79,6 +80,17 @@ def main() -> None:
     elif a.command == "final-test":
         from app.gold_research import final_test
         final_test.run_final_test(a.symbol, log=log, i_understand_this_is_once=a.confirm_final_test)
+    elif a.command == "monitor":
+        from app.gold_research import final_test
+        sealed_runs = (study.SPLIT_DIR / f"{a.symbol}_seal_log.md")
+        done = sealed_runs.exists() and "FINAL TEST RUN" in sealed_runs.read_text(encoding="utf8")
+        if not done:
+            log("monitoring waits for the one-time final test: every day after 2023-06-24 belongs to the sealed test period, so "
+                "recent performance cannot be looked at yet without spending the final test.")
+        else:
+            log("final test done: new days after the freeze date form the forward test. Re-run `run --segment validation` style "
+                "evaluation on them with `final-test`-frozen hypotheses, or train challengers with ml-train and compare them with "
+                f"the champion; promotion still needs --approve. Pre-registration: {final_test.prereg_path(a.symbol)}")
     elif a.command == "promote":
         from app.gold_research import ml
         log(f"{ml.promote(a.symbol, a.version, approve=a.approve)}")
