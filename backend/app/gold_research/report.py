@@ -153,3 +153,6 @@ def write(symbol: str, log=print) -> None:
     if merged_discovery(symbol) is not None:
         export_summary(symbol)
         log("live-engine summary written: app/data/gold_research_summary.json")
+    from app.gold_research import dashboard
+    dashboard.build(symbol)
+    log("dashboard data written: app/data/gold_research_dashboard.json")

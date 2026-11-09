@@ -41,6 +41,8 @@ def world(tmp_path_factory):
     from app.historical.build import build_timeframes, resample
     tmp = tmp_path_factory.mktemp("ml")
     mp = pytest.MonkeyPatch()
+    from app.gold_research import dashboard
+    mp.setattr(dashboard, "DASHBOARD", tmp / "dashboard.json")  # never write synthetic results into app/data
     for mod, names in ((Sto, ("CLEAN", "DATA_ROOT", "SPLIT_DIR")), (Sp, ("CLEAN", "SPLIT_DIR", "REPORTS")), (study, ("CLEAN", "DATA_ROOT", "SPLIT_DIR"))):
         for nm in names:
             mp.setattr(mod, nm, tmp / ("docs" if nm == "SPLIT_DIR" else "clean" if nm == "CLEAN" else "reports" if nm == "REPORTS" else ""))
@@ -69,3 +71,13 @@ def test_training_registers_a_challenger_and_shuffled_labels_show_no_skill(world
     res = ml.promote("XAUUSD", v, approve=True)
     assert not res["promoted"] and any("validation" in p for p in res["problems"])
     assert not ml.promote("XAUUSD", v, approve=False)["promoted"]
+
+
+def test_dashboard_reports_models_and_never_a_final_test(world, monkeypatch, tmp_path):
+    from app.gold_research import dashboard
+    monkeypatch.setattr(dashboard, "DASHBOARD", tmp_path / "dash.json")
+    d = dashboard.build("XAUUSD")
+    assert d["status"]["final_test"].startswith("sealed") and d["split"]["test"]["sealed"] is True
+    assert d["models"] and "H1" in d["models"]["tfs"] and d["models"]["tfs"]["H1"]["champion"] is None
+    assert "test" not in (d["patterns"] or {})
+    assert dashboard.load()["available"] is True

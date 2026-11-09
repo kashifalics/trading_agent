@@ -328,3 +328,10 @@ def test_buy_sell_carries_the_pattern_study_caveat_only_when_nothing_was_validat
     assert "Pattern study #7" in ps.study_caveat("BTCUSDT", f) and "600 patterns" in ps.study_caveat("BTCUSDT", f)
     assert ps.study_caveat("XAUUSD", f) is None  # a validated pattern exists: no blanket warning
     assert ps.study_caveat("GBPUSD", f) is None  # never studied: no claim either way
+
+
+def test_gold_research_endpoint_answers_without_research_data(client, monkeypatch, tmp_path):
+    from app.gold_research import dashboard
+    monkeypatch.setattr(dashboard, "DASHBOARD", tmp_path / "missing.json")
+    r = client.get("/api/v1/research/gold")
+    assert r.status_code == 200 and r.json()["available"] is False

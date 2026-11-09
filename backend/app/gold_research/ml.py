@@ -381,6 +381,8 @@ def train(symbol: str, tfs=ML_TFS, kinds=("logistic", "lgbm", "lgbm_rf", "xgb"),
         summary["tfs"][tf] = res
     out = out_dir(symbol) / "ml_training.json"
     out.write_text(json.dumps(summary, indent=1, default=float), encoding="utf8")
+    from app.gold_research import dashboard
+    dashboard.build(symbol)
     return summary
 
 
