@@ -39,7 +39,7 @@ const STATUS_VARIANT: Record<OppStatus, "buy" | "sell" | "wait" | "neutral" | "i
 };
 const VALIDATION: Record<ValidationStatus, { label: string; variant: "buy" | "sell" | "wait" | "neutral"; help: string }> = {
   validated: { label: "validated", variant: "buy", help: "Passed out-of-sample validation" },
-  untested: { label: "unvalidated", variant: "wait", help: "No out-of-sample test exists for this setup rule set" },
+  untested: { label: "Not validated", variant: "wait", help: "No out-of-sample test exists for this setup rule set" },
   no_edge: { label: "no edge found", variant: "neutral", help: "Tested out of sample: not distinguishable from zero (or too few trades)" },
   negative: { label: "negative OOS", variant: "sell", help: "Tested out of sample: the rules lose money after costs" },
 };
@@ -486,7 +486,7 @@ export function ValidationPanel() {
         Validated needs ≥ 100 out-of-sample trades, a bootstrap CI above zero and better-than-random results. Nothing here was tuned to look better.
       </p>
       {results.length === 0 ? (
-        <EmptyState title="No validation experiments shipped" hint="Every setup rule set is therefore reported as unvalidated." />
+        <EmptyState title="No validation experiments shipped" hint="Every setup rule set is therefore reported as not validated." />
       ) : (
         <Table>
           <THead><TR><TH>Instrument</TH><TH>Style</TH><TH>TF</TH><TH className="text-right">OOS trades</TH><TH className="text-right">OOS net E[R]</TH><TH className="text-right">Gross E[R]</TH><TH className="text-right">OOS win</TH><TH className="text-right">OOS PF</TH><TH>Status</TH></TR></THead>

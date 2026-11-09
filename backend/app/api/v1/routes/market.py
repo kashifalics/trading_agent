@@ -47,6 +47,7 @@ from app.services.data_service import trading_hours_only as filter_closed
 
 router = APIRouter(prefix="/market", tags=["market"])
 _quote_cache: dict[str, tuple[float, QuoteOut]] = {}
+MAX_QUOTE_SYMBOLS = 20
 
 
 def _instrument_out(session: Session, inst: Instrument) -> InstrumentOut:
@@ -135,11 +136,15 @@ def providers(session: Session = Depends(get_session)) -> list[dict]:
 @router.get("/quotes", response_model=list[QuoteOut])
 def quotes(symbols: str | None = Query(None, description="comma separated; default all active"),
            session: Session = Depends(get_session)):
-    names = [s.strip().upper() for s in symbols.split(",")] if symbols else \
+    known = set(session.scalars(select(Instrument.canonical_symbol)))
+    names = [s.strip().upper() for s in symbols.split(",") if s.strip()][:MAX_QUOTE_SYMBOLS] if symbols else \
         [i.canonical_symbol for i in session.scalars(select(Instrument).where(Instrument.is_active.is_(True)).order_by(Instrument.id))
          if not get_settings().focus_list or i.canonical_symbol in get_settings().focus_list]
     out: list[QuoteOut] = []
-    for sym in names:
+    for sym in dict.fromkeys(names):
+        if sym not in known:  # answered without a provider call and never cached, so arbitrary names cannot grow the cache
+            out.append(QuoteOut(symbol=sym[:32], status="error", message=f"Unknown instrument '{sym[:32]}'"))
+            continue
         cached = _quote_cache.get(sym)
         if cached and time.monotonic() - cached[0] < 5:
             out.append(cached[1])
@@ -149,7 +154,8 @@ def quotes(symbols: str | None = Query(None, description="comma separated; defau
             q = get_provider(prov.code).get_latest_quote(pi.provider_symbol)
             res = QuoteOut(symbol=sym, status="ok", price=float(q.price), bid=None if q.bid is None else float(q.bid),
                            ask=None if q.ask is None else float(q.ask), time=q.ts, provider=prov.code,
-                           message=f"Last known price ({q.ts:%Y-%m-%d %H:%M}Z): market closed or quote stale, not a live price" if q.is_delayed else None)
+                           message=f"Last known price ({q.ts:%Y-%m-%d %H:%M}Z): market closed or quote stale, not a live price" if q.is_delayed else None,
+                           delayed=bool(q.is_delayed))
         except UnsupportedError as exc:
             res = QuoteOut(symbol=sym, status="unsupported", message=exc.message)
         except ProviderNotConfigured as exc:

@@ -8,6 +8,7 @@ import {
   Database,
   Eye,
   FlaskConical,
+  KeyRound,
   LayoutDashboard,
   LineChart,
   Menu,
@@ -23,6 +24,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useHealth } from "@/lib/hooks";
+import { useSettings } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 export const NAV = [
@@ -66,6 +68,20 @@ function Nav({ onNavigate }: { onNavigate?: () => void }) {
         );
       })}
     </nav>
+  );
+}
+
+/** Shown on every page when the server needs a platform API key and this browser has none saved. */
+function ApiKeyBanner() {
+  const { data } = useHealth();
+  const apiKey = useSettings((s) => s.apiKey);
+  if (!data?.auth_required || apiKey) return null;
+  return (
+    <div role="alert" data-testid="api-key-banner" className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-warn/40 bg-cta/10 px-4 py-3 text-sm">
+      <KeyRound className="h-4 w-4 text-warn" aria-hidden />
+      <span>This server requires a platform API key.</span>
+      <Link href="/settings" className="font-medium text-primary hover:underline">Enter it in Settings</Link>
+    </div>
   );
 }
 
@@ -122,7 +138,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <BackendStatus />
         </header>
-        <main className="mx-auto w-full max-w-[1500px] flex-1 px-4 py-5 sm:px-6">{children}</main>
+        <main className="mx-auto w-full max-w-[1500px] flex-1 px-4 py-5 sm:px-6">
+          <ApiKeyBanner />
+          {children}
+        </main>
       </div>
     </div>
   );

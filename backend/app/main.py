@@ -57,10 +57,13 @@ def create_app() -> FastAPI:
     s = get_settings()
     app = FastAPI(title="AI Trading Intelligence API", version="0.1.0", description=API_DESCRIPTION, lifespan=lifespan,
                   docs_url="/docs", openapi_url="/openapi.json")
-    app.add_middleware(CORSMiddleware, allow_origins=[s.frontend_url, "http://localhost:3000", "http://127.0.0.1:3000"],
+    # Production allows only the configured frontend; local development also allows the dev server on localhost:3000.
+    origins = [s.frontend_url] if s.is_production else [s.frontend_url, "http://localhost:3000", "http://127.0.0.1:3000"]
+    app.add_middleware(CORSMiddleware, allow_origins=list(dict.fromkeys(origins)),
                        allow_methods=["GET", "POST", "DELETE", "PATCH"], allow_headers=["*"], allow_credentials=False)
 
     hits: dict[str, deque] = defaultdict(deque)
+    sweep = {"at": time.monotonic()}
 
     @app.middleware("http")
     async def guard(request: Request, call_next):
@@ -72,6 +75,11 @@ def create_app() -> FastAPI:
             q, now, limit = hits[ip], time.monotonic(), get_settings().rate_limit_per_minute
             while q and now - q[0] > 60:
                 q.popleft()
+            if now - sweep["at"] > 300:  # drop idle clients so the table cannot grow without bound
+                for k in [k for k, v in hits.items() if not v or now - v[-1] > 60]:
+                    hits.pop(k, None)
+                sweep["at"] = now
+                q = hits[ip]
             if len(q) >= limit:
                 return JSONResponse(status_code=429, headers={"Retry-After": "30", "x-request-id": rid}, content={
                     "error": {"code": "rate_limited", "message": "Too many requests", "details": {}, "request_id": rid}})

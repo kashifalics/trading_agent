@@ -88,8 +88,10 @@ export default function SignalsPage() {
       />
       <div className="mb-4 space-y-2">
         <Notice tone="warn">
-          The confluence score measures <strong>setup quality, not the chance of winning</strong>. A win probability is shown only where the same rules passed
-          out-of-sample validation on history (none has yet). High-impact news is not filtered. Never risk money you cannot afford to lose.
+          Every signal here is <strong>not validated</strong>: no strategy or model in this product has passed out-of-sample validation (the replay of these
+          rules and the XAUUSD research found no verified edge). Signals are hypothetical setups for analysis, not proven trades. The confluence score measures
+          <strong> setup quality, not the chance of winning</strong>, and no win probability is shown. High-impact news is not filtered. Never risk money you
+          cannot afford to lose.
         </Notice>
         {sync.isError && <ErrorState error={sync.error} />}
         {sync.data && sync.data.notes.length > 0 && <Notice>{sync.data.notes.slice(0, 3).join(" · ")}</Notice>}

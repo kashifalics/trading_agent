@@ -106,6 +106,8 @@ describe("Signals page", () => {
     expect(within(best).getByTestId("probability")).toHaveTextContent(NOTE);
     expect(within(best).getByTestId("probability")).toHaveTextContent("40 out-of-sample trades");
     expect(screen.getByTestId("overall-bias")).toHaveTextContent("Bullish");
+    expect(within(best).getByTestId("not-validated")).toHaveTextContent("Not validated");
+    expect(screen.getByText(/Every signal here is/)).toHaveTextContent("not validated");
   });
 
   it("lists every timeframe and opens the checklist of the selected one", async () => {

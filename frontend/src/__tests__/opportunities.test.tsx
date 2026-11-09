@@ -150,7 +150,7 @@ describe("Trade Opportunities page", () => {
     expect(buy.getByText("BUY")).toBeInTheDocument();
     for (const t of ["3,900.50 – 3,920.25", "3,880.10", "3,990.00", "4,040.00", "4,100.00", "2.40R", "61"]) expect(buy.getByText(t, { exact: false })).toBeInTheDocument();
     expect(buy.getByText("Waiting for confirmation")).toBeInTheDocument();
-    expect(buy.getByText("unvalidated")).toBeInTheDocument();
+    expect(buy.getByText("Not validated")).toBeInTheDocument();
     const sell = within(within(table).getByTestId("opp-row-12"));
     expect(sell.getByText("SELL")).toBeInTheDocument();
     expect(sell.getByText("Entry triggered")).toBeInTheDocument();

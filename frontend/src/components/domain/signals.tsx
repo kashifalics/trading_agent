@@ -4,7 +4,7 @@ import { CheckCircle2, CircleSlash, Info, XCircle } from "lucide-react";
 import { useMemo } from "react";
 import { CandleChart } from "@/components/charts/candle-chart";
 import { COLORS, type ChartLine, type ChartZone } from "@/components/charts/overlays";
-import { EmptyState, ErrorState } from "@/components/domain/common";
+import { EmptyState, ErrorState, NotValidatedBadge } from "@/components/domain/common";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/form";
@@ -81,6 +81,7 @@ export function InstrumentTabs({ items, value, onChange }: { items: SignalsSumma
               <span className="flex items-center gap-1.5 text-xs">
                 <span className={best.direction === "BUY" ? "text-bull" : "text-bear"}>{best.direction}</span>
                 <span className="text-muted-foreground">{best.timeframe} · {best.score}/100</span>
+                {best.validation_status !== "validated" && <span className="text-[10px] text-warn">not validated</span>}
               </span>
             ) : (
               <span className={cn("text-xs", biasTone(i.overall?.label))}>{i.overall?.label ?? "—"} · no setup</span>
@@ -208,6 +209,7 @@ export function BestPlanCard({ a, onSelect }: { a: SignalAnalysis; onSelect: (tf
             <SideBadge side={b.side} />
             <span className="text-lg font-semibold">{a.symbol} · {b.timeframe}</span>
             <StateBadge state={b.state} />
+            <NotValidatedBadge status={b.validation?.status} note={b.validation?.note} />
           </div>
           <div className="text-base"><InstructionText instruction={b.instruction} /> <span className="text-sm text-muted-foreground">· {words(b.setup_type)}</span></div>
           <ScoreMeter score={b.score} grade={b.grade} />
@@ -249,7 +251,10 @@ export function TimeframeTable({ a, selected, onSelect }: { a: SignalAnalysis; s
                 ) : <span className="text-xs text-muted-foreground">{pl.status === "insufficient_data" ? "not enough data" : r?.reason ?? "—"}</span>}
               </TD>
               <TD><StateBadge state={pl.state} /></TD>
-              <TD><SideBadge side={isActionable(pl.state) ? pl.direction : null} /></TD>
+              <TD>
+                <SideBadge side={isActionable(pl.state) ? pl.direction : null} />
+                {isActionable(pl.state) && pl.validation?.status !== "validated" && <span className="ml-1 text-[10px] text-warn" title={pl.validation?.note}>not validated</span>}
+              </TD>
               <TD className="num text-xs">
                 {pl.buy_score === null && pl.sell_score === null ? "—" : (
                   <span><span className="text-bull">B {pl.buy_score ?? "—"}</span> / <span className="text-bear">S {pl.sell_score ?? "—"}</span></span>
@@ -358,6 +363,7 @@ export function PlanDetail({ a, tf }: { a: SignalAnalysis; tf: string }) {
         <div className="flex flex-wrap items-center gap-2">
           <StateBadge state={plan.state} />
           <InstructionText instruction={plan.instruction} />
+          {plan.side && <NotValidatedBadge status={plan.validation?.status} note={plan.validation?.note} />}
           {plan.side && <span className="text-sm text-muted-foreground">· {plan.side} {words(plan.setup_type)} · {plan.score}/100{plan.checks_total ? ` · ${plan.checks_met}/${plan.checks_total} checks met` : ""}</span>}
         </div>
         {plan.previous && (

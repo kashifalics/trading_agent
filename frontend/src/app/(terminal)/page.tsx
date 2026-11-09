@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/misc";
-import { DecisionBadge, EmptyState, ErrorState, JobBadge, PageHeader, QueryState } from "@/components/domain/common";
+import { DecisionBadge, EmptyState, ErrorState, JobBadge, NotValidatedBadge, PageHeader, QueryState } from "@/components/domain/common";
 import { AnalysisOnlyNotice } from "@/components/domain/decision";
 import { useAnalyses, useCoverage, useInstruments, useModels, usePatterns, usePredictions, useQuotes } from "@/lib/hooks";
 import type { Instrument, Quote } from "@/lib/types";
@@ -20,22 +20,26 @@ const STATUS_TEXT: Record<Quote["status"], string> = {
 
 function QuoteCard({ inst, quote }: { inst: Instrument; quote?: Quote }) {
   const map = inst.mappings[0];
+  // A last-known price (market closed, stale quote) is never labelled live.
+  const delayed = quote?.status === "ok" && (quote.delayed ?? Boolean(quote.message));
   return (
     <Card data-testid={`quote-${inst.canonical_symbol}`}>
       <CardContent className="space-y-1.5">
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold">{inst.canonical_symbol}</span>
-          <Badge variant={quote?.status === "ok" ? "buy" : "neutral"}>{quote ? STATUS_TEXT[quote.status] : "…"}</Badge>
+          <Badge variant={quote?.status === "ok" ? (delayed ? "wait" : "buy") : "neutral"}>
+            {quote ? (delayed ? "delayed" : STATUS_TEXT[quote.status]) : "…"}
+          </Badge>
         </div>
         <div className="truncate text-xs text-muted-foreground">{inst.name}</div>
         {quote?.status === "ok" ? (
-          <div className="num text-2xl font-semibold">{fmtPrice(quote.price, inst.price_precision)}</div>
+          <div className={delayed ? "num text-2xl font-semibold text-muted-foreground" : "num text-2xl font-semibold"}>{fmtPrice(quote.price, inst.price_precision)}</div>
         ) : (
           <div className="num text-2xl font-semibold text-muted-foreground">—</div>
         )}
         <div className="text-[11px] text-muted-foreground">
           {quote?.status === "ok"
-            ? `${quote.provider} · ${timeAgo(quote.time)}`
+            ? delayed ? quote.message ?? `last known price · ${timeAgo(quote.time)}` : `${quote.provider} · ${timeAgo(quote.time)}`
             : quote?.message ?? "loading"}
         </div>
         {map && <div className="text-[11px] text-muted-foreground">mapping: {map.provider} · {map.market_kind} · {map.status}</div>}
@@ -91,7 +95,7 @@ export default function DashboardPage() {
       <div className="mt-4 grid gap-4 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader>
-            <CardTitle>Recent predictions</CardTitle>
+            <CardTitle className="flex items-center gap-2">Recent predictions <NotValidatedBadge /></CardTitle>
             <Link href="/predictions" className="text-xs text-primary hover:underline">View all</Link>
           </CardHeader>
           <CardContent className="p-0">

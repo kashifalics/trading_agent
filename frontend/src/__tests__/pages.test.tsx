@@ -43,6 +43,25 @@ describe("Dashboard", () => {
     expect(screen.getByText(/No models trained/)).toBeInTheDocument();
   });
 
+  it("labels a last-known price as delayed, never as live", async () => {
+    const delayed = QUOTES.map((q) => q.symbol === "BTCUSDT"
+      ? { ...q, delayed: true, message: "Last known price (2026-11-06 21:59Z): market closed or quote stale, not a live price" } : q);
+    mockApi({ ...base, "GET /api/v1/market/quotes": delayed });
+    renderWithClient(<DashboardPage />);
+    const btc = await screen.findByTestId("quote-BTCUSDT");
+    await waitFor(() => expect(within(btc).getByText("delayed")).toBeInTheDocument());
+    expect(within(btc).queryByText("live")).not.toBeInTheDocument();
+    expect(within(btc).getByText(/not a live price/)).toBeInTheDocument();
+  });
+
+  it("asks for the platform API key when the server answers 401", async () => {
+    mockApi({ ...base, "GET /api/v1/market/instruments": { error: { code: "unauthorized", message: "API key required" } } },
+      { "GET /api/v1/market/instruments": 401 });
+    renderWithClient(<DashboardPage />);
+    expect((await screen.findAllByText("API key required")).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /enter it in settings/i })[0]).toHaveAttribute("href", "/settings");
+  });
+
   it("surfaces a backend outage with a retry action instead of blank cards", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("offline"); }));
     renderWithClient(<DashboardPage />);

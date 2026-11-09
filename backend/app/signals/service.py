@@ -136,6 +136,7 @@ def analyze(session: Session, symbol: str, now: datetime | None = None) -> dict:
     for p in res["plans"]:
         tr = track_record.lookup(sym, p["timeframe"], p.get("score"))
         p["track_record"] = tr
+        p["validation"] = track_record.validation_of(tr)
         if tr.get("win_probability") is not None:
             p["win_probability"] = tr["win_probability"]
             p["probability_note"] = f"Historical win rate {tr['win_probability']:.0%}: {tr['win_probability_basis']}"
@@ -152,6 +153,7 @@ def _compact_plan(p: dict | None) -> dict | None:
     keys = ("timeframe", "state", "instruction", "decision", "direction", "score", "grade", "setup_type", "entry_type", "entry", "stop_loss",
             "risk_reward", "summary", "signal_time", "valid_until", "probability_note", "win_probability")
     out = {k: p.get(k) for k in keys}
+    out["validation_status"] = (p.get("validation") or {}).get("status", "not_validated")
     out["tp1"] = p["targets"][0]["price"] if p.get("targets") else None
     return out
 

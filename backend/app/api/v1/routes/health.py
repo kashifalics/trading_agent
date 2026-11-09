@@ -35,4 +35,5 @@ def health(session: Session = Depends(get_session)) -> dict:
                        "ocr_tesseract": ocr_available(), "llm": s.llm_provider,
                        "twelve_data_key_configured": bool(s.twelve_data_api_key)},
         "mode": "analysis_only",
+        "auth_required": s.auth_required,
     }

@@ -43,3 +43,18 @@ def lookup(symbol: str, tf: str, score: int | None = None, path: Path | None = N
         out["win_probability"] = band.get("tp1_hit_rate")
         out["win_probability_basis"] = f"out-of-sample TP1 hit rate of {band['n']} past signals scoring {b}"
     return out
+
+
+NOT_VALIDATED_NOTE = ("Not validated: no strategy or model in this product has passed out-of-sample validation (signal replays and the "
+                      "XAUUSD research experiments 1 and 2 found no verified edge). This is a hypothetical setup for analysis, not a "
+                      "proven trade.")
+
+
+def validation_of(tr: dict) -> dict:
+    """The validation label every plan carries. 'validated' only when this instrument x timeframe passed out-of-sample validation
+    (the same rule that gates win_probability); everything else is 'not_validated'."""
+    if tr.get("status") == "validated":
+        return {"status": "validated", "label": "Validated", "note": tr.get("summary") or "Passed out-of-sample validation."}
+    oos = (tr.get("oos") or {}).get("n_trades")
+    basis = f" Replay verdict for these rules: {tr['status'].replace('_', ' ')} ({oos} out-of-sample trades)." if tr.get("available") and oos else ""
+    return {"status": "not_validated", "label": "Not validated", "note": NOT_VALIDATED_NOTE + basis}

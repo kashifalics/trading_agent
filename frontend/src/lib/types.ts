@@ -91,6 +91,8 @@ export interface Quote {
   time: string | null;
   provider: string | null;
   message: string | null;
+  /** Last known price (market closed or quote stale): never shown as live. */
+  delayed?: boolean;
 }
 
 export interface ProviderInfo {
@@ -413,6 +415,15 @@ export interface Health {
   time: string;
   mode: string;
   components: Record<string, string | boolean>;
+  /** True when every request needs a platform API key (X-API-Key). */
+  auth_required?: boolean;
+}
+
+export interface AuthStatus {
+  authenticated: boolean;
+  auth_required: boolean;
+  mode: string;
+  key_used: boolean;
 }
 
 export interface ChartAnalyzeResult {

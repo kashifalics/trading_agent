@@ -82,6 +82,7 @@ class QuoteOut(BaseModel):
     time: datetime | None = None
     provider: str | None = None
     message: str | None = None
+    delayed: bool = False  # True when the price is the last known one (market closed or quote stale), never a live price
 
 
 class SyncRequest(BaseModel):

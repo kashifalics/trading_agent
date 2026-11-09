@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { use } from "react";
-import { DecisionBadge, EmptyState, PageHeader, QueryState } from "@/components/domain/common";
+import { DecisionBadge, EmptyState, NotValidatedBadge, PageHeader, QueryState } from "@/components/domain/common";
 import { AnalysisOnlyNotice, ConfidencePanelView, EvidenceList, PlanCard, SectionCard } from "@/components/domain/decision";
 import { Badge } from "@/components/ui/badge";
 import { Stat } from "@/components/ui/card";
@@ -31,7 +31,7 @@ export default function PredictionDetailPage({ params }: { params: Promise<{ id:
             <PageHeader
               title={`Prediction #${p.id} · ${p.symbol} ${p.timeframe}`}
               description={`Analysis as of ${fmtDate(p.as_of_ts)} using ${p.provider_code ?? "unknown provider"} candles.`}
-              actions={<><DecisionBadge decision={p.decision} className="text-base" /><Link href="/predictions" className="text-xs text-primary hover:underline">All predictions</Link></>}
+              actions={<><DecisionBadge decision={p.decision} className="text-base" />{p.decision !== "WAIT" && <NotValidatedBadge />}<Link href="/predictions" className="text-xs text-primary hover:underline">All predictions</Link></>}
             />
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
               <div className="min-w-0 space-y-4">

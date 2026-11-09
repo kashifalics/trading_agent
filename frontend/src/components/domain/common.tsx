@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
+import Link from "next/link";
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,8 +38,33 @@ export function JobBadge({ status }: { status: JobStatus | string }) {
   return <Badge variant={v}>{status}</Badge>;
 }
 
+/** "Not validated" label for any BUY/SELL setup: nothing in this product has passed out-of-sample validation. */
+export function NotValidatedBadge({ status = "not_validated", note, className }: { status?: "validated" | "not_validated"; note?: string; className?: string }) {
+  if (status === "validated") return <Badge variant="buy" className={className} title={note}>Validated</Badge>;
+  return (
+    <Badge variant="wait" className={className} data-testid="not-validated"
+      title={note ?? "No strategy or model in this product has passed out-of-sample validation. Hypothetical setup for analysis, not a proven trade."}>
+      Not validated
+    </Badge>
+  );
+}
+
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   const e = error instanceof ApiError ? error : null;
+  if (e?.status === 401) {
+    return (
+      <div role="alert" className="flex flex-col items-start gap-2 rounded-md border border-warn/40 bg-cta/10 p-4 text-sm">
+        <div className="flex items-center gap-2 font-medium text-warn">
+          <AlertTriangle className="h-4 w-4" aria-hidden /> API key required
+        </div>
+        <p className="text-muted-foreground">{e.message}</p>
+        <p className="text-muted-foreground">
+          {e.message === "Invalid API key" ? "The saved platform API key was rejected by the server." : "This server requires a platform API key."}{" "}
+          <Link href="/settings" className="font-medium text-primary hover:underline">Enter it in Settings</Link>.
+        </p>
+      </div>
+    );
+  }
   return (
     <div role="alert" className="flex flex-col items-start gap-2 rounded-md border border-bear/30 bg-bear/5 p-4 text-sm">
       <div className="flex items-center gap-2 font-medium text-bear">

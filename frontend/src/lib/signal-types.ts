@@ -121,6 +121,8 @@ export interface TimeframePlan {
   probability_note: string;
   win_probability: number | null;
   track_record?: TrackRecordRef;
+  /** Explicit validation label: "not_validated" unless these rules passed out-of-sample validation. */
+  validation?: { status: "validated" | "not_validated"; label: string; note: string };
 }
 
 export interface TimeframeRow {
@@ -203,6 +205,7 @@ export interface CompactPlan {
   tp1: number | null;
   risk_reward?: number;
   summary?: string;
+  validation_status?: "validated" | "not_validated";
 }
 
 export interface SignalsSummaryItem {

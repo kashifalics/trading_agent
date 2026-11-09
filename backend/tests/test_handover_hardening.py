@@ -1,0 +1,118 @@
+"""Security and honesty guarantees checked before customer handover: every endpoint except the health check needs a key when
+AUTH_REQUIRED=true, the quote endpoint cannot be used to grow memory, production CORS allows only the configured frontend, delayed
+prices are flagged, and every signal plan carries an explicit validation label."""
+import re
+from datetime import datetime, timezone
+from decimal import Decimal
+
+import pytest
+from fastapi.routing import APIRoute
+from fastapi.testclient import TestClient
+
+from app.core.config import get_settings
+from app.core.security import hash_api_key
+from app.database.models import User
+from app.main import create_app
+from app.market_data.types import Quote
+
+
+@pytest.fixture()
+def auth_client(engine, monkeypatch):
+    monkeypatch.setenv("AUTH_REQUIRED", "true")
+    get_settings.cache_clear()
+    with TestClient(create_app()) as c:
+        from app.database.session import session_scope
+
+        with session_scope() as s:
+            s.add(User(email="owner@x", api_key_hash=hash_api_key("ati_good")))
+        yield c
+    get_settings.cache_clear()
+
+
+def _concrete(path: str) -> str:
+    return re.sub(r"\{[^}]+\}", lambda m: "XAUUSD" if "symbol" in m.group(0) else "1", path)
+
+
+def test_every_endpoint_except_health_requires_a_key(auth_client):
+    app = auth_client.app
+    routes = [(m, r.path) for r in app.routes if isinstance(r, APIRoute) and r.path.startswith("/api/v1") for m in r.methods]
+    assert len(routes) > 50
+    open_routes = []
+    for method, path in routes:
+        if path == "/api/v1/health":
+            continue
+        resp = auth_client.request(method, _concrete(path))
+        if resp.status_code != 401:
+            open_routes.append((method, path, resp.status_code))
+    assert open_routes == [], f"endpoints reachable without a key: {open_routes}"
+    assert auth_client.get("/api/v1/health").status_code == 200
+    assert auth_client.get("/api/v1/health").json()["auth_required"] is True
+
+
+def test_a_wrong_key_is_rejected_and_a_good_key_is_confirmed(auth_client):
+    assert auth_client.get("/api/v1/auth/status", headers={"X-API-Key": "ati_wrong"}).status_code == 401
+    r = auth_client.get("/api/v1/auth/status", headers={"X-API-Key": "ati_good"})
+    assert r.status_code == 200 and r.json()["authenticated"] is True and r.json()["key_used"] is True
+    assert "email" not in r.json()
+    assert auth_client.get("/api/v1/market/instruments", headers={"X-API-Key": "ati_good"}).status_code == 200
+
+
+def test_quotes_never_call_a_provider_or_cache_unknown_names(engine, monkeypatch):
+    get_settings.cache_clear()
+    from app.api.v1.routes import market
+
+    market._quote_cache.clear()
+    calls = []
+
+    class FakeProvider:
+        def get_latest_quote(self, symbol):
+            calls.append(symbol)
+            return Quote(symbol=symbol, price=Decimal("2000.5"), ts=datetime(2026, 11, 6, 21, 0, tzinfo=timezone.utc), provider="fake",
+                         bid=Decimal("2000.3"), ask=Decimal("2000.7"), is_delayed=True)
+
+    monkeypatch.setattr(market, "get_provider", lambda code: FakeProvider())
+    with TestClient(create_app()) as c:
+        names = ",".join(f"JUNK{i}" for i in range(500)) + ",XAUUSD"
+        out = c.get("/api/v1/market/quotes", params={"symbols": names}).json()
+        assert len(out) == market.MAX_QUOTE_SYMBOLS and all(q["status"] == "error" for q in out)
+        assert calls == [] and market._quote_cache == {}
+        q = c.get("/api/v1/market/quotes", params={"symbols": "XAUUSD,xauusd"}).json()
+        assert len(q) == 1 and q[0]["status"] == "ok" and q[0]["delayed"] is True and "not a live price" in q[0]["message"]
+        assert set(market._quote_cache) == {"XAUUSD"}
+    get_settings.cache_clear()
+
+
+def test_production_cors_allows_only_the_configured_frontend(engine, monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("AUTH_REQUIRED", "true")
+    monkeypatch.setenv("APP_SECRET_KEY", "test-secret-not-default")
+    monkeypatch.setenv("FRONTEND_URL", "https://app.example.com")
+    get_settings.cache_clear()
+    with TestClient(create_app()) as c:
+        pre = {"Access-Control-Request-Method": "GET"}
+        ok = c.options("/api/v1/health", headers={"Origin": "https://app.example.com", **pre})
+        assert ok.headers.get("access-control-allow-origin") == "https://app.example.com"
+        bad = c.options("/api/v1/health", headers={"Origin": "http://localhost:3000", **pre})
+        assert bad.headers.get("access-control-allow-origin") is None
+    get_settings.cache_clear()
+
+
+def test_every_plan_is_labelled_not_validated_unless_validated():
+    from app.signals.track_record import validation_of
+
+    for tr in ({"available": False, "status": "untested"},
+               {"available": True, "status": "no_edge", "oos": {"n_trades": 78}},
+               {"available": True, "status": "negative", "oos": {"n_trades": 414}}):
+        v = validation_of(tr)
+        assert v["status"] == "not_validated" and v["label"] == "Not validated" and "not a proven trade" in v["note"]
+    assert "78 out-of-sample trades" in validation_of({"available": True, "status": "no_edge", "oos": {"n_trades": 78}})["note"]
+    assert validation_of({"available": True, "status": "validated", "summary": "passed"})["status"] == "validated"
+
+
+def test_the_shipped_track_record_validates_nothing():
+    """The product must not present any signal series as validated: the shipped replay has no validated series."""
+    from app.signals import track_record
+
+    results = track_record.load().get("results", {})
+    statuses = {r["status"] for series in results.values() for r in series.values()}
+    assert statuses and "validated" not in statuses

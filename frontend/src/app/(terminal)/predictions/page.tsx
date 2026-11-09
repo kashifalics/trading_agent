@@ -3,7 +3,7 @@
 import { RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { DecisionBadge, EmptyState, PageHeader, QueryState } from "@/components/domain/common";
+import { DecisionBadge, EmptyState, NotValidatedBadge, PageHeader, QueryState } from "@/components/domain/common";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,7 +28,7 @@ export default function PredictionsPage() {
     <>
       <PageHeader
         title="Predictions"
-        description="Every analysis is stored with its evidence and tracked against subsequent candles, independently of any backtest."
+        description="Every analysis is stored with its evidence and tracked against subsequent candles, independently of any backtest. BUY/SELL decisions are not validated: the rules behind them have no verified out-of-sample edge."
         actions={<Button variant="outline" loading={refresh.isPending} onClick={() => refresh.mutate()}><RefreshCw className="h-4 w-4" /> Refresh outcomes</Button>}
       />
       <div className="mb-3 grid max-w-2xl grid-cols-3 gap-2">
@@ -55,7 +55,7 @@ export default function PredictionsPage() {
                       <TR key={p.id}>
                         <TD><Link className="text-primary hover:underline" href={`/predictions/${p.id}`}>{p.id}</Link></TD>
                         <TD className="font-medium">{p.symbol}</TD><TD>{p.timeframe}</TD>
-                        <TD><DecisionBadge decision={p.decision} /></TD>
+                        <TD><span className="flex flex-wrap items-center gap-1"><DecisionBadge decision={p.decision} />{p.decision !== "WAIT" && <NotValidatedBadge />}</span></TD>
                         <TD className="num">{p.entry_low ? `${fmtPrice(p.entry_low)}–${fmtPrice(p.entry_high)}` : "—"}</TD>
                         <TD className="num">{fmtPrice(p.stop_loss)}</TD>
                         <TD className="num">{fmtPrice(p.take_profit?.[0])}</TD>
