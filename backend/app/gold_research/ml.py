@@ -81,9 +81,9 @@ def _codes(x: np.ndarray, col: str) -> np.ndarray:
 
 
 def build_features(symbol: str, tf: str, segment: str, trades: pl.DataFrame, events: pl.DataFrame | None = None,
-                   prior_trades: pl.DataFrame | None = None) -> pl.DataFrame:
+                   prior_trades: pl.DataFrame | None = None, final_test: bool = False) -> pl.DataFrame:
     """Feature matrix (one row per trade, same order). Uses candles of `segment` only (sealed loader)."""
-    df = load_tf(symbol, tf, upto=segment)
+    df = load_tf(symbol, tf, upto=segment, final_test=final_test)
     b = bars_from_frame(df, TF_SECONDS[tf])
     o, h, lo, c = b.o, b.h, b.l, b.c
     n = len(c)
@@ -165,7 +165,7 @@ def build_features(symbol: str, tf: str, segment: str, trades: pl.DataFrame, eve
         sig_close = tr["signal_ts"].to_numpy() + TF_SECONDS[tf]
         for role in ("bias", "context", "confirm"):
             try:
-                st = combos.tf_state(symbol, p[role], segment)
+                st = combos.tf_state(symbol, p[role], segment, final_test=final_test)
             except FileNotFoundError:
                 continue
             j = np.searchsorted(st["close"], sig_close, side="right") - 1
@@ -463,20 +463,22 @@ def promote(symbol: str, version: str, approve: bool = False) -> dict:
 GATE = {"min_n": 1000, "min_selected_trades": 100, "brier_skill_gt": 0.0, "ece_le": 0.05}
 
 
-def validate_model(symbol: str, version: str, log=print) -> dict:
-    """The frozen challenger on the validation segment (once): metrics, calibration and the promotion gate."""
+def validate_model(symbol: str, version: str, log=print, segment: str = "validation", final_test: bool = False) -> dict:
+    """The frozen challenger on the validation segment (once): metrics, calibration and the promotion gate. With segment="test" and
+    final_test=True (final-test command only) the same evaluation runs on the sealed period and is stored as meta["final_test"]."""
     from app.gold_research.study import out_dir
     d = models_dir(symbol) / version
     bundle = joblib.load(d / "model.joblib")
     meta = json.loads((d / "meta.json").read_text())
     tf = bundle["tf"]
     split = load_split(symbol)
-    seg0 = int(datetime.fromisoformat(split["train"]["end_exclusive"]).timestamp())
-    tr = dataset(pl.read_parquet(out_dir(symbol) / f"trades_{tf}_validation.parquet")).sort("entry_ts")
+    seg0 = int(datetime.fromisoformat(split["train" if segment == "validation" else "validation"]["end_exclusive"]).timestamp())
+    tr = dataset(pl.read_parquet(out_dir(symbol) / f"trades_{tf}_{segment}.parquet")).sort("entry_ts")
     tr = tr.filter(pl.col("entry_ts") >= seg0)
-    evp = out_dir(symbol) / f"events_{tf}_validation.parquet"
-    prior = pl.read_parquet(out_dir(symbol) / f"trades_{tf}_train.parquet")
-    X = build_features(symbol, tf, "validation", tr, pl.read_parquet(evp) if evp.exists() else None, prior_trades=prior)
+    evp = out_dir(symbol) / f"events_{tf}_{segment}.parquet"
+    prior = pl.read_parquet(out_dir(symbol) / f"trades_{tf}_{'train' if segment == 'validation' else 'validation'}.parquet")
+    X = build_features(symbol, tf, segment, tr, pl.read_parquet(evp) if evp.exists() else None, prior_trades=prior,
+                       final_test=final_test)
     X = X.select(bundle["features"])
     A, _ = _prep(X, bundle["kind"], bundle["scaler"])
     p_raw = bundle["model"].predict_proba(A)[:, 1]
@@ -493,8 +495,9 @@ def validate_model(symbol: str, version: str, log=print) -> dict:
     top = m["selection"].get("p>=0.5") or m["selection"].get("top_decile")
     if not top or top.get("n_trades", 0) < GATE["min_selected_trades"] or not ((top.get("expectancy_r_ci_low") or -1) > 0):
         fails.append("selected trades not profitable with confidence")
-    meta["validation"] = {"run": datetime.now(timezone.utc).isoformat(timespec="seconds"), "metrics": m, "gate": GATE,
-                          "passed_gate": not fails, "gate_failures": fails}
+    key = "validation" if segment == "validation" else "final_test"
+    meta[key] = {"run": datetime.now(timezone.utc).isoformat(timespec="seconds"), "metrics": m, "gate": GATE,
+                 "passed_gate": not fails, "gate_failures": fails}
     (d / "meta.json").write_text(json.dumps(meta, indent=1, default=float), encoding="utf8")
-    log(f"{version}: validation {'PASSED' if not fails else 'did not pass'} the gate {fails}")
-    return meta["validation"]
+    log(f"{version}: {key} {'PASSED' if not fails else 'did not pass'} the gate {fails}")
+    return meta[key]

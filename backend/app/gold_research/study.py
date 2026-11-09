@@ -112,7 +112,7 @@ def _compact(res: dict, prefix: str = "") -> dict:
     return out
 
 
-def run_timeframe(symbol: str, tf: str, segment: str, log_file: str | None = None) -> str:
+def run_timeframe(symbol: str, tf: str, segment: str, log_file: str | None = None, final_test: bool = False) -> str:
     """Simulate every directional pattern event and the control pool of one timeframe inside one segment."""
     def log(m: str) -> None:
         line = f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {symbol} {tf} {segment}: {m}"
@@ -122,9 +122,10 @@ def run_timeframe(symbol: str, tf: str, segment: str, log_file: str | None = Non
                 f.write(line + "\n")
 
     split = load_split(symbol)
-    seg_start = 0 if segment == "train" else int(datetime.fromisoformat(split["train"]["end_exclusive"]).timestamp())
-    df = load_tf(symbol, tf, upto=segment)
-    m1 = load_m1(symbol, upto=segment)
+    seg_start = {"train": 0, "validation": int(datetime.fromisoformat(split["train"]["end_exclusive"]).timestamp()),
+                 "test": int(datetime.fromisoformat(split["validation"]["end_exclusive"]).timestamp())}[segment]
+    df = load_tf(symbol, tf, upto=segment, final_test=final_test)
+    m1 = load_m1(symbol, upto=segment, final_test=final_test)
     S = sim.Series.from_frame(df, tf, m1)
     b = bars_from_frame(df.sort("ts"), TF_SECONDS[tf])
     atr = atr_fn(b.h, b.l, b.c, ATR_PERIOD)
@@ -214,7 +215,7 @@ def _edge(df: pl.DataFrame, tf: str, h: int, r_override: np.ndarray | None = Non
                           df["ctrl_cell"].to_numpy(), df["entry_ts"].to_numpy(), h * TF_SECONDS[tf])
 
 
-def load_frames(symbol: str, tfs, segment: str, log: Callable[[str], None] = print):
+def load_frames(symbol: str, tfs, segment: str, log: Callable[[str], None] = print, final_test: bool = False):
     """Yields (timeframe, (trades with combination and multi-timeframe flags, control pool)), one timeframe at a time (memory)."""
     o = out_dir(symbol)
     tfs = [tf for tf in tfs if (o / f"trades_{tf}_{segment}.parquet").exists()]
@@ -222,7 +223,7 @@ def load_frames(symbol: str, tfs, segment: str, log: Callable[[str], None] = pri
     states = {}
     for tf in need:
         try:
-            states[tf] = combos.tf_state(symbol, tf, segment)
+            states[tf] = combos.tf_state(symbol, tf, segment, final_test=final_test)
         except FileNotFoundError:
             log(f"{tf}: no candles, multi-timeframe profiles using it are skipped")
     for tf in tfs:

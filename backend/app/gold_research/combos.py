@@ -76,9 +76,9 @@ def combo_flags(trades: pl.DataFrame, events: pl.DataFrame) -> pl.DataFrame:
     return trades.with_columns(**{k: pl.Series(v) for k, v in cols.items()})
 
 
-def tf_state(symbol: str, tf: str, segment: str) -> dict[str, np.ndarray]:
+def tf_state(symbol: str, tf: str, segment: str, final_test: bool = False) -> dict[str, np.ndarray]:
     """Close times, structure trend and the time of the last structure break (with its direction) for one timeframe."""
-    df = load_tf(symbol, tf, upto=segment)
+    df = load_tf(symbol, tf, upto=segment, final_test=final_test)
     b = bars_from_frame(df, TF_SECONDS[tf])
     breaks, trend = detect_structure_breaks(b, find_swings(b))
     close = bar_close(tf, b.t)

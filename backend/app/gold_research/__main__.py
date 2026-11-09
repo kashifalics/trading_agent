@@ -8,6 +8,8 @@
   ml-train     walk-forward models on training trades (M15, H1, H4) -> challengers
   ml-validate  the frozen challenger --version on the validation segment (once) and the promotion gate
   ml-validate-all  every latest challenger on the validation segment
+  preregister  freeze the final-test hypotheses (commit the file afterwards)
+  final-test   --confirm-final-test: the one-time evaluation on the sealed period
   promote      --version X --approve: champion pointer, only for a challenger that passed validation
 """
 import argparse
@@ -32,7 +34,7 @@ def log(msg: str) -> None:
 def main() -> None:
     global LOG
     ap = argparse.ArgumentParser(prog="python -m app.gold_research")
-    ap.add_argument("command", choices=("run", "discover", "validate", "report", "library", "ml-train", "ml-validate", "ml-validate-all", "promote"))
+    ap.add_argument("command", choices=("run", "discover", "validate", "report", "library", "ml-train", "ml-validate", "ml-validate-all", "promote", "preregister", "final-test"))
     ap.add_argument("--symbol", default="XAUUSD")
     ap.add_argument("--tfs", default=",".join(study.STUDY_TFS))
     ap.add_argument("--segment", default="train", choices=("train", "validation"))
@@ -40,6 +42,7 @@ def main() -> None:
     ap.add_argument("--log", type=Path)
     ap.add_argument("--version", help="model version (ml-validate, promote)")
     ap.add_argument("--approve", action="store_true", help="explicit approval to promote a validated challenger")
+    ap.add_argument("--confirm-final-test", action="store_true", help="explicitly run the one-time final test on the sealed period")
     a = ap.parse_args()
     LOG = a.log
     tfs = [t.strip().upper() for t in a.tfs.split(",") if t.strip()]
@@ -70,6 +73,12 @@ def main() -> None:
             log(f"{tf} {r['challenger']}: {ml.validate_model(a.symbol, r['challenger'], log=log)['passed_gate']}")
         from app.gold_research import dashboard
         dashboard.build(a.symbol)
+    elif a.command == "preregister":
+        from app.gold_research import final_test
+        final_test.preregister(a.symbol, log=log)
+    elif a.command == "final-test":
+        from app.gold_research import final_test
+        final_test.run_final_test(a.symbol, log=log, i_understand_this_is_once=a.confirm_final_test)
     elif a.command == "promote":
         from app.gold_research import ml
         log(f"{ml.promote(a.symbol, a.version, approve=a.approve)}")
