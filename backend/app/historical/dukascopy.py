@@ -35,38 +35,46 @@ def decode(payload: bytes, point: float) -> list[tuple[int, float, float, float,
 
 
 class Client:
-    """Paced, retrying fetcher. `fetch` returns the payload (b"" when Dukascopy has no file for that day)."""
+    """Paced, retrying fetcher. `fetch` returns the payload (b"" when Dukascopy has no file for that day).
 
-    def __init__(self, min_interval: float = 1.0, max_backoff: float = 900.0, log=print):
-        self.min_interval, self.max_backoff, self.log = min_interval, max_backoff, log
-        self.http = httpx.Client(timeout=60, headers={"User-Agent": USER_AGENT}, follow_redirects=True)
+    Rate limits and network errors are retried without limit (backoff 60 s doubling up to `max_backoff`), so a long block by Dukascopy
+    only pauses the download; only an unexpected HTTP status raises.
+    """
+
+    RETRYABLE = (429, 500, 502, 503, 504)
+
+    def __init__(self, min_interval: float = 1.0, max_backoff: float = 1800.0, log=print, sleep=time.sleep, transport=None):
+        self.min_interval, self.max_backoff, self.log, self.sleep = min_interval, max_backoff, log, sleep
+        self.http = httpx.Client(timeout=httpx.Timeout(30.0), headers={"User-Agent": USER_AGENT}, follow_redirects=True,
+                                 transport=transport)
         self._last = 0.0
         self.requests = self.throttled = 0
 
+    def _pause(self, reason: str, backoff: float) -> float:
+        resume = time.strftime("%H:%M", time.localtime(time.time() + backoff))
+        self.log(f"{reason}: waiting {backoff / 60:.0f} min, next try about {resume} (this is normal, it continues by itself)")
+        self.sleep(backoff)
+        return min(backoff * 2, self.max_backoff)
+
     def fetch(self, url: str) -> bytes:
         backoff = 60.0
-        for attempt in range(12):
+        while True:
             wait = self.min_interval - (time.monotonic() - self._last)
             if wait > 0:
-                time.sleep(wait)
+                self.sleep(wait)
             self._last = time.monotonic()
             self.requests += 1
             try:
                 r = self.http.get(url)
             except httpx.HTTPError as exc:
-                self.log(f"network error ({exc.__class__.__name__}), retry in {backoff:.0f}s")
-                time.sleep(backoff)
-                backoff = min(backoff * 2, self.max_backoff)
+                backoff = self._pause(f"network error ({exc.__class__.__name__})", backoff)
                 continue
             if r.status_code == 200:
                 return r.content
             if r.status_code == 404:
                 return b""
-            if r.status_code in (429, 500, 502, 503, 504):
+            if r.status_code in self.RETRYABLE:
                 self.throttled += r.status_code == 429
-                self.log(f"HTTP {r.status_code}, pausing {backoff:.0f}s")
-                time.sleep(backoff)
-                backoff = min(backoff * 2, self.max_backoff)
+                backoff = self._pause(f"Dukascopy busy (HTTP {r.status_code})", backoff)
                 continue
             raise RuntimeError(f"unexpected HTTP {r.status_code} for {url}")
-        raise RuntimeError(f"gave up after repeated failures: {url}")

@@ -35,6 +35,25 @@ def test_url_uses_zero_based_months_and_decode_round_trips():
         decode(lzma.compress(b"x" * 25, format=lzma.FORMAT_ALONE), 1e-5)
 
 
+def test_client_keeps_retrying_rate_limits_and_network_errors():
+    import httpx
+
+    from app.historical.dukascopy import Client
+
+    replies = iter([429] * 15 + ["timeout", 503, 200])
+
+    def handler(request):
+        r = next(replies)
+        if r == "timeout":
+            raise httpx.ConnectTimeout("slow", request=request)
+        return httpx.Response(r, content=b"ok" if r == 200 else b"")
+
+    waits = []
+    c = Client(min_interval=0, log=lambda m: None, sleep=waits.append, transport=httpx.MockTransport(handler))
+    assert c.fetch("https://datafeed.dukascopy.com/x") == b"ok"  # 17 failures in a row, more than the old 12-attempt limit
+    assert c.throttled == 15 and waits[0] == 60 and max(waits) == 1800  # backoff doubles from 1 min, capped at 30 min
+
+
 class FakeClient:
     def __init__(self, data: dict[str, bytes]):
         self.data, self.urls, self.throttled = data, [], 0
