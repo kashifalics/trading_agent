@@ -283,6 +283,9 @@ def trade_out(tr: PaperTrade, detail: bool = False) -> dict:
            "unrealized_r": u, "account_taken": tr.account_taken, "account_note": tr.account_note, "risk_amount": tr.risk_amount,
            "pnl": tr.pnl, "unrealized_pnl": round(u * tr.risk_amount, 2) if (u is not None and tr.account_taken and tr.risk_amount) else None,
            "summary": (tr.plan or {}).get("summary"), "config_version": tr.config_version}
+    if tr.status in ("open", "pending"):
+        from app.decision.core import manage_trade
+        out["management"] = manage_trade(out)  # HOLD / EXIT / WAIT from the trade's own stop, target and the latest price
     if detail:
         out["plan"] = tr.plan
     return out

@@ -3,6 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
+from app.core.jsonutil import to_jsonable
 from app.core.security import get_current_user
 from app.database.models import (
     Analysis,
@@ -12,6 +13,7 @@ from app.database.models import (
     User,
 )
 from app.database.session import get_session
+from app.decision.adapters import prediction_call
 from app.jobs.tasks import dispatch
 from app.schemas.analysis import AnalysisOut, AnalysisRunRequest
 from app.schemas.common import JobAccepted, Page
@@ -21,10 +23,19 @@ from app.services.audit import audit
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
 
-def analysis_out(session: Session, a: Analysis) -> AnalysisOut:
+def analysis_out(session: Session, a: Analysis, experimental: bool = False) -> AnalysisOut:
     out = AnalysisOut.model_validate(a)
     out.symbol = session.get(Instrument, a.instrument_id).canonical_symbol
     out.prediction_id = session.scalar(select(Prediction.id).where(Prediction.analysis_id == a.id))
+    d = (a.result or {}).get("decision") if a.status == "completed" else None
+    if d:
+        plan = d.get("plan") or {}
+        dq = ((d.get("confidence") or {}).get("data_quality") or {}).get("score")
+        out.call = to_jsonable(prediction_call(
+            {"symbol": out.symbol, "timeframe": a.timeframe, "decision": d.get("decision"), "entry_low": plan.get("entry_low"),
+             "entry_high": plan.get("entry_high"), "stop_loss": plan.get("stop_loss"), "take_profit": plan.get("targets"),
+             "risk_reward": plan.get("risk_reward"), "invalidation_level": plan.get("invalidation"), "data_quality_score": dq,
+             "warnings": d.get("warnings")}, wait_reasons=d.get("wait_reasons"), experimental=experimental))
     return out
 
 
@@ -55,8 +66,9 @@ def list_analyses(limit: int = Query(25, ge=1, le=100), offset: int = Query(0, g
 
 
 @router.get("/{analysis_id}", response_model=AnalysisOut)
-def get_analysis(analysis_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    return analysis_out(session, get_owned(session, analysis_id, user))
+def get_analysis(analysis_id: int, experimental: bool = False, session: Session = Depends(get_session),
+                 user: User = Depends(get_current_user)):
+    return analysis_out(session, get_owned(session, analysis_id, user), experimental)
 
 
 @router.get("/{analysis_id}/analogues")

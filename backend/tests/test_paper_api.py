@@ -154,3 +154,25 @@ def test_run_endpoint_syncs_keyless_providers_and_processes_every_instrument(cli
 def test_worker_cycles_start_just_after_the_interval_boundary():
     assert next_delay(60, now=120.5) == pytest.approx(63.5)
     assert next_delay(300, now=1000.0) == pytest.approx(204.0)
+
+
+def test_open_and_pending_trades_carry_hold_exit_or_wait_from_the_central_decision(client):
+    from app.database.models import Instrument, PaperTrade
+    from app.database.session import session_scope as scope
+    with scope() as s:
+        inst = s.query(Instrument).filter_by(canonical_symbol="XAUUSD").one()
+        common = dict(instrument_id=inst.id, symbol="XAUUSD", timeframe="1H", direction="BUY", signal_ts=T0, detected_at=T0,
+                      valid_until=T0 + timedelta(days=1), entry_price=2000.0, stop_loss=1995.0, take_profit=2010.0, invalidation=1996.0,
+                      cursor_at=T0, spread=0.3)
+        s.add(PaperTrade(setup_key="BUY:a", order_type="market", status="open", fill_price=2000.0, filled_at=T0, risk=5.0,
+                         last_price=2003.0, **common))
+        s.add(PaperTrade(setup_key="BUY:b", order_type="market", status="open", fill_price=2000.0, filled_at=T0, risk=5.0,
+                         last_price=1994.0, **{**common, "timeframe": "4H"}))
+        s.add(PaperTrade(setup_key="BUY:c", order_type="limit", status="pending", **{**common, "timeframe": "15m", "last_price": 2002.0}))
+    summ = client.get("/api/v1/paper/summary").json()
+    by_tf = {t["timeframe"]: t for t in summ["open"] + summ["pending"]}
+    assert by_tf["1H"]["management"]["action"] == "HOLD" and by_tf["1H"]["management"]["stop_distance"] == pytest.approx(8.0)
+    assert by_tf["4H"]["management"]["action"] == "EXIT" and by_tf["4H"]["management"]["exit_kind"] == "stop_loss"
+    assert by_tf["15m"]["management"]["action"] == "WAIT" and "fill" in by_tf["15m"]["management"]["reason"]
+    closed = client.get("/api/v1/paper/trades", params={"status": "closed"}).json()["items"]
+    assert all("management" not in t for t in closed)  # finished trades are never given a HOLD / EXIT

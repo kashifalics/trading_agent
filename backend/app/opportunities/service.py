@@ -36,7 +36,7 @@ def latest_scan(session: Session, finished_only: bool = True) -> MarketScan | No
     return session.scalar(q.limit(1))
 
 
-def opp_out(o: TradeOpportunity, symbol: str, detail: bool = False) -> dict:
+def opp_out(o: TradeOpportunity, symbol: str, detail: bool = False, experimental: bool = False) -> dict:
     ev = o.evidence or {}
     setup = ev.get("setup") or {}
     out: dict[str, Any] = {
@@ -50,6 +50,8 @@ def opp_out(o: TradeOpportunity, symbol: str, detail: bool = False) -> dict:
         "provider": ev.get("provider"), "lean": ev.get("lean"), "wait_reasons": (ev.get("wait_reasons") or [])[:6],
         "thesis": ev.get("thesis"), "conditions": setup.get("conditions"),
     }
+    from app.decision.adapters import opportunity_call
+    out["call"] = opportunity_call(to_jsonable(out), experimental=experimental)  # the customer call, from the central decision function
     if detail:
         out["evidence"] = ev
     return to_jsonable(out)
@@ -80,10 +82,10 @@ def rank_rows(rows: list[dict]) -> list[dict]:
     return ordered
 
 
-def headline_rows(session: Session, scan: MarketScan) -> list[dict]:
+def headline_rows(session: Session, scan: MarketScan, experimental: bool = False) -> list[dict]:
     rows = session.execute(select(TradeOpportunity, Instrument.canonical_symbol).join(Instrument, Instrument.id == TradeOpportunity.instrument_id)
                            .where(TradeOpportunity.last_scan_id == scan.id, TradeOpportunity.is_headline.is_(True))).all()
-    return [opp_out(o, sym) for o, sym in rows]
+    return [opp_out(o, sym, experimental=experimental) for o, sym in rows]
 
 
 def next_scan_info(session: Session) -> dict:
@@ -95,14 +97,14 @@ def next_scan_info(session: Session) -> dict:
             "note": "Scheduled scans only sync providers listed in OPPORTUNITY_REFRESH_PROVIDERS; others are scanned from stored candles."}
 
 
-def summary(session: Session) -> dict:
+def summary(session: Session, experimental: bool = False) -> dict:
     scan = latest_scan(session)
     running = session.scalar(select(MarketScan).where(MarketScan.status.in_(("queued", "running"))).order_by(MarketScan.id.desc()).limit(1))
     base = {"scan": None, "running_scan": to_jsonable({"id": running.id, "status": running.status, "started_at": running.started_at}) if running else None,
             "next_scan": to_jsonable(next_scan_info(session)), "score_label": SCORE_LABEL, "styles": [], "ranking": [], "instruments": []}
     if scan is None:
         return base
-    rows = headline_rows(session, scan)
+    rows = headline_rows(session, scan, experimental)
     ranked = rank_rows(rows)
     styles = []
     for key in STYLE_ORDER:

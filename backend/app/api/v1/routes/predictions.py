@@ -3,6 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
+from app.core.jsonutil import to_jsonable
 from app.core.security import get_current_user
 from app.database.models import (
     Analysis,
@@ -12,6 +13,7 @@ from app.database.models import (
     User,
 )
 from app.database.session import get_session
+from app.decision.adapters import prediction_call
 from app.historical_engine.stats import wilson_interval
 from app.jobs.tasks import dispatch
 from app.schemas.analysis import (
@@ -28,9 +30,10 @@ from app.services.prediction_service import refresh_outcomes
 router = APIRouter(prefix="/predictions", tags=["predictions"])
 
 
-def _out(session: Session, p: Prediction, cls=PredictionOut):
+def _out(session: Session, p: Prediction, cls=PredictionOut, experimental: bool = False, wait_reasons: list[str] | None = None):
     o = cls.model_validate(p)
     o.symbol = session.get(Instrument, p.instrument_id).canonical_symbol
+    o.call = to_jsonable(prediction_call(o.model_dump(), wait_reasons=wait_reasons, experimental=experimental))
     return o
 
 
@@ -49,7 +52,7 @@ def run(req: AnalysisRunRequest, request: Request, background: BackgroundTasks, 
 @router.get("", response_model=Page[PredictionOut])
 def list_predictions(symbol: str | None = None, decision: str | None = None, outcome: str | None = None,
                      analysis_id: int | None = None, limit: int = Query(25, ge=1, le=200), offset: int = Query(0, ge=0),
-                     session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+                     experimental: bool = False, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     q = select(Prediction).where(Prediction.user_id == user.id)
     if symbol:
         q = q.join(Instrument, Prediction.instrument_id == Instrument.id).where(Instrument.canonical_symbol == symbol.upper())
@@ -61,7 +64,7 @@ def list_predictions(symbol: str | None = None, decision: str | None = None, out
         q = q.where(Prediction.analysis_id == analysis_id)
     total = session.scalar(select(func.count()).select_from(q.subquery()))
     rows = session.scalars(q.order_by(Prediction.id.desc()).limit(limit).offset(offset)).all()
-    return Page(items=[_out(session, p) for p in rows], total=total, limit=limit, offset=offset)
+    return Page(items=[_out(session, p, experimental=experimental) for p in rows], total=total, limit=limit, offset=offset)
 
 
 @router.get("/stats")
@@ -101,11 +104,14 @@ def refresh(session: Session = Depends(get_session), user: User = Depends(get_cu
 
 
 @router.get("/{prediction_id}", response_model=PredictionDetail)
-def get_prediction(prediction_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+def get_prediction(prediction_id: int, experimental: bool = False, session: Session = Depends(get_session),
+                   user: User = Depends(get_current_user)):
     p = session.get(Prediction, prediction_id)
     if not p or p.user_id != user.id:
         raise NotFoundError("Prediction not found")
-    out = _out(session, p, PredictionDetail)
+    a0 = session.get(Analysis, p.analysis_id)
+    waits = (((a0.result or {}).get("decision") or {}).get("wait_reasons") or []) if a0 else []
+    out = _out(session, p, PredictionDetail, experimental=experimental, wait_reasons=waits)
     out.evidence = [EvidenceOut.model_validate(e) for e in session.scalars(
         select(PredictionEvidence).where(PredictionEvidence.prediction_id == p.id).order_by(PredictionEvidence.id))]
     a = session.get(Analysis, p.analysis_id)

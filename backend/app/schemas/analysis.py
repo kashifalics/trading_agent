@@ -47,6 +47,7 @@ class AnalysisOut(ORM):
     completed_at: datetime | None
     prediction_id: int | None = None
     symbol: str | None = None
+    call: dict | None = None  # ENTER / WAIT / EXIT / NO TRADE from app.decision (computed on read, never stored)
 
 
 class EvidenceOut(ORM):
@@ -86,6 +87,7 @@ class PredictionOut(ORM):
     outcome_ts: datetime | None
     outcome_meta: dict | None
     created_at: datetime
+    call: dict | None = None  # ENTER / WAIT / EXIT / NO TRADE from app.decision (computed on read, never stored)
 
 
 class PredictionDetail(PredictionOut):

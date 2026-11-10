@@ -46,9 +46,10 @@ def start_scan(req: ScanRequest, request: Request, background: BackgroundTasks, 
 
 
 @router.get("/summary")
-def summary(session: Session = Depends(get_session), user: User = Depends(get_current_user)) -> dict:
-    """Everything the Trade Opportunities page needs in one call: scan status/freshness, best per style, consolidated ranking."""
-    return service.summary(session)
+def summary(experimental: bool = False, session: Session = Depends(get_session), user: User = Depends(get_current_user)) -> dict:
+    """Everything the Trade Opportunities page needs in one call: scan status/freshness, best per style, consolidated ranking.
+    Every row carries its call (ENTER / WAIT / EXIT / NO TRADE); `experimental` attaches hypothetical levels of unvalidated setups."""
+    return service.summary(session, experimental=experimental)
 
 
 @router.get("/config")
@@ -97,7 +98,7 @@ def timeframes(symbol: str, scan_id: int | None = None, session: Session = Depen
 def list_opportunities(symbol: str | None = None, style: Style | None = None, direction: Literal["BUY", "SELL", "WAIT"] | None = None,
                        status: str | None = None, actionable_only: bool = False, headline_only: bool = True,
                        scope: Literal["latest", "all"] = "latest", limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
-                       session: Session = Depends(get_session), user: User = Depends(get_current_user)):
+                       experimental: bool = False, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     """Opportunities of the latest completed scan (default) or the whole history (`scope=all`), ranked."""
     q = select(TradeOpportunity, Instrument.canonical_symbol).join(Instrument, Instrument.id == TradeOpportunity.instrument_id)
     if scope == "latest":
@@ -117,19 +118,20 @@ def list_opportunities(symbol: str | None = None, style: Style | None = None, di
         q = q.where(TradeOpportunity.is_headline.is_(True))
     if actionable_only:
         q = q.where(TradeOpportunity.direction.in_(("BUY", "SELL")))
-    rows = [service.opp_out(o, sym) for o, sym in session.execute(q).all()]
+    rows = [service.opp_out(o, sym, experimental=experimental) for o, sym in session.execute(q).all()]
     ranked = service.rank_rows(rows)
     return Page(items=ranked[offset: offset + limit], total=len(ranked), limit=limit, offset=offset)
 
 
 @router.get("/{opportunity_id}")
-def opportunity_detail(opportunity_id: int, session: Session = Depends(get_session), user: User = Depends(get_current_user)) -> dict:
+def opportunity_detail(opportunity_id: int, experimental: bool = False, session: Session = Depends(get_session),
+                       user: User = Depends(get_current_user)) -> dict:
     row = session.execute(select(TradeOpportunity, Instrument.canonical_symbol).join(Instrument, Instrument.id == TradeOpportunity.instrument_id)
                           .where(TradeOpportunity.id == opportunity_id)).first()
     if not row:
         raise NotFoundError("Opportunity not found")
     o, sym = row
-    out = service.opp_out(o, sym, detail=True)
+    out = service.opp_out(o, sym, detail=True, experimental=experimental)
     out["status_history"] = service.status_history(session, o.id)
     out["style_profile"] = profile_config()["profiles"][o.style]
     return out

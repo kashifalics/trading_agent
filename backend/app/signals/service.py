@@ -112,12 +112,17 @@ def _quote(prov: DataProvider, pi: ProviderInstrument) -> dict | None:
     return res
 
 
+def unavailable_call(symbol: str, reason: str) -> dict:
+    from app.decision.core import DecisionInput, decide
+    return decide(DecisionInput(symbol=symbol, timeframe=None, data_status="unavailable", data_detail=reason))
+
+
 def _unavailable(base: dict, reason: str) -> dict:
     return {**base, "status": "unavailable", "reason": reason, "plans": [], "timeframes": [], "best": None, "active": [], "watchlist": [],
-            "overall": None, "counts": None, "report": None, "disclaimer": DISCLAIMER}
+            "overall": None, "counts": None, "report": None, "disclaimer": DISCLAIMER, "call": unavailable_call(base["symbol"], reason)}
 
 
-def analyze(session: Session, symbol: str, now: datetime | None = None) -> dict:
+def analyze(session: Session, symbol: str, now: datetime | None = None, experimental: bool = False) -> dict:
     now = now or datetime.now(timezone.utc)
     inst, prov, pi = resolve(session, symbol)
     sym = inst.canonical_symbol
@@ -143,9 +148,38 @@ def analyze(session: Session, symbol: str, now: datetime | None = None) -> dict:
     attach_validation(sym, res)
     last_close = next((r["last_close"] for r in res["timeframes"] if r.get("last_close") is not None), None)
     ref_price = (quote or {}).get("price") or last_close
+    attach_calls(session, sym, res, quote, experimental)
     out = {**base, "status": "ok", "market_open": open_now, "calendar": inst.calendar, "quote": quote,
            "spread_model": spread_for(sym, ref_price) if ref_price else None, **res}
     return to_jsonable(classify.enrich(sym, out))
+
+
+def open_trades(session: Session, symbol: str) -> dict[str, dict]:
+    """Tracked paper trades (open or pending) by timeframe: the only trades EXIT / HOLD may refer to."""
+    from app.database.models import PaperTrade
+    from app.paper.service import trade_out
+    rows = session.scalars(select(PaperTrade).where(PaperTrade.symbol == symbol, PaperTrade.status.in_(("open", "pending")))
+                           .order_by(PaperTrade.id)).all()
+    return {t.timeframe: trade_out(t) for t in rows}
+
+
+def attach_calls(session: Session, sym: str, res: dict, quote: dict | None, experimental: bool) -> None:
+    """The customer call (ENTER / WAIT / EXIT / NO TRADE) for every timeframe and for the instrument, from app.decision."""
+    from app.decision.adapters import signal_call
+    from app.decision.core import rank
+    closes = {r["timeframe"]: r.get("last_close") for r in res.get("timeframes", [])}
+    live = quote is not None and not quote.get("delayed") and quote.get("price") is not None
+    trades = open_trades(session, sym)
+    for p in res["plans"]:
+        tf = p["timeframe"]
+        px, src = (quote["price"], "live quote") if live else (closes.get(tf), f"last {tf} close")
+        tr = trades.get(tf)
+        if tr is not None:
+            tr = {**tr, "last_close": closes.get(tf)}
+        p["call"] = signal_call(p, sym, price_now=px, price_source=src if px is not None else None, open_trade=tr, experimental=experimental)
+    best = rank([p["call"] for p in res["plans"]])
+    res["call"] = best
+    res["experimental"] = experimental
 
 
 def attach_validation(sym: str, res: dict) -> dict:
@@ -169,29 +203,38 @@ def _compact_plan(p: dict | None) -> dict | None:
     keys = ("timeframe", "state", "instruction", "decision", "direction", "score", "grade", "setup_type", "entry_type", "entry", "stop_loss",
             "risk_reward", "summary", "signal_time", "valid_until", "probability_note", "win_probability")
     out = {k: p.get(k) for k in keys}
+    out["call"] = compact_call(p.get("call"))
     out["validation_status"] = (p.get("validation") or {}).get("status", "not_validated")
     out["tp1"] = p["targets"][0]["price"] if p.get("targets") else None
     return out
 
 
-def summary(session: Session) -> dict:
+def compact_call(c: dict | None) -> dict | None:
+    if not c:
+        return None
+    return {k: c.get(k) for k in ("decision", "label", "headline", "timeframe", "direction", "setup", "next_condition", "wait_kind",
+                                  "validation", "data_quality", "levels", "hypothetical", "experimental")}
+
+
+def summary(session: Session, experimental: bool = False) -> dict:
     items = []
     for sym in get_settings().signal_list:
         try:
-            r = analyze(session, sym)
+            r = analyze(session, sym, experimental=experimental)
         except AppError as exc:
-            items.append({"symbol": sym, "status": "unavailable", "reason": exc.message})
+            items.append({"symbol": sym, "status": "unavailable", "reason": exc.message, "call": compact_call(unavailable_call(sym, exc.message))})
             continue
         except Exception as exc:  # noqa: BLE001 - one instrument must not break the page
             log.exception("signals summary: %s failed", sym)
-            items.append({"symbol": sym, "status": "failed", "reason": f"{exc.__class__.__name__}: {exc}"[:200]})
+            items.append({"symbol": sym, "status": "failed", "reason": f"{exc.__class__.__name__}: {exc}"[:200],
+                          "call": compact_call(unavailable_call(sym, "the analysis failed"))})
             continue
         if r["status"] != "ok":
-            items.append({k: r.get(k) for k in ("symbol", "name", "status", "reason", "provider", "price_precision")})
+            items.append({k: r.get(k) for k in ("symbol", "name", "status", "reason", "provider", "price_precision")} | {"call": compact_call(r.get("call"))})
             continue
         items.append({k: r.get(k) for k in ("symbol", "name", "status", "provider", "price_precision", "market_open", "quote", "overall",
                                              "counts", "session")}
-                     | {"best": _compact_plan(r.get("best")),
+                     | {"best": _compact_plan(r.get("best")), "call": compact_call(r.get("call")),
                         "active": [_compact_plan(p) for p in r["plans"] if p["timeframe"] in r["active"]],
                         "last_candle": max((t.get("close_time") or "" for t in r["timeframes"]), default=None) or None})
     return to_jsonable({"items": items, "generated_at": datetime.now(timezone.utc).isoformat(), "config_version": CONFIG_VERSION,

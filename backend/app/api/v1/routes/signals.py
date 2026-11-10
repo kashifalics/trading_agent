@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Path, Request
+from fastapi import APIRouter, Depends, Path, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.jsonutil import to_jsonable
@@ -11,12 +11,15 @@ from app.signals.config import config_payload
 
 router = APIRouter(prefix="/signals", tags=["signals"])
 Symbol = Path(..., pattern=r"^[A-Za-z0-9]{3,12}$", description="Canonical instrument symbol, e.g. XAUUSD")
+Experimental = Query(False, description="Experimental analysis mode: attach the hypothetical levels of unvalidated technical setups "
+                                        "(the call stays WAIT, clearly marked UNVALIDATED)")
 
 
 @router.get("")
-def signals_summary(session: Session = Depends(get_session), user: User = Depends(get_current_user)) -> dict:
-    """Best plan, active plans and overall bias for every configured instrument (SIGNAL_SYMBOLS), from stored candles."""
-    return service.summary(session)
+def signals_summary(experimental: bool = Experimental, session: Session = Depends(get_session),
+                    user: User = Depends(get_current_user)) -> dict:
+    """The call (ENTER / WAIT / EXIT / NO TRADE), best plan, active plans and overall bias for every configured instrument."""
+    return service.summary(session, experimental=experimental)
 
 
 @router.get("/config")
@@ -32,16 +35,17 @@ def signals_track_record(user: User = Depends(get_current_user)) -> dict:
 
 
 @router.get("/{symbol}")
-def signal_detail(symbol: str = Symbol, session: Session = Depends(get_session), user: User = Depends(get_current_user)) -> dict:
-    """Full top-down analysis of one instrument: per-timeframe plans, checklist, levels, reasons and the analyst report."""
-    return service.analyze(session, symbol)
+def signal_detail(symbol: str = Symbol, experimental: bool = Experimental, session: Session = Depends(get_session),
+                  user: User = Depends(get_current_user)) -> dict:
+    """Full top-down analysis of one instrument: the call per timeframe and for the instrument, plans, checklist, reasons, report."""
+    return service.analyze(session, symbol, experimental=experimental)
 
 
 @router.post("/{symbol}/sync")
-def signal_sync(request: Request, symbol: str = Symbol, session: Session = Depends(get_session),
+def signal_sync(request: Request, symbol: str = Symbol, experimental: bool = Experimental, session: Session = Depends(get_session),
                 user: User = Depends(get_current_user)) -> dict:
     """Fetch the candles that are due from the instrument's provider (keyless providers only), then re-analyse."""
     res = service.sync(session, symbol)
     audit(session, user.id, "signals.sync", "instrument", symbol.upper(), request.client.host if request.client else None,
           {"provider": res.get("provider"), "fetched": res.get("fetched")})
-    return {**res, "analysis": service.analyze(session, symbol)}
+    return {**res, "analysis": service.analyze(session, symbol, experimental=experimental)}

@@ -55,6 +55,22 @@ def test_signal_detail_returns_a_plan_or_reason_for_every_timeframe(client):
             assert d * (p["entry"] - p["stop_loss"]) > 0
     assert body["news_filter"]["available"] is False
     assert body["report"]["final_instruction"] in ("EXECUTE NOW", "WAIT FOR CONFIRMATION", "PLACE LIMIT ORDER", "NO TRADE")
+    calls = [p["call"] for p in body["plans"]]
+    assert all(c["decision"] in ("ENTER", "WAIT", "EXIT", "NO TRADE") and c["label"] and c["headline"] for c in calls)
+    assert all(c["decision"] != "ENTER" for c in calls)  # nothing is validated: a technical entry is "WAIT — UNVALIDATED SETUP"
+    assert all(c["decision"] != "EXIT" and c["trade"] is None for c in calls)  # no tracked trade, so no EXIT / HOLD is invented
+    assert by_tf["1M"]["call"]["label"] == "NO TRADE — DATA" and all(c["levels"] is None and c["hypothetical"] is None for c in calls)
+    assert body["call"]["decision"] in ("WAIT", "NO TRADE") and body["experimental"] is False
+    for p in body["plans"]:  # the call never contradicts the technical state
+        if p["state"] in ("NO_SETUP", "TRADE_INVALIDATED", "TRADE_EXPIRED") or p["status"] != "ok":
+            assert p["call"]["decision"] == "NO TRADE"
+        if p["call"]["label"] == "WAIT — UNVALIDATED SETUP":
+            assert p["state"] == "ENTRY_READY" or p["instruction"] == "PLACE LIMIT ORDER"
+    x = client.get("/api/v1/signals/XAUUSD", params={"experimental": "true"}).json()
+    assert x["experimental"] is True and all(p["call"]["decision"] != "ENTER" for p in x["plans"])
+    for p in x["plans"]:
+        if p["call"]["hypothetical"] is not None:
+            assert p["call"]["hypothetical"]["label"] == "HYPOTHETICAL — UNVALIDATED" and p["call"]["decision"] in ("WAIT", "NO TRADE")
 
 
 def test_summary_lists_configured_instruments_and_is_honest_about_missing_data(client):
@@ -63,6 +79,8 @@ def test_summary_lists_configured_instruments_and_is_honest_about_missing_data(c
     assert set(items) == set(get_settings().signal_list)
     assert items["XAUUSD"]["status"] == "ok" and "overall" in items["XAUUSD"]
     assert items["BTCUSDT"]["status"] == "unavailable" and items["BTCUSDT"]["reason"]
+    assert items["BTCUSDT"]["call"]["decision"] == "NO TRADE" and items["BTCUSDT"]["call"]["label"] == "NO TRADE — DATA"
+    assert items["XAUUSD"]["call"]["decision"] in ("WAIT", "NO TRADE")
 
 
 def test_config_track_record_and_validation_errors(client):
