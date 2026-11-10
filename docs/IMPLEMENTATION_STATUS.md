@@ -17,6 +17,13 @@ _Last verified: 2026-11-10 (local, Windows 10, Python 3.12, Node 24; customer-ha
 | Docker Compose (PostgreSQL 16, Redis, API, Celery worker, UI; production mode, `AUTH_REQUIRED=true`) | `docker compose up --build` | All five services healthy; same 48-check API walkthrough **48/48** (jobs and scans run through the Celery worker) and 30/30 UI page checks against the frontend container. Found and fixed on the way: worker could not start (unpinned `kombu`), every scan failed on PostgreSQL (`VARCHAR(16)`), `.env` settings not passed to containers, worker shown unhealthy |
 | Live Binance / Twelve Data | earlier milestones | Binance verified (3.2 years BTCUSDT); Twelve Data verified with a real key on 2026-11-01 (not re-run: no key used in this audit) |
 
+## XAUUSD experiment 3 (2026-11-10, route 1: develop on all training data)
+* Plan `docs/research/EXPERIMENT_3_PLAN.md`; fixes F1–F5 with tests (`tests/test_exp3.py`, Brownian world finds nothing).
+* Power gate (counts only) pre-registered and committed before any outcome: 6 of 9 tests had ≥ 1,000 development fills.
+* **Result: 0 candidates** (`docs/reports/XAUUSD_EXPERIMENT3.md`). All 6 tests lose money after costs (−0.14 to −0.51 R per
+  trade); all beat matched random limit orders by +0.01 to +0.06 R (H1 FVG: BH q 0.094) but the controls themselves lose −0.20 to
+  −0.52 R; the spread alone costs about 0.07–0.37 R per trade. The sealed final test was not read and stays sealed.
+
 ## Production deployment of the handover release (2026-11-10)
 * Deployed with the owner's approval from branch `feature/gold-research` (commit `dfa4fd1`; `main` not merged, nothing pushed):
   backend `railway up` (deployment SUCCESS, migration `0005` is a no-op on the SQLite volume, EURUSD and BiQuote FX mappings seeded),

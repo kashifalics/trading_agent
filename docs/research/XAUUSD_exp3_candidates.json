@@ -1,0 +1,19 @@
+{
+ "symbol": "XAUUSD",
+ "created": "2026-11-10T09:38:58+00:00",
+ "candidates": [],
+ "preregistration_sha256": "153639f8192f0bcf06ae6a463b68530912b43d4701511b1af463d93d8c4e4b39",
+ "main_setting": {
+  "target_r": 2.0,
+  "holds": {
+   "H1": 48,
+   "H4": 60
+  },
+  "wait": 20,
+  "stop": "far edge + 0.1 ATR",
+  "fill": "conservative (trade through by the spread)",
+  "financing": "fixed $0.10/oz/night",
+  "directions": "long and short pooled; controls matched on direction"
+ },
+ "sha256": "5ff11a49c420e356de62b07a1310b3a6f382fc125b173ec68e2fc5f49ef0f572"
+}

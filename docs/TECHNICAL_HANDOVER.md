@@ -277,7 +277,9 @@ restore with `psql`.
 * **XAUUSD 20-year research** (Dukascopy 1-minute bid/ask, 2003–2026): experiment 1 tested 1,931 pattern hypotheses; 0 of 62 frozen
   candidates were confirmed on the validation period; models reached validation AUC 0.555–0.585 but their best decile still lost
   money, so none was promoted. Experiment 2 (structural limit entries, longer holds, financing costs): 0 of 36 pre-registered tests
-  became candidates. The sealed final-test period was never read. Reports: `docs/reports/XAUUSD_*.md`.
+  became candidates. Experiment 3 (well-powered H1/H4 structural setups, 6 tests with 1,032–5,205 development trades each over
+  2003–2020): 0 candidates; every setup beat random entries of the same shape by 0.01–0.06 R, yet all lost 0.14–0.51 R per trade
+  after costs. The sealed final-test period was never read. Reports: `docs/reports/XAUUSD_*.md`.
 * **Consequence in the product:** every plan, prediction and opportunity carries a **Not validated** label; no win probability is
   shown anywhere; the confluence/evidence score measures setup quality, not the chance of winning; the paper-trading forward test
   draws no conclusion before 100 closed trades. These labels are driven by the data: a series would only show "validated" after

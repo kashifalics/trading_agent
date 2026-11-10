@@ -65,6 +65,20 @@ def render(symbol: str) -> str:
                      f"{_f(m.get('edge'))} +/- {_f(m.get('edge_se'), 3, False)} | {_f(r.get('q'), 3, False)} | {g('slippage_0.10')} | "
                      f"{g('spread_x1.5')} | {g('no_financing')} | {_f(r.get('dsr'), 3, False)} | "
                      f"{_f(100 * r.get('share_positive_years', 0), 0, False)}% | {hv} | {r['status']} |")
+        ran = [r for r in dev["rows"] if r.get("main")]
+        if ran:
+            mr = [r["main"]["mean_r"] for r in ran]
+            ed = [r["main"]["edge"] for r in ran]
+            cr = [r["main"]["ctrl_mean_r"] for r in ran]
+            spread_cost = [(r["main"]["mean_r"] - r["stress"]["spread_x1.5"]["mean"]) / 0.5 for r in ran if r["stress"].get("spread_x1.5")]
+            L += ["", "**Reading the table (computed from the rows above):**",
+                  f"* Mean R after costs ranges from {_f(min(mr))} to {_f(max(mr))}: "
+                  f"{sum(m > 0 for m in mr)} of {len(mr)} tests are profitable.",
+                  f"* Edge over matched random limit orders ranges from {_f(min(ed))} to {_f(max(ed))} R "
+                  f"({sum(e > 0 for e in ed)} of {len(ed)} positive), but the controls themselves lose {_f(max(cr))} to {_f(min(cr))} R: "
+                  "the setups are slightly better than random entries of the same shape and still lose money.",
+                  f"* The spread alone costs about {_f(min(spread_cost), 2, False)}-{_f(max(spread_cost), 2, False)} R per trade "
+                  "(from the 1.5x spread scenario), because these structural stops are small relative to the spread."]
         L += ["", f"**Frozen candidates:** {len(dev['candidates'])}"
               + (": " + "; ".join(f"{c['tf']} {c['setup']}" for c in dev["candidates"]) if dev["candidates"]
                  else " (nothing passed every criterion; the sealed period stays sealed)."), ""]

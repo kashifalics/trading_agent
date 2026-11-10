@@ -59,6 +59,8 @@ The rules and models in this product were tested on history before release, and 
 * A 20-year study of 1-minute gold data: 1,931 pattern hypotheses and 36 further structural tests; 0 confirmed on independent
   data, and no machine-learning model good enough to promote ([audit](docs/reports/XAUUSD_RESEARCH_AUDIT.md),
   [experiment 2](docs/reports/XAUUSD_EXPERIMENT2.md)).
+* A third, well-powered test of structural entries (1,000–5,200 trades each over 17 years): every setup was slightly better than
+  random entries but all lost 0.14–0.51 R per trade after costs ([experiment 3](docs/reports/XAUUSD_EXPERIMENT3.md)).
 
 This does not prove that no edge exists; it means none has been demonstrated. Use the product to structure your own analysis.
 
