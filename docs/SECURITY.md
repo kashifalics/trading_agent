@@ -38,3 +38,5 @@ Fixed:
 * No TLS termination in the app: run behind HTTPS (Railway and Vercel provide it).
 * `/docs` and `/openapi.json` stay public (they describe the API, not data); every data endpoint still needs a key.
 * Dependency audit (`pip-audit`, `npm audit`) is not wired into CI: run both before each release.
+* Only the 25 direct backend packages are pinned; their dependencies float, so two builds can differ (this broke the Celery worker
+  once, see TECHNICAL_HANDOVER.md §13). A full lock file is recommended. The frontend is locked by `package-lock.json`.

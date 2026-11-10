@@ -101,6 +101,8 @@ created or rotated at every start; generate one with
 ## 5. Environment variables and configuration
 
 Set in the project-root `.env` (docker compose) or `backend/.env` (wins when both exist), or in the hosting platform's variables.
+With docker compose, the core variables are composed in `docker-compose.yml` and every optional one below is passed through when it
+is set in `.env` (unset ones keep the application defaults).
 Templates: `.env.example`, `backend/.env.example`, `frontend/.env.example`. **Never commit a `.env` file.**
 
 | Variable | Default | Purpose |
@@ -206,6 +208,7 @@ Summary (full list and remaining risks: [SECURITY.md](SECURITY.md)):
 | `docker compose` complains about `APP_SECRET_KEY` | Run the setup script first (creates `.env`) |
 | Port 3000/8000 busy | Stop local dev servers before `docker compose up` |
 | `429 rate_limited` | More than `RATE_LIMIT_PER_MINUTE` requests per minute from one address |
+| Analyses or scans stay "queued" (docker compose) | The `worker` container is not running: `docker compose logs worker`. If Celery cannot accept a job the backend now runs it inline and logs a warning |
 
 Logs go to standard output (`docker compose logs backend`, the hosting platform's log view); every error response carries a
 `request_id` that is also in the log.
@@ -243,6 +246,9 @@ restore with `psql`.
 * **Before every release:** `cd backend; pytest` and `ruff check app tests --select E,F,W,I --ignore E501`;
   `cd frontend; npm run lint; npm run typecheck; npm test; npm run build; npm run e2e`; `pip-audit -r backend/requirements.txt`
   and `npm audit` (not yet automated in CI).
+* **Pin transitive dependencies:** `requirements.txt` pins the 25 direct packages, but their own dependencies float. One of them
+  (`kombu`) broke the Celery worker in a fresh image; it is now pinned. Generating a full lock file (for example with `pip-tools`)
+  and building from it is recommended before the next release.
 * **Keys:** rotate the owner key by changing `BOOTSTRAP_API_KEY` and restarting; other users with `scripts/create_user.py` (the
   old key stops working). Rotate provider keys at the provider and update the variable.
 * **Data:** candles accumulate in the database; BiQuote serves a fixed recent window, so history grows only while the service runs.
