@@ -177,7 +177,8 @@ chart analysis and the meaning of every label.
 * Accounts: no registration, login form, roles or password reset; one API key per user, stored in the browser.
 * The paper-trading worker runs inside the API process: run **one** backend instance (more instances would run duplicate cycles).
   The same applies to SQLite.
-* `GET /signals` analyses every configured instrument in turn and can take several seconds per instrument on a cold start.
+* `GET /signals` analyses every configured instrument in turn: about 2 s per instrument (about 10 s for the six defaults, measured
+  locally). The first sync of an instrument downloads every timeframe and takes 30–65 s; later syncs fetch only due candles.
 
 ## 10. Security and privacy
 

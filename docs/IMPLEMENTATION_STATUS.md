@@ -1,17 +1,30 @@
 # Implementation status — single source of truth
 
-_Last verified: 2026-11-09 (local, Windows 10, Python 3.12, Node 24). Update this file whenever a status changes._
+_Last verified: 2026-11-10 (local, Windows 10, Python 3.12, Node 24; customer-handover audit). Update this file whenever a status changes._
 
-## Verification results
-| Check | Result |
-|---|---|
-| Backend `pytest` | **344 passed, 30 skipped** (skipped = live-provider tests) on 2026-11-09, adding the gold research suite (data foundation, simulator vs minute reference, Brownian null pipeline, pattern-library causality, ML leakage checks, final-test guards); 2026-11-07: including 26 signal-engine and 18 paper-trading/sync tests; earlier milestones added the backtester audit, resumable backfill, data-quality auditor, snapshots, reproduction, provider retry/quota behaviour |
-| Backend `ruff check` | clean |
-| Frontend `vitest` / `tsc` / `eslint` / `next build` / Playwright | 54 passed / clean / clean / not re-run since `/gold-research` was added / e2e route list includes `/gold-research`, not re-run |
-| Alembic | `0001`, `0002`, `0004` upgrade/downgrade verified on SQLite (`0004`: columns match the models, downgrade and re-upgrade clean); `0001` verified on PostgreSQL 16 (later revisions are plain additive DDL, not yet run on PostgreSQL) |
-| Live Binance | **Verified**: 3.2 years of BTCUSDT 1H (28,799) and 4H (7,199) candles, 0 missing, 0 invalid, re-run is a no-op |
-| Live Twelve Data (XAUUSD) | **Verified with a real key** — see `reports/XAUUSD_COVERAGE.md` and the Twelve Data section below |
-| Docker Compose | Verified in the previous milestone (postgres, redis, backend, worker, frontend); not re-run this milestone |
+## Verification results (2026-11-10, branch `feature/gold-research`)
+| Check | Command | Result |
+|---|---|---|
+| Backend tests | `cd backend; pytest` | **363 passed, 30 skipped, 0 failed** (skipped = live-provider tests that need network/keys). Also run in a clean virtualenv built only from `requirements.txt`: 362 passed, 30 skipped (before the last provider test was added); `pip check` clean |
+| Backend lint | `ruff check app tests --select E,F,W,I --ignore E501` | clean |
+| Frontend lint / types / unit tests / build | `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` | clean / clean / **60 passed** / 19 routes built |
+| End-to-end (mocked API) | `npx playwright test` | **8 passed** (desktop + mobile): honest dashboard, analysis workflow, every page without overflow or console errors, login journey (key required → verified → signals load with the key) |
+| Live API walkthrough (production mode, `AUTH_REQUIRED=true`, fresh SQLite, live BiQuote + Binance, no paid keys) | scripted, 48 checks | **48/48**: 401 without/with a wrong key, key accepted, live quotes, sync and 14-timeframe analysis for XAUUSD, EURUSD, GBPUSD, BTCUSDT, every plan labelled not validated, no win probability, SL/entry/TP geometry and R:R ≥ 2 for actionable plans (below-2 plans blocked with a reason), paper cycle, opportunity scan, decision-engine job, error envelopes |
+| Live UI walkthrough (same backend) | Playwright, 15 pages × desktop 1440 px + Pixel 7 | **30/30**: renders, no horizontal overflow, no console errors, no 401 |
+| Migrations | upgrade head → compare with models → downgrade base → upgrade → seed twice | **SQLite and PostgreSQL 16: 0 schema differences**, downgrade/upgrade clean, seeding idempotent |
+| Dependency audit | `pip-audit -r requirements.txt`, `npm audit` | Backend: starlette/python-multipart/pillow/lightgbm upgraded; re-audit of the new `requirements.txt`: **no known vulnerabilities**. Frontend: 2 high + 1 moderate remain (zod 3, PostCSS inside Next 15; not reachable as used, fixes are major upgrades) — see SECURITY.md |
+| Secrets scan | tracked files + git history | no keys, tokens or passwords found |
+| Docker Compose | `docker compose up --build` | see the handover section below |
+| Live Binance / Twelve Data | earlier milestones | Binance verified (3.2 years BTCUSDT); Twelve Data verified with a real key on 2026-11-01 (not re-run: no key used in this audit) |
+
+## Customer handover audit (2026-11-10)
+Fixed: 13 endpoints reachable without a key; saved API key not sent on page load (every page load 401'd with `AUTH_REQUIRED=true`);
+unbounded quote cache; production CORS allowing localhost; research-only models activatable; delayed prices shown as "live";
+mobile overflow with real data (Historical Patterns, Performance); a new HTTP client and TLS handshake per provider call
+(signal summary 20 s → 10 s); vulnerable backend dependencies. Added: keyless EURUSD and GBPUSD (BiQuote, live-verified),
+"Not validated" labels on every plan, prediction and opportunity, `GET /auth/status` and Settings → Save & verify, written reports
+that state validation, tests for all of the above. Documentation: README (customer), `TECHNICAL_HANDOVER.md`, `USER_GUIDE.md`.
+Not changed: research results, frozen splits, sealed final test (not read), production deployment (nothing pushed or deployed).
 
 ## Feature status
 Legend: ✅ working & tested · 🟡 working with stated limits · ⛔ blocked/unsupported · ⬜ not started
@@ -24,7 +37,7 @@ Legend: ✅ working & tested · 🟡 working with stated limits · ⛔ blocked/u
 | **Historical backfill** | ✅ | `market_data/ingestion/backfill.py`: computes expected open-times, fetches only what is missing in span-based windows, validates (OHLC, grid alignment, forming candle excluded), checkpoints each window, records `ingestion_runs`. Resumable and idempotent (tested, and shown on real data) |
 | **Data-quality report** | ✅ | `app/research/data_quality.py` → `reports/BTCUSDT_DATA_QUALITY.md`; recomputed from stored rows, independent count check |
 | Twelve Data adapter (XAUUSD) | 🟡 | **Works** on the free (`basic`) plan for 1H/4H/1D, but native 4H cannot be used as-is and the feed has weekend candles (below) |
-| GBPUSD | ✅ | Twelve Data free plan, 1H/1D native, 2H/4H built from 1H |
+| GBPUSD, EURUSD | ✅ | Keyless through BiQuote (default; live-verified 2026-11-10: quotes and 15m/1H/4H/1D candles, 0 invalid). GBPUSD also on Twelve Data (free plan, 1H/1D native); EURUSD on Twelve Data unverified |
 | US30, USOIL | 🟡 | **OANDA adapter** (`oanda`, read-only candles/quotes, UTC-aligned buckets), unit-tested with mocked HTTP; **not verified live: needs `OANDA_API_TOKEN`** (free practice account). Twelve Data free plan does not serve the Dow index |
 | Timeframe registry, aggregation, DST, gaps, coverage | ✅ | |
 | Price-action/candlestick/structure detectors; analogues; features; labels | ✅ | |
@@ -34,9 +47,9 @@ Legend: ✅ working & tested · 🟡 working with stated limits · ⛔ blocked/u
 | **ML evaluation** | ✅ pipeline / ⛔ no promoted model | `reports/BTCUSDT_ML_EVALUATION.md`: logistic, LightGBM, XGBoost, baselines; gate now also requires beating the best simple baseline. **All 12 runs `research_only`** |
 | **Experiment registry & reproduction** | ✅ | `experiments` table: dataset snapshot id, config, code hash, library versions, results. `python -m app.research.reproduce <id>` re-runs and diffs; 22 independent duplicate runs agreed on 994/994 numeric fields; 4 re-executions matched exactly |
 | Decision policy, MTF, outcome tracking, screenshot analysis, REST API, 12-page UI, Celery jobs | ✅ / 🟡 | As in the previous milestone (OCR verified on synthetic charts only) |
-| Auth | 🟡 | API-key auth + isolation; no registration UI |
+| Auth | 🟡 | API-key auth on every endpoint except health (router level, tested), per-user isolation, Settings → Save & verify, key banner; no registration/login form/roles |
 | **Paper trading (forward test)** | 🟡 | Working and verified live; the record starts empty and needs ~100 closed trades before it says anything (section below) |
-| LLM explanations, S3 | ⬜ | |
+| LLM explanations / AI chat, S3, TradingView/Pine | ⬜ | Not built. Explanations are deterministic, generated from the computed plan (tests pin them to the plan's numbers) |
 
 ## Gold historical research (2026-11-09, branch `feature/gold-research`)
 Brief: "Advanced XAUUSD price-action intelligence & ML". Plan: phases 0-10. Analysis only.

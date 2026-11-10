@@ -27,7 +27,7 @@ Fixed:
 * `/market/quotes` cached every requested name, so arbitrary names could grow memory without bound.
 * Production CORS also allowed `http://localhost:3000`.
 * Research-only models could be activated through the API.
-* Vulnerable backend dependencies (from `pip-audit`): starlette 0.41.3 (7 advisories), python-multipart 0.0.20 (6), pillow 11.1.0 (53; it decodes uploaded chart screenshots), lightgbm 4.5.0 (remote code execution when loading a crafted model file). Upgraded to fastapi 0.162.2 / starlette 1.10.0, python-multipart 0.0.33, pillow 13.0.0, lightgbm 4.6.0; the full test suite passes on a clean install.
+* Vulnerable backend dependencies (from `pip-audit`): starlette 0.41.3 (7 advisories), python-multipart 0.0.20 (6), pillow 11.1.0 (53; it decodes uploaded chart screenshots), lightgbm 4.5.0 (remote code execution when loading a crafted model file). Upgraded to fastapi 0.162.2 / starlette 1.10.0, python-multipart 0.0.33, pillow 13.0.0, lightgbm 4.6.0; the full test suite passes on a clean install and `pip-audit` of the new `requirements.txt` reports no known vulnerabilities.
 * Checked and clean: no secrets in tracked files or in git history, no raw SQL built from strings, no logging of keys or headers.
 
 ## Known gaps and remaining risks (be aware)
