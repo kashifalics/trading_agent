@@ -140,11 +140,27 @@ def analyze(session: Session, symbol: str, now: datetime | None = None) -> dict:
         if tr.get("win_probability") is not None:
             p["win_probability"] = tr["win_probability"]
             p["probability_note"] = f"Historical win rate {tr['win_probability']:.0%}: {tr['win_probability_basis']}"
+    attach_validation(sym, res)
     last_close = next((r["last_close"] for r in res["timeframes"] if r.get("last_close") is not None), None)
     ref_price = (quote or {}).get("price") or last_close
     out = {**base, "status": "ok", "market_open": open_now, "calendar": inst.calendar, "quote": quote,
            "spread_model": spread_for(sym, ref_price) if ref_price else None, **res}
     return to_jsonable(classify.enrich(sym, out))
+
+
+def attach_validation(sym: str, res: dict) -> dict:
+    """The best plan and the written report state the validation status explicitly ("Not validated" unless validated)."""
+    best = res.get("best")
+    if best is None:
+        return res
+    if "validation" not in best:
+        best["validation"] = track_record.validation_of(track_record.lookup(sym, best["timeframe"], best.get("score")))
+    rep = res.get("report")
+    if rep is not None:
+        rep["validation"] = best["validation"]
+        line = f"Validation: {best['validation']['note']}"
+        rep["text"] = f"{rep['text']}\n{line}" if rep.get("text") else line
+    return res
 
 
 def _compact_plan(p: dict | None) -> dict | None:

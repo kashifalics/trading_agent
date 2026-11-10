@@ -116,3 +116,38 @@ def test_the_shipped_track_record_validates_nothing():
     results = track_record.load().get("results", {})
     statuses = {r["status"] for series in results.values() for r in series.values()}
     assert statuses and "validated" not in statuses
+
+
+def _best_plan():
+    return {"decision": "BUY", "instruction": "EXECUTE NOW", "timeframe": "1H", "setup_type": "trend_pullback", "score": 72,
+            "entry_type": "market", "entry": 3950.5, "stop_loss": 3935.25, "bias_tfs": ["4H", "1D"], "confirm_tf": "15m",
+            "targets": [{"label": "TP1", "price": 3990.0, "rr": 2.59}, {"label": "TP2", "price": 4012.0, "rr": 4.03}],
+            "reasons_for": ["4H trend bullish"], "reasons_against": ["no liquidity sweep"]}
+
+
+def test_the_written_report_uses_exactly_the_plan_numbers_and_states_validation():
+    from app.signals.engine import build_report, fmt
+    from app.signals.service import attach_validation
+
+    best = _best_plan()
+    res = {"symbol": "XAUUSD", "best": best, "overall": {"label": "Bullish", "detail": "4H and 1D bullish"}, "session": "london",
+           "timeframes": []}
+    res["report"] = build_report(res, None)
+    text = res["report"]["text"]
+    for v in (best["entry"], best["stop_loss"], 3990.0, 4012.0):
+        assert fmt(v) in text
+    assert "2.59R" in text and "4.03R" in text and "72/100" in text and "EXECUTE NOW" in text
+    assert res["report"]["decision"]["win_probability"] is None  # no probability is ever invented
+    attach_validation("XAUUSD", res)
+    assert best["validation"]["status"] == "not_validated"
+    assert res["report"]["validation"]["label"] == "Not validated" and "Validation: Not validated" in res["report"]["text"]
+
+
+def test_the_part15_report_copies_the_plan_levels_and_validation():
+    from app.signals.classify import analysis_report
+
+    best = {**_best_plan(), "validation": {"status": "not_validated", "label": "Not validated", "note": "n"}}
+    r = analysis_report("XAUUSD", {"best": best, "quote": {"price": 3951.0}, "timeframes": [], "overall": {"label": "Bullish"}})
+    tp = r["trade_plan"]
+    assert (tp["entry"], tp["stop_loss"], tp["tp1"], tp["tp2"], tp["tp3"]) == (3950.5, 3935.25, 3990.0, 4012.0, None)
+    assert tp["risk_reward"] == [2.59, 4.03] and r["validation"]["status"] == "not_validated"

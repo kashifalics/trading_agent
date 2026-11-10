@@ -126,5 +126,5 @@ def analysis_report(symbol: str, res: dict) -> dict:
                     "setup_expiry": best.get("valid_until"), "position_size": best.get("position_size")},
         reasons_for=best.get("reasons_for", []), risks_and_counter_evidence=best.get("reasons_against", []),
         final_decision=FINAL.get(best.get("instruction"), "NO TRADE"), signal_class=best.get("signal_class"),
-        confluence_band=best.get("confluence_band"))
+        confluence_band=best.get("confluence_band"), validation=best.get("validation"))
     return out
