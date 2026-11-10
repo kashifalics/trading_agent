@@ -252,6 +252,9 @@ restore with `psql`.
 * **Pin transitive dependencies:** `requirements.txt` pins the 25 direct packages, but their own dependencies float. One of them
   (`kombu`) broke the Celery worker in a fresh image; it is now pinned. Generating a full lock file (for example with `pip-tools`)
   and building from it is recommended before the next release.
+* **Railway configuration deadline (2026-12-01):** Railway reports that config-as-code (`backend/railway.json`: Dockerfile build,
+  health check `/api/v1/health`, restart policy) is deprecated and keeps working only until 2026-12-01. Before then, run
+  `railway config migrate` (or set the same build, health check and restart settings in the service's dashboard) and redeploy.
 * **Keys:** rotate the owner key by changing `BOOTSTRAP_API_KEY` and restarting; other users with `scripts/create_user.py` (the
   old key stops working). Rotate provider keys at the provider and update the variable.
 * **Data:** candles accumulate in the database; BiQuote serves a fixed recent window, so history grows only while the service runs.

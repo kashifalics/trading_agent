@@ -17,6 +17,17 @@ _Last verified: 2026-11-10 (local, Windows 10, Python 3.12, Node 24; customer-ha
 | Docker Compose (PostgreSQL 16, Redis, API, Celery worker, UI; production mode, `AUTH_REQUIRED=true`) | `docker compose up --build` | All five services healthy; same 48-check API walkthrough **48/48** (jobs and scans run through the Celery worker) and 30/30 UI page checks against the frontend container. Found and fixed on the way: worker could not start (unpinned `kombu`), every scan failed on PostgreSQL (`VARCHAR(16)`), `.env` settings not passed to containers, worker shown unhealthy |
 | Live Binance / Twelve Data | earlier milestones | Binance verified (3.2 years BTCUSDT); Twelve Data verified with a real key on 2026-11-01 (not re-run: no key used in this audit) |
 
+## Production deployment of the handover release (2026-11-10)
+* Deployed with the owner's approval from branch `feature/gold-research` (commit `dfa4fd1`; `main` not merged, nothing pushed):
+  backend `railway up` (deployment SUCCESS, migration `0005` is a no-op on the SQLite volume, EURUSD and BiQuote FX mappings seeded),
+  frontend `vercel --prod` (Ready).
+* Verified in production: health `ok` with `auth_required: true`; `401` without or with a wrong key on every data endpoint tried;
+  owner key accepted; live quotes for XAUUSD, EURUSD, GBPUSD, BTCUSDT; signals for all six instruments, each best setup labelled
+  not validated; paper worker cycling every 60 s without errors, history intact (104 closed trades since 2026-11-07, forward
+  expectancy −0.122 R, 95% CI −0.467…+0.240: not distinguishable from zero); 30/30 page checks on the live site, desktop and phone.
+* Rollback: Railway → service `backend` → Deployments → redeploy the previous deployment; Vercel → promote the previous production
+  deployment. No database change is needed.
+
 ## Customer handover audit (2026-11-10)
 Fixed: 13 endpoints reachable without a key; saved API key not sent on page load (every page load 401'd with `AUTH_REQUIRED=true`);
 unbounded quote cache; production CORS allowing localhost; research-only models activatable; delayed prices shown as "live";
