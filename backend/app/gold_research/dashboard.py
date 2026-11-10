@@ -96,13 +96,41 @@ def build(symbol: str = "XAUUSD") -> dict:
                 "top_decile": (best["oof_calibrated"].get("selection") or {}).get("top_decile"),
                 "shuffled_label_auc": r["shuffled_label_check"].get("roc_auc"), "challenger": r["challenger"],
                 "validation": meta.get("validation"), "champion": (champ or {}).get("version")}
+    experiments = _experiments(symbol)
     status = {"pattern_study": "training discovery done" if disc else "not run yet", "validation": "done" if val else "not run yet",
-              "models": "trained (challengers only)" if ml else "not trained yet", "final_test": "sealed (not run)"}
+              "models": "trained (challengers only)" if ml else "not trained yet",
+              **{e["key"]: f"done: {e['candidates']} candidates" for e in experiments}, "final_test": "sealed (not run)"}
     out = {"symbol": symbol, "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"), "status": status, "dataset": dataset,
-           "split": split, "patterns": patterns, "scenarios": scenarios, "models": models,
+           "split": split, "patterns": patterns, "scenarios": scenarios, "models": models, "experiments": experiments,
            "disclaimer": "Historical research and backtest output, analysis only. Training figures find candidates; only validation "
                          "confirms them; the final test is sealed. The confluence score is not a win probability."}
     DASHBOARD.write_text(json.dumps(out, default=float), encoding="utf8")
+    return out
+
+
+def _experiments(symbol: str) -> list[dict]:
+    """Experiments 2 and 3 from their stored development results (compact rows; nothing recomputed)."""
+    from app.gold_research.exp2 import run as R2
+    from app.gold_research.exp3 import run as R3
+    specs = (("experiment_2", "Experiment 2", R2, "Structural limit entries, longer holds and financing costs; H4, H8, D1; long and short tested separately",
+              "XAUUSD_EXPERIMENT2.md"),
+             ("experiment_3", "Experiment 3", R3, "Well-powered structural setups (>= 1,000 trades each); H1, H4; long and short pooled",
+              "XAUUSD_EXPERIMENT3.md"))
+    out = []
+    for key, name, mod, desc, rep in specs:
+        d = _json(mod.out_dir(symbol) / "development.json")
+        if not d:
+            continue
+        rows = []
+        for r in d["rows"]:
+            m = r.get("main") or {}
+            rows.append({"tf": r["tf"], "setup": r["setup"], "direction": r.get("direction", "long + short"), "trades": r["trades"],
+                         "mean_r": m.get("mean_r"), "control_r": m.get("ctrl_mean_r"), "edge": m.get("edge"), "q": r.get("q"),
+                         "candidate": r.get("status") == "CANDIDATE"})
+        out.append({"key": key, "name": name, "description": desc, "segment": d.get("segment"),
+                    "tests_run": d.get("tests_run", d.get("tests")), "pre_registered": d.get("pre_registered_tests"),
+                    "candidates": len(d["candidates"]), "trials_counted": d.get("trials_counted_for_deflated_sharpe"),
+                    "report": f"docs/reports/{rep}", "rows": rows})
     return out
 
 

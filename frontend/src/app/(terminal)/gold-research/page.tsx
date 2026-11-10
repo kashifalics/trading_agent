@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, Stat } from "@/components/ui/
 import { Tabs } from "@/components/ui/misc";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { useGoldResearch, useSignal } from "@/lib/hooks";
-import type { GoldResearch, ResearchPatternRow, ScenarioCell } from "@/lib/research-types";
+import type { GoldResearch, ResearchExperiment, ResearchPatternRow, ScenarioCell } from "@/lib/research-types";
 
 const num = (v: number | null | undefined, d = 2, sign = false) =>
   v === null || v === undefined || Number.isNaN(v) ? "–" : `${sign && v > 0 ? "+" : ""}${v.toFixed(d)}`;
@@ -214,6 +214,45 @@ function LiveSignal() {
   );
 }
 
+function ExperimentCard({ e }: { e: ResearchExperiment }) {
+  const rows = [...e.rows].sort((x, y) => (y.trades ?? 0) - (x.trades ?? 0));
+  return (
+    <Card data-testid={`experiment-${e.key}`}>
+      <CardHeader className="flex-wrap gap-2">
+        <CardTitle>{e.name} <SegmentBadge>{e.segment ?? "development"}</SegmentBadge></CardTitle>
+        <Badge variant={e.candidates > 0 ? "buy" : "neutral"}>{e.candidates} candidates</Badge>
+      </CardHeader>
+      <CardContent className="space-y-3 p-0">
+        <p className="px-4 text-sm text-muted-foreground">
+          {e.description}. {e.tests_run ?? 0} of {e.pre_registered ?? 0} pre-registered tests had enough trades to run
+          {e.trials_counted ? `; the deflated Sharpe ratio counts ${e.trials_counted.toLocaleString()} trials across all experiments` : ""}.
+          Mean R is per trade after spread and financing; the edge compares each setup with random limit orders of the same shape.
+        </p>
+        <Table>
+          <THead><TR><TH>TF</TH><TH>Setup</TH><TH>Direction</TH><TH className="text-right">Trades</TH><TH className="text-right">Mean R</TH>
+            <TH className="text-right">Random R</TH><TH className="text-right">Edge</TH><TH className="text-right">q</TH><TH>Result</TH></TR></THead>
+          <TBody>
+            {rows.map((r) => (
+              <TR key={`${r.tf}${r.setup}${r.direction}`}>
+                <TD className="num">{r.tf}</TD>
+                <TD className="text-xs">{r.setup.replace(/^([A-Z]\d+)_/, "$1 · ").replaceAll("_", " ")}</TD>
+                <TD className="text-xs">{r.direction}</TD>
+                <TD className="num text-right">{r.trades.toLocaleString()}</TD>
+                <TD className={`num text-right ${(r.mean_r ?? 0) > 0 ? "text-bull" : "text-bear"}`}>{num(r.mean_r, 3, true)}</TD>
+                <TD className="num text-right text-muted-foreground">{num(r.control_r, 3, true)}</TD>
+                <TD className="num text-right">{num(r.edge, 3, true)}</TD>
+                <TD className="num text-right">{num(r.q, 3)}</TD>
+                <TD><Badge variant={r.candidate ? "buy" : "neutral"}>{r.candidate ? "candidate" : r.q === null ? "too few trades" : "not a candidate"}</Badge></TD>
+              </TR>
+            ))}
+          </TBody>
+        </Table>
+        <p className="px-4 pb-4 text-xs text-muted-foreground">Full report: {e.report}. The sealed final-test period was not used.</p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function GoldResearchPage() {
   const q = useGoldResearch();
   return (
@@ -232,6 +271,7 @@ export default function GoldResearchPage() {
                 <Patterns d={d} />
                 <Scenarios d={d} />
                 <Models d={d} />
+                {(d.experiments ?? []).map((e) => <ExperimentCard key={e.key} e={e} />)}
                 {d.disclaimer && <SourceNote>{d.disclaimer}</SourceNote>}
               </>
             )

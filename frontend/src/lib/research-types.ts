@@ -78,4 +78,19 @@ export interface GoldResearch {
   } | null;
   scenarios?: ({ segment: string; note: string } & Record<string, Record<string, ScenarioCell> | string>) | null;
   models?: { segment: string; label: string; tfs: Record<string, ModelSummary> } | null;
+  experiments?: ResearchExperiment[];
+}
+
+export interface ResearchExperiment {
+  key: string;
+  name: string;
+  description: string;
+  segment: string | null;
+  tests_run: number | null;
+  pre_registered: number | null;
+  candidates: number;
+  trials_counted: number | null;
+  report: string;
+  rows: { tf: string; setup: string; direction: string; trades: number; mean_r: number | null; control_r: number | null; edge: number | null;
+    q: number | null; candidate: boolean }[];
 }
