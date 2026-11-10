@@ -186,3 +186,23 @@ def test_provider_adapters_are_reused_per_configuration():
     other = get_provider("twelve_data", Settings(twelve_data_api_key="k1"))
     assert other is get_provider("twelve_data", Settings(twelve_data_api_key="k1"))
     assert other is not get_provider("twelve_data", Settings(twelve_data_api_key="k2"))  # a new key never reuses the old client
+
+
+def test_a_broker_failure_runs_the_job_inline_instead_of_leaving_it_queued(monkeypatch):
+    """docker compose (JOB_BACKEND=celery): if Celery cannot accept the job, the request must not fail and the job must still run."""
+    from fastapi import BackgroundTasks
+
+    from app.jobs import tasks, worker
+
+    monkeypatch.setenv("JOB_BACKEND", "celery")
+    monkeypatch.setenv("REDIS_URL", "redis://unreachable:6379/0")
+    get_settings.cache_clear()
+
+    def broken(*a, **k):
+        raise IndexError("pop from empty list")  # what an incompatible kombu/redis pair raised in the worker image
+
+    monkeypatch.setattr(worker.celery_app, "send_task", broken)
+    bg = BackgroundTasks()
+    tasks.dispatch("scan", bg, 123)
+    assert len(bg.tasks) == 1 and bg.tasks[0].func is tasks.JOBS["scan"] and bg.tasks[0].args == (123,)
+    get_settings.cache_clear()

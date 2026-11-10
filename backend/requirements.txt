@@ -8,6 +8,7 @@ alembic==1.14.0
 psycopg[binary]==3.2.3
 redis==5.2.1
 celery==5.4.0
+kombu==5.4.2  # celery transport; newer kombu needs redis-py >= 6.1 (pinned 5.2.1 here) and breaks the worker at startup
 httpx==0.28.1
 numpy==2.2.1
 pandas==2.2.3
