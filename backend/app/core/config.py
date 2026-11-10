@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     sentry_dsn: str | None = Field(None, repr=False)
 
     # Instruments shown by default in the UI/API (comma separated). Others stay registered and reachable with ?all=true.
-    focus_symbols: str = "BTCUSDT,XAUUSD"
+    focus_symbols: str = "BTCUSDT,XAUUSD,EURUSD,GBPUSD"
     auth_required: bool = False
     bootstrap_api_key: str | None = Field(None, repr=False)  # owner's API key, ensured at startup (no shell needed on hosts)
     rate_limit_per_minute: int = 240
@@ -48,13 +48,13 @@ class Settings(BaseSettings):
     auto_migrate: bool = True
 
     # Trade Opportunities module (docs/TRADE_OPPORTUNITIES_ARCHITECTURE.md)
-    opportunity_symbols: str = "XAUUSD,US30,BTCUSDT,USOIL"
+    opportunity_symbols: str = "XAUUSD,EURUSD,GBPUSD,US30,BTCUSDT,USOIL"
     opportunity_scan_interval_minutes: int = 0  # 0 = automatic scanning disabled (manual / API-triggered only)
     opportunity_refresh_providers: str = "biquote,binance"  # providers the SCHEDULED scan may sync (quota-limited providers stay manual)
     opportunity_max_sync_tfs: int = 4  # timeframes refreshed per instrument when a scan is asked to refresh data
 
     # Signal engine (docs/SIGNAL_ENGINE.md)
-    signal_symbols: str = "XAUUSD,BTCUSDT,US30,USOIL"
+    signal_symbols: str = "XAUUSD,EURUSD,GBPUSD,BTCUSDT,US30,USOIL"
     signal_spreads: str = "BTCUSDT:2,XAUUSD:0.30"  # round-trip spread in PRICE units per instrument (your broker's typical spread)
     # instrument:provider used by the signal engine (one provider per instrument, never mixed). Binance gives BTCUSDT deep history keyless.
     signal_provider_overrides: str = "BTCUSDT:binance"

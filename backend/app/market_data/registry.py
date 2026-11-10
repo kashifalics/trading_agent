@@ -54,6 +54,10 @@ SEED_INSTRUMENTS = [
      "quote_currency": "USD", "price_precision": 5, "tick_size": Decimal("0.00001"), "calendar": "fx_weekly",
      "session_tz": "UTC", "session_open": "00:00", "trading_session": "Sun 17:00 - Fri 17:00 New York time",
      "contract_size": Decimal("100000"), "meta": {"feed": "spot FX, provider-dependent"}},
+    {"canonical_symbol": "EURUSD", "name": "Euro / US Dollar (spot)", "asset_class": "forex",
+     "quote_currency": "USD", "price_precision": 5, "tick_size": Decimal("0.00001"), "calendar": "fx_weekly",
+     "session_tz": "UTC", "session_open": "00:00", "trading_session": "Sun 17:00 - Fri 17:00 New York time",
+     "contract_size": Decimal("100000"), "meta": {"feed": "spot FX, provider-dependent"}},
     {"canonical_symbol": "US30", "name": "Dow Jones Industrial Average (index/CFD)", "asset_class": "index",
      "quote_currency": "USD", "price_precision": 1, "tick_size": Decimal("0.1"), "calendar": "fx_weekly",
      "session_tz": "UTC", "session_open": "00:00", "trading_session": "broker-specific (CFD ~23h/day)",
@@ -92,6 +96,14 @@ SEED_MAPPINGS = [
     ("US30", "biquote", "US30", None, "cfd", "active",
      "MT5 broker CFD 'US Wall Street 30 Index'. Candles verified 2026-11-01 (1m..1d, valid OHLC); live stream NOT yet verified in market hours (market was closed). "
      "Indicative CFD price, not the exchange index. Default source via PREFERRED_PROVIDER=biquote."),
+    ("EURUSD", "biquote", "EURUSD", None, "cfd", "active",
+     "MT5 broker FX quotes, no key. Live-verified 2026-11-10 in market hours: quote (bid/ask, 0.6 pip spread) and 15m/1H/4H/1D candles "
+     "(0 invalid OHLC; 1H ~7 days, 4H ~6 weeks, 1D 500 bars). Default source via PREFERRED_PROVIDER=biquote."),
+    ("GBPUSD", "biquote", "GBPUSD", None, "cfd", "active",
+     "MT5 broker FX quotes, no key. Live-verified 2026-11-10 in market hours: quote and 15m/1H/4H/1D candles (0 invalid OHLC). "
+     "Default source via PREFERRED_PROVIDER=biquote; Twelve Data stays registered (provider=twelve_data)."),
+    ("EURUSD", "twelve_data", "EUR/USD", None, "spot", "unverified",
+     "Same plan rules as GBP/USD are expected (1H/1D native) but not probed with a key: unverified."),
     ("USOIL", "biquote", "USOIL", None, "cfd", "active",
      "MT5 broker CFD 'Crude Oil' (about 0.8% below the aggregated WTI perpetual). Candles verified 2026-11-01; live stream NOT yet verified in market hours. "
      "Not NYMEX CL futures. Default source via PREFERRED_PROVIDER=biquote."),

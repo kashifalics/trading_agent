@@ -54,9 +54,9 @@ def test_health_and_mode(client):
 
 def test_instruments_are_honest_about_support(client):
     focus = client.get("/api/v1/market/instruments").json()
-    assert {i["canonical_symbol"] for i in focus} == {"BTCUSDT", "XAUUSD"}  # default focus: gold and bitcoin
+    assert {i["canonical_symbol"] for i in focus} == {"BTCUSDT", "XAUUSD", "EURUSD", "GBPUSD"}  # default focus: gold, bitcoin, two FX majors
     items = {i["canonical_symbol"]: i for i in client.get("/api/v1/market/instruments", params={"all": "true"}).json()}
-    assert set(items) == {"XAUUSD", "US30", "BTCUSDT", "USOIL", "GBPUSD"}
+    assert set(items) == {"XAUUSD", "US30", "BTCUSDT", "USOIL", "GBPUSD", "EURUSD"}
     assert items["BTCUSDT"]["mappings"][0]["provider"] == "binance" and items["BTCUSDT"]["mappings"][0]["status"] == "active"
     gbp = items["GBPUSD"]["mappings"][0]
     assert (gbp["provider"], gbp["provider_symbol"]) == ("twelve_data", "GBP/USD") and items["GBPUSD"]["price_precision"] == 5

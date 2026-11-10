@@ -320,6 +320,15 @@ def test_preferred_provider_routes_all_four_instruments_to_biquote_but_explicit_
     assert resolve_mapping(session, "BTCUSDT", "binance")[1].code == "binance"  # explicit choice is never overridden
     assert resolve_mapping(session, "XAUUSD", "twelve_data")[1].code == "twelve_data"
     assert resolve_mapping(session, "US30", "oanda")[2].provider_symbol == "US30_USD"
+    for fx in ("EURUSD", "GBPUSD"):  # keyless FX through BiQuote (live-verified 2026-11-10)
+        assert resolve_mapping(session, fx)[1].code == "biquote"
+    assert resolve_mapping(session, "GBPUSD", "twelve_data")[2].provider_symbol == "GBP/USD"
+    from app.database.models import DataProvider, ProviderInstrument
+    bq = session.scalar(select(DataProvider).where(DataProvider.code == "biquote"))
+    gbp = resolve_mapping(session, "GBPUSD")[0]
+    session.delete(session.scalar(select(ProviderInstrument).where(ProviderInstrument.provider_id == bq.id,
+                                                                     ProviderInstrument.instrument_id == gbp.id)))
+    session.flush()
     assert resolve_mapping(session, "GBPUSD")[1].code == "twelve_data"  # no BiQuote mapping: falls back to the status-based choice, never invented
 
 

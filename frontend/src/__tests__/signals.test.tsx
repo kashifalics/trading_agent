@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SignalsPage from "@/app/(terminal)/signals/page";
-import { positionSize } from "@/lib/position-size";
+import { DEFAULT_CONTRACT_SIZE, positionSize } from "@/lib/position-size";
 import type { SignalAnalysis, SignalsSummary, TimeframePlan } from "@/lib/signal-types";
 import { useSettings } from "@/lib/store";
 import { CANDLES } from "@/test/fixtures";
@@ -91,6 +91,14 @@ describe("position size", () => {
     expect(r.units).toBeCloseTo(2);
     expect(r.lots).toBeCloseTo(0.02);
     expect(positionSize(1000, 0.5, 100, 100, 100)).toBeNull();
+  });
+
+  it("sizes an FX trade in standard lots: $10,000 at 1% with a 20-pip stop is 0.5 lots", () => {
+    const r = positionSize(10_000, 1, 1.1226, 1.1206, DEFAULT_CONTRACT_SIZE.EURUSD)!;
+    expect(r.riskAmount).toBeCloseTo(100);
+    expect(r.stopDistance).toBeCloseTo(0.002, 6);
+    expect(r.lots).toBeCloseTo(0.5, 6);
+    expect(positionSize(10_000, 0, 1.1226, 1.1206, 100_000)).toBeNull(); // no risk budget, no size
   });
 });
 
