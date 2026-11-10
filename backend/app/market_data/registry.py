@@ -7,6 +7,7 @@ Honesty rules encoded here (what has actually been verified is recorded in docs/
     Twelve Data's free plan does NOT serve the Dow index (only ETFs, which are different instruments).
   * We never substitute a different instrument (PAXG for gold, an ETF for the index, CL futures for spot oil).
 """
+import threading
 from decimal import Decimal
 
 from app.core.config import Settings, get_settings
@@ -20,17 +21,28 @@ from app.market_data.twelve_data.provider import TwelveDataProvider
 PROVIDER_CODES = ["binance", "twelve_data", "oanda", "biquote"]
 
 
+_INSTANCES: dict[tuple, MarketDataProvider] = {}
+_INSTANCES_LOCK = threading.Lock()
+
+
 def get_provider(code: str, settings: Settings | None = None) -> MarketDataProvider:
+    """One shared adapter per provider and configuration. Each adapter owns an HTTP client: reusing it keeps connections alive
+    (a new client per call paid a fresh TLS handshake, about 2 s to BiQuote, and never closed its connection pool) and lets the
+    adapter's own request pacing and quota tracking see every call. A changed key or base URL gets its own instance."""
     s = settings or get_settings()
-    if code == "binance":
-        return BinanceProvider(s.binance_api_base_url)
-    if code == "twelve_data":
-        return TwelveDataProvider(s.twelve_data_api_key, s.twelve_data_base_url)
-    if code == "oanda":
-        return OandaProvider(s.oanda_api_token, s.oanda_base_url)
-    if code == "biquote":
-        return BiQuoteProvider(s.biquote_base_url)
-    raise NotFoundError(f"No adapter implemented for provider '{code}'")
+    specs = {"binance": (BinanceProvider, (s.binance_api_base_url,)),
+             "twelve_data": (TwelveDataProvider, (s.twelve_data_api_key, s.twelve_data_base_url)),
+             "oanda": (OandaProvider, (s.oanda_api_token, s.oanda_base_url)),
+             "biquote": (BiQuoteProvider, (s.biquote_base_url,))}
+    if code not in specs:
+        raise NotFoundError(f"No adapter implemented for provider '{code}'")
+    cls, args = specs[code]
+    key = (code, *args)
+    with _INSTANCES_LOCK:
+        inst = _INSTANCES.get(key)
+        if inst is None:
+            inst = _INSTANCES[key] = cls(*args)
+    return inst
 
 
 SEED_PROVIDERS = [

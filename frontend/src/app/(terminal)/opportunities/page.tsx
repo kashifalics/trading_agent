@@ -54,7 +54,7 @@ function Content({ s, selected, onSelect }: { s: OppSummary; selected: number | 
           Past patterns do not guarantee future results. Analysis only: nothing is executed.
         </Notice>
       )}
-      <section aria-label="Best opportunity per trading style" className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Best opportunity per trading style" className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         {s.styles.map((st) => <StyleCard key={st.style} item={st} onSelect={onSelect} precision={precision} />)}
       </section>
       <Card>

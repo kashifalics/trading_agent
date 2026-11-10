@@ -32,7 +32,7 @@ export default function PatternsPage() {
           d.events.length === 0 ? (
             <EmptyState title="No detections" hint={d.message ?? "No events in this window."} />
           ) : (
-            <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
               <Card>
                 <CardHeader><CardTitle>Counts · {d.n_bars} bars</CardTitle></CardHeader>
                 <CardContent className="space-y-1 text-sm">

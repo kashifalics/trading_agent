@@ -31,7 +31,7 @@ export default function PerformancePage() {
   return (
     <>
       <PageHeader title="Performance Analytics" description="Tracked prediction outcomes, backtest results and out-of-sample model metrics. Small samples are not evidence of edge." />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <SectionCard title="Prediction outcomes">
           <QueryState query={stats} isEmpty={(d) => d.total === 0} empty={<EmptyState title="No predictions tracked yet" hint="Outcomes appear after analyses produce BUY/SELL plans and later candles resolve them." />}>
             {(d) => (
@@ -42,7 +42,7 @@ export default function PerformancePage() {
                   <Stat label="TP-first rate" value={d.tp_first_rate === null ? "—" : fmtPct(d.tp_first_rate)} sub={d.tp_first_ci ? `95% CI ${fmtPct(d.tp_first_ci[0])}–${fmtPct(d.tp_first_ci[1])}` : "needs resolved trades"} />
                 </div>
                 {d.resolved < 30 && d.resolved > 0 && <p className="text-xs text-warn">Only {d.resolved} resolved — the interval above is very wide.</p>}
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div><h4 className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">By decision</h4><Bars data={d.by_decision} /></div>
                   <div><h4 className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">By outcome</h4><Bars data={d.by_outcome} /></div>
                 </div>

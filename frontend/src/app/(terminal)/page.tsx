@@ -19,7 +19,8 @@ const STATUS_TEXT: Record<Quote["status"], string> = {
 };
 
 function QuoteCard({ inst, quote }: { inst: Instrument; quote?: Quote }) {
-  const map = inst.mappings[0];
+  // Show the mapping that actually served the quote, not simply the first one registered.
+  const map = inst.mappings.find((m) => m.provider === quote?.provider) ?? inst.mappings[0];
   // A last-known price (market closed, stale quote) is never labelled live.
   const delayed = quote?.status === "ok" && (quote.delayed ?? Boolean(quote.message));
   return (
@@ -82,9 +83,9 @@ export default function DashboardPage() {
     <>
       <PageHeader title="Overview" description="Live quotes, structure bias, recent predictions and data health for the tracked instruments. Every number comes from the backend; nothing is simulated." />
 
-      <QueryState query={instruments} skeleton={<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-36" />)}</div>}>
+      <QueryState query={instruments} skeleton={<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-36" />)}</div>}>
         {(list) => (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {list.map((i) => (
               <QuoteCard key={i.id} inst={i} quote={quotes.data?.find((q) => q.symbol === i.canonical_symbol)} />
             ))}
@@ -92,7 +93,7 @@ export default function DashboardPage() {
         )}
       </QueryState>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">Recent predictions <NotValidatedBadge /></CardTitle>
@@ -144,7 +145,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card>
           <CardHeader><CardTitle>Market direction (1H structure)</CardTitle></CardHeader>
           <CardContent className="p-0">

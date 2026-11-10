@@ -103,7 +103,7 @@ export function ConfidencePanelView({ panel }: { panel: ConfidencePanel }) {
   const hf = panel.historical_frequency;
   const score = panel.analytical_confluence.score;
   return (
-    <div className="grid gap-3 md:grid-cols-2" data-testid="confidence-panel">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2" data-testid="confidence-panel">
       <Section title="Model probability" tag="calibrated + validated only">
         {mp ? (
           <div className="grid grid-cols-3 gap-2">

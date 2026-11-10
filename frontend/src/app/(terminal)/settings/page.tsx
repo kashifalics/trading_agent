@@ -39,7 +39,7 @@ export default function SettingsPage() {
   return (
     <>
       <PageHeader title="Settings" description="Client preferences are stored in this browser only. Provider credentials never live here — they belong in backend/.env." />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <SectionCard title="Connection">
           <div className="space-y-3 text-sm">
             <div><Label>Backend URL (build-time, NEXT_PUBLIC_API_URL)</Label><div className="num rounded border bg-surface px-3 py-2">{API_URL}</div></div>

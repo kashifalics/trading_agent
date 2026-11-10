@@ -31,7 +31,7 @@ export default function WatchlistsPage() {
       {m.create.isError && <ErrorState error={m.create.error} />}
       <QueryState query={lists} isEmpty={(d) => d.length === 0} empty={<EmptyState title="No watchlists yet" hint="Create one above, then add instruments." />}>
         {(d) => (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {d.map((w) => (
               <Card key={w.id}>
                 <CardHeader>

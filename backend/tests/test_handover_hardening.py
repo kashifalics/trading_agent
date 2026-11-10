@@ -174,3 +174,15 @@ def test_a_research_only_model_cannot_be_activated(engine):
         assert r.status_code == 409 and r.json()["error"]["code"] == "not_promotable"
         assert c.post(f"/api/v1/models/{pid}/activate").status_code == 200
     get_settings.cache_clear()
+
+
+def test_provider_adapters_are_reused_per_configuration():
+    """A new adapter per call meant a new HTTP client (fresh TLS handshake) every time; adapters are now shared per configuration."""
+    from app.core.config import Settings
+    from app.market_data.registry import get_provider
+
+    a, b = get_provider("biquote"), get_provider("biquote")
+    assert a is b
+    other = get_provider("twelve_data", Settings(twelve_data_api_key="k1"))
+    assert other is get_provider("twelve_data", Settings(twelve_data_api_key="k1"))
+    assert other is not get_provider("twelve_data", Settings(twelve_data_api_key="k2"))  # a new key never reuses the old client

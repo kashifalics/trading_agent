@@ -46,7 +46,7 @@ export default function BacktestingPage() {
   return (
     <>
       <PageHeader title="Backtesting" description="Event-driven simulation with spread, slippage, commission and risk-based sizing. Entries fill at the next bar's open; if a bar contains both stop and target, the stop is assumed hit first." />
-      <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
         <div className="space-y-4">
           <SectionCard title="Strategy configuration">
             <form onSubmit={submit} className="space-y-3" aria-label="Backtest configuration">

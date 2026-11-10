@@ -26,7 +26,7 @@ export default function DataSourcesPage() {
       <PageHeader title="Data Sources" description="Provider status, what each instrument is mapped to, stored history and gaps. Different providers' candles are never mixed as if identical." />
       <QueryState query={providers}>
         {(list) => (
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             {list.map((p) => (
               <Card key={p.code}>
                 <CardHeader>

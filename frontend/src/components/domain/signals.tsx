@@ -203,7 +203,7 @@ export function BestPlanCard({ a, onSelect }: { a: SignalAnalysis; onSelect: (tf
         <CardTitle>Best setup</CardTitle>
         <span className="text-xs text-muted-foreground">bias {b.bias_tfs.join(" + ") || "—"} → setup {b.timeframe} → confirmation {b.confirm_tf}</span>
       </CardHeader>
-      <CardContent className="grid gap-5 lg:grid-cols-[1.1fr_1fr]">
+      <CardContent className="grid grid-cols-1 gap-5 lg:grid-cols-[1.1fr_1fr]">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <SideBadge side={b.side} />
@@ -380,14 +380,14 @@ export function PlanDetail({ a, tf }: { a: SignalAnalysis; tf: string }) {
           </div>
         ) : (
           <>
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="space-y-4">
                 <Levels plan={plan} p={p} />
                 {plan.conditions.length > 0 && (
                   <div><div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Conditions</div>
                     <ul className="space-y-1 text-sm">{plan.conditions.map((c, i) => <li key={i}>• {c}</li>)}</ul></div>
                 )}
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div><div className="mb-1 text-xs font-semibold uppercase tracking-wider text-bull">Reasons for</div>
                     <ul className="space-y-1 text-xs" data-testid="reasons-for">{plan.reasons_for.map((r, i) => <li key={i}>• {r}</li>)}</ul></div>
                   <div><div className="mb-1 text-xs font-semibold uppercase tracking-wider text-bear">Reasons against</div>

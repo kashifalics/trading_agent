@@ -28,7 +28,7 @@ export default function ModelsPage() {
   return (
     <>
       <PageHeader title="Model Management" description="Chronological, purged walk-forward training with out-of-time probability calibration. A model is “research only” unless it passes minimum out-of-sample checks — and even then, no performance is guaranteed." />
-      <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
         <SectionCard title="Train a model">
           <form onSubmit={form.handleSubmit((v) => train.mutate({ ...v, n_splits: 5, auto_sync: true }))} className="space-y-3" aria-label="Train model">
             <div className="grid grid-cols-2 gap-3">

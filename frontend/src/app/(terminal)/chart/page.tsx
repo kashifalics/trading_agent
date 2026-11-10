@@ -130,11 +130,11 @@ export default function ChartPage() {
   return (
     <>
       <PageHeader title="Chart Analysis" description="Candles come from your own backend store. Run an analysis to overlay structure, zones and a trade plan — or WAIT, when the evidence does not justify one." />
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-4">
           <Card>
             <CardContent>
-              <form onSubmit={onRun} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto]" aria-label="Analysis controls">
+              <form onSubmit={onRun} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto]" aria-label="Analysis controls">
                 <div><Label htmlFor="sym">Instrument</Label><InstrumentSelect id="sym" value={s.symbol} onChange={(v) => s.set({ symbol: v })} /></div>
                 <div><Label htmlFor="tf">Timeframe</Label><TimeframeSelect id="tf" value={s.timeframe} onChange={(v) => s.set({ timeframe: v })} /></div>
                 <div><Label htmlFor="lb">Lookback bars</Label><Input id="lb" inputMode="numeric" {...form.register("lookback_bars")} /><FieldError message={form.formState.errors.lookback_bars?.message} /></div>
@@ -145,7 +145,7 @@ export default function ChartPage() {
                 <div className="sm:col-span-2 lg:col-span-4">
                   <Checkbox label="Multi-timeframe analysis (completed higher-timeframe candles only)" checked={useMtf} onChange={(e) => setUseMtf(e.target.checked)} />
                   {useMtf && (
-                    <div className="mt-2 grid gap-3 sm:grid-cols-3">
+                    <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <div><Label>Higher-TF trend</Label><TimeframeSelect allowNone label="Higher timeframe" value={s.mtfHigher} onChange={(v) => { s.set({ mtfHigher: v }); form.setValue("higher", v); }} /></div>
                       <div><Label>Intermediate structure</Label><TimeframeSelect allowNone label="Intermediate timeframe" value={s.mtfIntermediate} onChange={(v) => { s.set({ mtfIntermediate: v }); form.setValue("intermediate", v); }} /></div>
                       <div><Label>Entry timeframe</Label><TimeframeSelect allowNone label="Entry timeframe" value={s.mtfEntry} onChange={(v) => { s.set({ mtfEntry: v }); form.setValue("entry", v); }} /></div>

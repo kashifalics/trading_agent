@@ -33,7 +33,7 @@ export default function PredictionDetailPage({ params }: { params: Promise<{ id:
               description={`Analysis as of ${fmtDate(p.as_of_ts)} using ${p.provider_code ?? "unknown provider"} candles.`}
               actions={<><DecisionBadge decision={p.decision} className="text-base" />{p.decision !== "WAIT" && <NotValidatedBadge />}<Link href="/predictions" className="text-xs text-primary hover:underline">All predictions</Link></>}
             />
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
               <div className="min-w-0 space-y-4">
                 <SectionCard title="Trade plan"><PlanCard decision={p.decision} plan={plan} waitReasons={p.wait_reasons} /></SectionCard>
                 <SectionCard title="Explanation">
