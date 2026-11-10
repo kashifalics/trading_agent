@@ -1,58 +1,67 @@
-# AI Trading Intelligence Platform
+# AI Trading Intelligence
 
-An **analysis-only** market-intelligence terminal. It reads candles, detects price-action structure, compares the present with history, optionally consults a validated ML model, and returns **BUY / SELL / WAIT** with the evidence behind it. It never places orders and never connects to a trading account.
+An **analysis and decision-support tool** for gold (XAUUSD), forex (EURUSD, GBPUSD), Bitcoin (BTCUSDT), the Dow (US30) and oil
+(USOIL). It reads market candles, detects price-action structure on 14 timeframes, and shows possible trade setups with their entry,
+stop loss, targets and the reasons for and against them.
 
-> **Honesty rules built in:** no fabricated prices or candles; no "probability" unless a model is calibrated *and* passed out-of-sample checks; `WAIT` whenever evidence is weak, contradictory, stale or incomplete; unsupported instruments say so instead of showing placeholder data.
+> **Analysis only.** The product never places orders and is not connected to any broker or trading account.
+>
+> **No validated edge.** None of its strategies or models has passed out-of-sample validation (see
+> [What the research found](#what-the-research-found)). Every BUY/SELL setup is labelled **Not validated**, no win probability is
+> shown, and the setup score measures quality, not the chance of winning.
 
-## Status at a glance
-| Instrument | Data source | State |
-|---|---|---|
-| BTCUSDT | Binance public API | ✅ working (live-verified) |
-| XAUUSD | Twelve Data free plan | 🟡 verified live (1H/4H/1D); native-4H grid and weekend-candle caveats, see the status doc |
-| GBPUSD | Twelve Data free plan | ✅ available (1H/1D; 2H/4H built from 1H) |
-| US30, USOIL | OANDA practice account | 🟡 adapter ready - add a free `OANDA_API_TOKEN` (Twelve Data's free plan has no Dow index) |
+## What it does
 
-Full detail: [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md).
+* **Signals:** top-down analysis of every timeframe (higher-timeframe bias → structural setup → lower-timeframe confirmation), with a
+  clear instruction (EXECUTE NOW, PLACE LIMIT ORDER, WAIT FOR CONFIRMATION or NO TRADE), entry, stop, up to three targets
+  (minimum 1:2 reward-to-risk), a 100-point quality checklist and a position-size calculator.
+* **Paper trading:** records every signal the moment it appears and follows it on later candles with simulated orders, so you can
+  see how the rules behave going forward. No verdict before 100 closed trades.
+* **Trade Opportunities:** setups ranked across instruments and trading styles (scalping, intraday, swing, long-term).
+* **Chart analysis, patterns, predictions, backtesting** and the results of a 20-year gold study.
+* **Safety rules built in:** WAIT/NO TRADE whenever evidence is weak, data is stale or incomplete, the stop is not structural or a
+  1:2 target is not reachable; delayed prices are marked as delayed; unsupported data is reported, never invented.
 
-## Signals
-The **Signals** tab (directly below Overview) analyses every timeframe top-down (higher-timeframe bias → setup → lower-timeframe confirmation) and gives, per timeframe: an entry state (`ENTRY_READY`, `WAITING_FOR_CONFIRMATION`, `SETUP_DEVELOPING`, `WATCHLIST`, `NO_SETUP`, …), a final instruction (EXECUTE NOW / WAIT FOR CONFIRMATION / PLACE LIMIT ORDER / NO TRADE), a structural entry, stop loss and up to three targets (minimum 1:2 reward:risk), a 100-point confluence checklist with reasons for and against, and a lot-size calculator. The page syncs fresh candles every 60 s (BiQuote / Binance, keyless). The score is **setup quality, not a win probability**; the measured track record of the same rules is in [`docs/reports/SIGNAL_TRACK_RECORD.md`](docs/reports/SIGNAL_TRACK_RECORD.md). Design: [`docs/SIGNAL_ENGINE.md`](docs/SIGNAL_ENGINE.md).
+Not included: automatic trading, broker connections, an AI chat assistant, TradingView/Pine Script integration, a news filter.
 
-## Paper Trading
-The **Paper Trading** tab is the forward test of those signals. While the backend runs, a cycle every 60 s (`PAPER_TRADING_INTERVAL_SECONDS`) syncs candles, records every EXECUTE NOW (market) and PLACE LIMIT ORDER (limit) signal the moment it appears, and simulates it on the candles that follow: stop or TP1, 1-minute exits, gaps honoured, your spread charged. Nothing is backfilled. The page shows the verdict (no conclusion before 100 closed trades), win rate, expectancy with its confidence interval, the cumulative R curve, open positions, pending orders, trade history with the plan as it was shown, and breakdowns compared with the backtest. A paper account applies risk rules on top (default $10,000, 0.5% risk per trade, max 5 open trades, 2% daily loss limit). Simulated orders only: no broker. Design: [`docs/PAPER_TRADING.md`](docs/PAPER_TRADING.md).
+## Getting started
 
-## Trade Opportunities
-The **Trade Opportunities** tab (below Overview) scans every supported instrument on all 14 timeframes and ranks scalping / intraday / swing / long-term setups by an *evidence score* (not a win probability). WAIT is a normal result. Start a scan from the page, or `POST /api/v1/opportunities/scan`; set `OPPORTUNITY_SCAN_INTERVAL_MINUTES` to scan automatically. See [`docs/TRADE_OPPORTUNITIES_ARCHITECTURE.md`](docs/TRADE_OPPORTUNITIES_ARCHITECTURE.md) and [`docs/STRATEGY_VALIDATION.md`](docs/STRATEGY_VALIDATION.md) (no rule set is validated yet).
+**Use a hosted installation:** open the address you were given, go to **Settings**, enter your platform API key and press
+**Save & verify**. Then open **Signals** and press **Refresh now**.
 
-## Quick start (Docker)
+**Install it yourself (Docker):**
 ```powershell
-.\scripts\setup.ps1 -DockerOnly     # PowerShell   (bash: ./scripts/setup.sh --docker-only)
-docker compose up --build
+.\scripts\setup.ps1 -DockerOnly        # bash: ./scripts/setup.sh --docker-only  (creates .env with generated secrets)
+docker compose up --build              # UI http://localhost:3000 · API reference http://localhost:8000/docs
 ```
-UI <http://localhost:3000> · API docs <http://localhost:8000/docs>. Stop with `docker compose down`.
-
-Without Docker (SQLite): `.\scripts\setup.ps1`, then run the backend (`uvicorn app.main:app --reload`) and `npm run dev` in `frontend/`. Exact steps: [`docs/LOCAL_SETUP.md`](docs/LOCAL_SETUP.md).
-
-## Checks
-```
-cd backend  && pytest                       # 179 tests
-cd frontend && npm run lint && npm run typecheck && npm test && npm run build
-cd frontend && npx playwright install chromium && npm run e2e
-```
-
-## Layout
-```
-ai-trading-intelligence/
-  backend/   FastAPI · SQLAlchemy · Alembic · ML · vision · backtesting   (own Dockerfile, tests, migrations)
-  frontend/  Next.js · TypeScript · Tailwind · Lightweight Charts · TanStack Query   (own Dockerfile, tests)
-  docs/      architecture, schema, API, providers, licensing, rules, ML, backtesting, security, setup, roadmap, status
-  scripts/   setup.ps1 / setup.sh        .github/workflows/ci.yml        docker-compose.yml
-```
-The frontend talks to the backend only through the documented `/api/v1` REST API.
-
-## What the UI offers
-Overview · Chart Analysis (candles, structure/zone overlays, trade plan, multi-timeframe, screenshot upload) · Market Scanner · Predictions · Prediction Details (evidence, analogues, five separate confidence views, outcome tracking) · Historical Patterns · Backtesting · Performance Analytics · Watchlists · Data Sources · Model Management · Settings.
+Without Docker, with your own production settings, and for deployment, follow the
+[Technical handover](docs/TECHNICAL_HANDOVER.md). No paid service is required: the default market data sources are free and need no
+key (an optional Twelve Data or OANDA key adds alternative sources).
 
 ## Documentation
-[Architecture](docs/ARCHITECTURE.md) · [Schema](docs/DATABASE_SCHEMA.md) · [API](docs/API_SPECIFICATION.md) · [Providers](docs/MARKET_DATA_PROVIDERS.md) · [Licensing](docs/DATA_LICENSING.md) · [Price-action rules](docs/PRICE_ACTION_RULES.md) · [ML](docs/ML_METHODOLOGY.md) · [Backtesting](docs/BACKTESTING_METHODOLOGY.md) · [Security](docs/SECURITY.md) · [Setup](docs/LOCAL_SETUP.md) · [Roadmap](docs/ROADMAP.md) · [Status](docs/IMPLEMENTATION_STATUS.md)
 
-_Not financial advice. Past patterns do not guarantee future results._
+| For | Document |
+|---|---|
+| Using the product | [User guide](docs/USER_GUIDE.md) |
+| Installing, configuring, deploying, maintaining | [Technical handover](docs/TECHNICAL_HANDOVER.md), [Local setup](docs/LOCAL_SETUP.md) |
+| API | [API specification](docs/API_SPECIFICATION.md) and `/docs` on the backend |
+| Security | [Security](docs/SECURITY.md) |
+| How it works | [Architecture](docs/ARCHITECTURE.md), [Signal engine](docs/SIGNAL_ENGINE.md), [Paper trading](docs/PAPER_TRADING.md), [Data providers](docs/MARKET_DATA_PROVIDERS.md) |
+| Current status | [Implementation status](docs/IMPLEMENTATION_STATUS.md) |
+
+## What the research found
+
+The rules and models in this product were tested on history before release, and none showed a reliable advantage:
+* The signal rules, replayed on Bitcoin and gold: −0.048 R per trade after spread overall, −0.19 R on the out-of-sample part
+  ([track record](docs/reports/SIGNAL_TRACK_RECORD.md)).
+* About 600 price patterns per instrument on every timeframe: none confirmed ([gold](docs/reports/PATTERN_EDGE_XAUUSD.md),
+  [Bitcoin](docs/reports/PATTERN_EDGE_BTCUSDT.md)).
+* A 20-year study of 1-minute gold data: 1,931 pattern hypotheses and 36 further structural tests; 0 confirmed on independent
+  data, and no machine-learning model good enough to promote ([audit](docs/reports/XAUUSD_RESEARCH_AUDIT.md),
+  [experiment 2](docs/reports/XAUUSD_EXPERIMENT2.md)).
+
+This does not prove that no edge exists; it means none has been demonstrated. Use the product to structure your own analysis.
+
+---
+
+_Not financial advice. Past patterns do not guarantee future results. Never risk money you cannot afford to lose._

@@ -5,8 +5,8 @@ Interactive, always-current reference: **`/docs`** (Swagger UI) and **`/openapi.
 ## Conventions
 
 * Base: `/api/v1`. JSON in/out. Timestamps ISO-8601 UTC (candles use epoch seconds).
-* **Auth**: `X-API-Key` header. `AUTH_REQUIRED=false` (dev) maps anonymous calls to one local user; `true` requires a key (mandatory in production). Resources of other users return `404`.
-* **Errors** (all non-2xx): `{"error": {"code", "message", "details", "request_id"}}`. Codes: `validation_failed` (422), `unsupported` (422), `not_found` (404), `unauthorized` (401), `rate_limited` (429), `provider_error` (502), `provider_not_configured` (503), `internal_error` (500, no internals leaked).
+* **Auth**: `X-API-Key` header on **every endpoint except `GET /health`** (enforced at router level, so new endpoints cannot be added without it). `AUTH_REQUIRED=false` (local development) maps anonymous calls to one local user; `true` requires a valid key and is mandatory when `APP_ENV=production`. A missing or wrong key gets `401`. Resources of other users return `404`. `GET /auth/status` confirms that a key works.
+* **Errors** (all non-2xx): `{"error": {"code", "message", "details", "request_id"}}`. Codes: `validation_failed` (422), `unsupported` (422), `not_found` (404), `unauthorized` (401), `not_promotable` (409), `busy` (409), `rate_limited` (429), `provider_error` (502), `provider_not_configured` (503), `internal_error` (500, no internals leaked).
 * **Pagination**: `?limit=&offset=` → `{items,total,limit,offset}`.
 * **Jobs**: long operations return `202 {id, status, poll_url}`; poll the resource until `status ∈ {completed, failed}`.
 * **Rate limit**: `RATE_LIMIT_PER_MINUTE` per client IP (health exempt).
@@ -15,21 +15,22 @@ Interactive, always-current reference: **`/docs`** (Swagger UI) and **`/openapi.
 
 | Method & path | Purpose |
 |---|---|
-| `GET /health` | DB/Redis/OCR/job-backend status, `mode: analysis_only` |
-| `GET /market/instruments` · `/instruments/{symbol}` | The four instruments with provider mappings and `supported` flag |
+| `GET /health` | Public. DB/Redis/OCR/job-backend status, `mode: analysis_only`, `auth_required` (whether clients need a key) |
+| `GET /auth/status` | `{authenticated, auth_required, mode, key_used}`: confirms the key in `X-API-Key` is accepted (used by Settings → Save & verify) |
+| `GET /market/instruments?all=` · `/instruments/{symbol}` | Instruments with provider mappings and `supported` flag (`FOCUS_SYMBOLS` by default: BTCUSDT, XAUUSD, EURUSD, GBPUSD; `all=true` adds US30, USOIL) |
 | `GET /market/timeframes` | 14-timeframe registry + which providers serve each natively |
 | `GET /market/candles?symbol&timeframe&provider&limit&start&end&include_incomplete` | Stored candles (complete only by default) |
 | `GET /market/coverage?symbol` | Counts, first/last, gaps, last sync per series |
-| `GET /market/quotes?symbols` | Live quote per instrument; `status` ∈ ok/unsupported/not_configured/error — never invented |
+| `GET /market/quotes?symbols` | Latest quote per instrument (at most 20 names); `status` ∈ ok/unsupported/not_configured/error — never invented. `delayed: true` (with a message) when it is the last known price (market closed or stale quote), never a live one |
 | `GET /market/providers` | Provider metadata, limits, licensing, mappings |
 | `POST /market/sync` | Ingest candles (idempotent; aggregates when not native) |
 | `POST /market/coverage/probe` | Ask the provider what it serves on the current plan |
 | `POST /analysis/run` → `202` · `GET /analysis` · `GET /analysis/{id}` · `GET /analysis/{id}/analogues` | Analysis jobs and results |
 | `POST /predictions/run` → `202` · `GET /predictions` · `GET /predictions/{id}` · `GET /predictions/stats` · `POST /predictions/refresh-outcomes` | Predictions, evidence, outcome tracking |
 | `POST /charts/analyze` (multipart: `file`, `symbol?`, `timeframe?`, `calibration_points?`) · `GET /charts/extractions/{id}` | Screenshot analysis |
-| `GET /patterns?symbol&timeframe` · `GET /patterns/definitions` | Detections on stored candles + operational definitions |
+| `GET /patterns?symbol&timeframe` · `GET /patterns/scan?symbol` · `GET /patterns/definitions` | Detections on stored candles, the all-timeframe scan with each pattern's measured track record, operational definitions |
 | `GET /signals` | Signal engine summary per configured instrument (`SIGNAL_SYMBOLS`): overall bias, best plan, active plans, counts |
-| `GET /signals/{symbol}` | Full top-down analysis: 14 per-timeframe plans (state, instruction, entry/stop/targets, 100-point checklist, reasons for/against, track record), multi-timeframe table, analyst report |
+| `GET /signals/{symbol}` | Full top-down analysis: 14 per-timeframe plans (state, instruction, entry/stop/targets, 100-point checklist, reasons for/against, track record, `validation` — `not_validated` unless the rules passed out-of-sample validation), multi-timeframe table, analyst report (states the validation status) |
 | `POST /signals/{symbol}/sync` | Fetch due candles from the instrument's keyless provider (BiQuote/Binance), then return the fresh analysis |
 | `GET /signals/config` · `GET /signals/track-record` | Chains, weights, thresholds, spreads in force · historical replay results (docs/SIGNAL_ENGINE.md) |
 | `GET /paper/summary` | Paper trading: account (balance, equity, today's P&L, rule status), forward-test metrics and verdict, equity curves, breakdowns (with the backtest beside each instrument × timeframe), open/pending trades, worker status (docs/PAPER_TRADING.md) |
@@ -37,7 +38,9 @@ Interactive, always-current reference: **`/docs`** (Swagger UI) and **`/openapi.
 | `GET /paper/account` · `PATCH /paper/account` · `POST /paper/account/reset` | Active paper account; change risk per trade (≤ 5%), max open trades, daily loss limit; start a new account (signal history kept). Audited |
 | `POST /paper/run?sync=true` | Run one paper-trading cycle now (sync keyless providers → analyse → simulate → record). `409 busy` while another cycle runs. Audited |
 | `POST /backtests/run` → `202` · `GET /backtests` · `GET /backtests/{id}` · `GET /backtests/strategies` | Backtests |
-| `GET /models` · `GET /models/{id}` · `POST /models/train` → `202` · `POST /models/{id}/activate` | Model registry |
+| `GET /models` · `GET /models/{id}` · `POST /models/train` → `202` · `POST /models/{id}/activate` | Model registry. Activation is refused with `409 not_promotable` unless the model is calibrated **and** passed the out-of-sample checks |
+| `POST /opportunities/scan` → `202` · `GET /opportunities/summary` · `GET /opportunities` · `GET /opportunities/{id}` · `GET /opportunities/scans[/{id}]` · `GET /opportunities/timeframes` · `/config` · `/validation` | Trade Opportunities: multi-instrument, 14-timeframe scans ranked by an evidence score (not a win probability) with validation status (docs/TRADE_OPPORTUNITIES_ARCHITECTURE.md) |
+| `GET /research/gold` | Bundled summary of the XAUUSD historical research (dataset, split, pattern and model results); never includes sealed final-test figures |
 | `GET/POST/DELETE /watchlists…` | Per-user watchlists |
 
 ## Prediction object (essentials)
