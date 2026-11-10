@@ -5,23 +5,25 @@ _Last verified: 2026-11-10 (local, Windows 10, Python 3.12, Node 24; customer-ha
 ## Verification results (2026-11-10, branch `feature/gold-research`)
 | Check | Command | Result |
 |---|---|---|
-| Backend tests | `cd backend; pytest` | **363 passed, 30 skipped, 0 failed** (skipped = live-provider tests that need network/keys). Also run in a clean virtualenv built only from `requirements.txt`: 362 passed, 30 skipped (before the last provider test was added); `pip check` clean |
+| Backend tests | `cd backend; pytest` | **364 passed, 30 skipped, 0 failed** (skipped = live-provider tests that need network/keys), with every declared column length enforced as PostgreSQL would. Also run in a clean virtualenv built only from `requirements.txt`: 362 passed, 30 skipped (before the last provider test was added); `pip check` clean |
 | Backend lint | `ruff check app tests --select E,F,W,I --ignore E501` | clean |
 | Frontend lint / types / unit tests / build | `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` | clean / clean / **60 passed** / 19 routes built |
 | End-to-end (mocked API) | `npx playwright test` | **8 passed** (desktop + mobile): honest dashboard, analysis workflow, every page without overflow or console errors, login journey (key required → verified → signals load with the key) |
 | Live API walkthrough (production mode, `AUTH_REQUIRED=true`, fresh SQLite, live BiQuote + Binance, no paid keys) | scripted, 48 checks | **48/48**: 401 without/with a wrong key, key accepted, live quotes, sync and 14-timeframe analysis for XAUUSD, EURUSD, GBPUSD, BTCUSDT, every plan labelled not validated, no win probability, SL/entry/TP geometry and R:R ≥ 2 for actionable plans (below-2 plans blocked with a reason), paper cycle, opportunity scan, decision-engine job, error envelopes |
 | Live UI walkthrough (same backend) | Playwright, 15 pages × desktop 1440 px + Pixel 7 | **30/30**: renders, no horizontal overflow, no console errors, no 401 |
-| Migrations | upgrade head → compare with models → downgrade base → upgrade → seed twice | **SQLite and PostgreSQL 16: 0 schema differences**, downgrade/upgrade clean, seeding idempotent |
+| Migrations `0001`–`0005` | upgrade head → compare with models → downgrade base → upgrade → seed twice | **SQLite and PostgreSQL 16: 0 schema differences**, downgrade/upgrade clean, seeding idempotent; `0004 → 0005` also applied to a PostgreSQL database holding data |
 | Dependency audit | `pip-audit -r requirements.txt`, `npm audit` | Backend: starlette/python-multipart/pillow/lightgbm upgraded; re-audit of the new `requirements.txt`: **no known vulnerabilities**. Frontend: 2 high + 1 moderate remain (zod 3, PostCSS inside Next 15; not reachable as used, fixes are major upgrades) — see SECURITY.md |
 | Secrets scan | tracked files + git history | no keys, tokens or passwords found |
-| Docker Compose | `docker compose up --build` | see the handover section below |
+| Docker Compose (PostgreSQL 16, Redis, API, Celery worker, UI; production mode, `AUTH_REQUIRED=true`) | `docker compose up --build` | All five services healthy; same 48-check API walkthrough **48/48** (jobs and scans run through the Celery worker) and 30/30 UI page checks against the frontend container. Found and fixed on the way: worker could not start (unpinned `kombu`), every scan failed on PostgreSQL (`VARCHAR(16)`), `.env` settings not passed to containers, worker shown unhealthy |
 | Live Binance / Twelve Data | earlier milestones | Binance verified (3.2 years BTCUSDT); Twelve Data verified with a real key on 2026-11-01 (not re-run: no key used in this audit) |
 
 ## Customer handover audit (2026-11-10)
 Fixed: 13 endpoints reachable without a key; saved API key not sent on page load (every page load 401'd with `AUTH_REQUIRED=true`);
 unbounded quote cache; production CORS allowing localhost; research-only models activatable; delayed prices shown as "live";
 mobile overflow with real data (Historical Patterns, Performance); a new HTTP client and TLS handshake per provider call
-(signal summary 20 s → 10 s); vulnerable backend dependencies. Added: keyless EURUSD and GBPUSD (BiQuote, live-verified),
+(signal summary 20 s → 10 s); vulnerable backend dependencies; under docker compose: Celery worker unable to start (unpinned
+`kombu`), jobs left "queued" when dispatch failed, every opportunity scan failing on PostgreSQL (migration `0005`), `.env` settings
+not reaching the containers. Added: keyless EURUSD and GBPUSD (BiQuote, live-verified),
 "Not validated" labels on every plan, prediction and opportunity, `GET /auth/status` and Settings → Save & verify, written reports
 that state validation, tests for all of the above. Documentation: README (customer), `TECHNICAL_HANDOVER.md`, `USER_GUIDE.md`.
 Not changed: research results, frozen splits, sealed final test (not read), production deployment (nothing pushed or deployed).

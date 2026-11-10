@@ -139,18 +139,21 @@ Reserved and unused: `S3_*`, `LLM_PROVIDER`, `LLM_MODEL`, `OPENAI_API_KEY`.
 
 * **Engines:** PostgreSQL 16 (docker compose) or SQLite (local, single-instance hosting). 28 tables; schema in
   [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md).
-* **Migrations:** Alembic revisions `0001`–`0004`, applied automatically at startup (`AUTO_MIGRATE=true`) and by the Docker
+* **Migrations:** Alembic revisions `0001`–`0005`, applied automatically at startup (`AUTO_MIGRATE=true`) and by the Docker
   image's start command. Reference data (instruments, providers, mappings) is seeded at every start, additively: new instruments
   or mappings are added, existing rows are never changed.
 * **Verified on 2026-11-10** on SQLite and PostgreSQL 16: upgrade to head → schema identical to the models (0 differences) →
-  downgrade to base → upgrade again → seeding twice (idempotent).
+  downgrade to base → upgrade again → seeding twice (idempotent); and the `0004 → 0005` upgrade on a PostgreSQL database holding data.
 * **Manual commands** (from `backend/`, with the service's `DATABASE_URL`): `alembic upgrade head`, `alembic downgrade -1`,
   `alembic current`. On Windows, run them as
   `python -c "from app.database.init_db import run_migrations; run_migrations()"` if the local `alembic/` folder shadows the package.
 * **New migration:** change the models, then `alembic revision --autogenerate -m "message"`, review the file, test upgrade and
   downgrade on a copy of the data.
-* **This release adds no migration.** At its first start it seeds the EURUSD instrument and BiQuote mappings for EURUSD and
-  GBPUSD (new rows only).
+* **This release adds migration `0005`:** it widens `timeframe_analyses.status` from 16 to 24 characters on PostgreSQL (a
+  catalogue-only change; on PostgreSQL every opportunity scan failed without it). On SQLite it does nothing. At its first start the
+  release also seeds the EURUSD instrument and BiQuote mappings for EURUSD and GBPUSD (new rows only).
+* **Tests and PostgreSQL:** the test suite runs on SQLite, which ignores column lengths; a test-wide check now enforces every
+  declared length so values PostgreSQL would reject fail the tests too.
 
 ## 7. API documentation
 
@@ -233,8 +236,8 @@ Release steps (each needs the owner's approval):
 
 **Rollback:** redeploy the previous successful deployment (Railway: service → Deployments → previous deployment → Redeploy;
 Vercel: Deployments → previous production deployment → Promote / Instant Rollback), or check out the previous release commit and
-deploy it the same way. This release has no schema migration, so code rollback needs no database change (the extra instrument
-rows it seeds are ignored by older code). If a future release adds a migration, restore the backup or run `alembic downgrade -1`
+deploy it the same way. This release's only migration (`0005`) widens one column, which older code reads unchanged, so a code
+rollback needs no database change (the extra instrument rows it seeds are ignored by older code). If a future release adds a migration, restore the backup or run `alembic downgrade -1`
 **before** rolling the code back.
 
 **Backups:** SQLite: stop the service or use `sqlite3 app.db ".backup backup.db"`, keep the copy off the server (on Railway, use
