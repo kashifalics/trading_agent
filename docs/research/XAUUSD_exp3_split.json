@@ -1,0 +1,19 @@
+{
+ "symbol": "XAUUSD",
+ "route": "1: develop on all training data; confirm once on the sealed period only with the owner's separate approval; then forward paper trading",
+ "development": {
+  "start": "2003-05-05T00:01:00+00:00",
+  "end_exclusive": "2020-02-08T00:00:00+00:00",
+  "halves_boundary": "2012-01-01T00:00:00+00:00"
+ },
+ "not_used": {
+  "experiment1_validation": [
+   "2020-02-08T00:00:00+00:00",
+   "2023-06-24T00:00:00+00:00"
+  ]
+ },
+ "sealed_final_test_from": "2023-06-24T00:00:00+00:00",
+ "experiment1_split_sha256": "c2e8d3f85d7d3879b4a94257834bd9045757b07d09540279483a882b434b5e29",
+ "created": "2026-11-10T09:34:32+00:00",
+ "sha256": "19288a16b305b002d5f5e90611683cdb64461b50a1e2a65873eb371e09cc8f88"
+}

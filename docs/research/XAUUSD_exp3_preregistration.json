@@ -1,0 +1,124 @@
+{
+ "symbol": "XAUUSD",
+ "experiment": 3,
+ "plan": "docs/research/EXPERIMENT_3_PLAN.md",
+ "route": "1: develop on all training data; confirm once on the sealed period only with the owner's separate approval; then forward paper trading",
+ "created": "2026-11-10T09:35:55+00:00",
+ "code_commit": "53c5e0e4a86920504a3b4bba41ec63ee64112d18",
+ "split_sha256": "19288a16b305b002d5f5e90611683cdb64461b50a1e2a65873eb371e09cc8f88",
+ "n_min": 1000,
+ "counts_note": "candle-level conservative fills in development; no outcome read",
+ "tests": [
+  {
+   "setup": "E1_order_block_after_break",
+   "tf": "H1",
+   "orders": 6470,
+   "est_fills": 3696,
+   "long": 1825,
+   "short": 1871,
+   "status": "run"
+  },
+  {
+   "setup": "E1_order_block_after_break",
+   "tf": "H4",
+   "orders": 1881,
+   "est_fills": 1074,
+   "long": 582,
+   "short": 492,
+   "status": "run"
+  },
+  {
+   "setup": "E2_fvg_displacement_1p5",
+   "tf": "H1",
+   "orders": 3132,
+   "est_fills": 2254,
+   "long": 1120,
+   "short": 1134,
+   "status": "run"
+  },
+  {
+   "setup": "E2_fvg_displacement_1p5",
+   "tf": "H4",
+   "orders": 1015,
+   "est_fills": 817,
+   "long": 409,
+   "short": 408,
+   "status": "not testable (fewer fills than N_MIN)"
+  },
+  {
+   "setup": "E3_broken_level_retest",
+   "tf": "H1",
+   "orders": 7321,
+   "est_fills": 5310,
+   "long": 2452,
+   "short": 2858,
+   "status": "run"
+  },
+  {
+   "setup": "E3_broken_level_retest",
+   "tf": "H4",
+   "orders": 2826,
+   "est_fills": 2235,
+   "long": 1082,
+   "short": 1153,
+   "status": "run"
+  },
+  {
+   "setup": "E4_zone_pullback_d1_trend",
+   "tf": "H1",
+   "orders": 794,
+   "est_fills": 508,
+   "long": 248,
+   "short": 260,
+   "status": "not testable (fewer fills than N_MIN)"
+  },
+  {
+   "setup": "E4_zone_pullback_d1_trend",
+   "tf": "H4",
+   "orders": 371,
+   "est_fills": 234,
+   "long": 124,
+   "short": 110,
+   "status": "not testable (fewer fills than N_MIN)"
+  },
+  {
+   "setup": "E5_prev_day_sweep_reclaim",
+   "tf": "H1",
+   "orders": 3287,
+   "est_fills": 2529,
+   "long": 1106,
+   "short": 1423,
+   "status": "run"
+  }
+ ],
+ "setups": {
+  "E1_order_block_after_break": "order block whose impulse broke structure (BOS or CHoCH), displacement >= 1.5 ATR",
+  "E2_fvg_displacement_1p5": "fair value gap whose middle candle has range >= 1.5 ATR and a body >= 70% of its range",
+  "E3_broken_level_retest": "support/resistance band (levels refreshed weekly) broken by a close >= 0.25 ATR beyond it; limit at the broken edge",
+  "E4_zone_pullback_d1_trend": "demand (supply) zone with the D1 structure trend in the trade's direction",
+  "E5_prev_day_sweep_reclaim": "price trades beyond the previous New York day's low (high) and a candle of the same day closes back inside"
+ },
+ "main_setting": {
+  "target_r": 2.0,
+  "holds": {
+   "H1": 48,
+   "H4": 60
+  },
+  "wait": 20,
+  "stop": "far edge + 0.1 ATR",
+  "fill": "conservative (trade through by the spread)",
+  "financing": "fixed $0.10/oz/night",
+  "directions": "long and short pooled; controls matched on direction"
+ },
+ "criteria": [
+  "Benjamini-Hochberg q < 0.10 over the tests run, edge > 0",
+  "mean R > 0 with p < 0.05 (main costs)",
+  "mean R > 0 with $0.10 slippage per side",
+  "mean R > 0 with 1.5x spread",
+  "deflated Sharpe > 0.95 counting all trials of experiments 1-3",
+  "positive in >= 60% of development years",
+  "positive in both halves (before / from 2012-01-01)",
+  ">= 1000 development trades"
+ ],
+ "sha256": "153639f8192f0bcf06ae6a463b68530912b43d4701511b1af463d93d8c4e4b39"
+}
