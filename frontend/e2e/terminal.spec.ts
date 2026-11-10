@@ -91,3 +91,32 @@ test("every page renders without horizontal overflow or console errors", async (
   }
   expect(errors).toEqual([]);
 });
+
+
+test("login journey: the server asks for a key, Settings verifies it, then the analysis pages load with it", async ({ page }) => {
+  // Registered after mockBackend, so these handlers take precedence for /health and /auth/status.
+  await page.route(`${API}/health`, (route) =>
+    route.fulfill(json({ status: "ok", version: "0.1.0", env: "production", time: "", mode: "analysis_only", components: {}, auth_required: true })));
+  await page.route(`${API}/auth/status`, (route) =>
+    route.request().headers()["x-api-key"] === "ati_e2e"
+      ? route.fulfill(json({ authenticated: true, auth_required: true, mode: "analysis_only", key_used: true }))
+      : route.fulfill(json({ error: { code: "unauthorized", message: "Invalid API key" } }, 401)));
+  await page.goto("/");
+  const banner = page.getByTestId("api-key-banner");
+  await expect(banner).toContainText("requires a platform API key");
+  await banner.getByRole("link", { name: /enter it in settings/i }).click();
+  await expect(page.locator("main h1")).toHaveText("Settings");
+  await page.getByLabel(/Platform API key/).fill("ati_wrong");
+  await page.getByRole("button", { name: /save & verify/i }).click();
+  await expect(page.getByTestId("key-check")).toHaveText("The server rejected this key.");
+  await page.getByLabel(/Platform API key/).fill("ati_e2e");
+  await page.getByRole("button", { name: /save & verify/i }).click();
+  await expect(page.getByTestId("key-check")).toHaveText("Key accepted by the server.");
+  // A full page load must send the saved key on its very first requests (regression: they used to go out before rehydration).
+  const firstSignals = page.waitForRequest((r) => r.url().endsWith("/api/v1/signals"));
+  await page.goto("/signals");
+  expect((await firstSignals).headers()["x-api-key"]).toBe("ati_e2e");
+  await expect(page.locator("main h1")).toHaveText("Signals");
+  await expect(page.getByTestId("api-key-banner")).toHaveCount(0);
+  await expect(page.getByText(/Every signal here is/)).toContainText("not validated");
+});
