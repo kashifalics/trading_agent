@@ -12,6 +12,9 @@ from decimal import Decimal  # noqa: E402
 
 import numpy as np  # noqa: E402
 import pytest  # noqa: E402
+from sqlalchemy import String, event  # noqa: E402
+from sqlalchemy import inspect as sa_inspect  # noqa: E402
+from sqlalchemy.orm import Session as OrmSession  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 from app.database.base import Base  # noqa: E402
@@ -19,6 +22,20 @@ from app.database.models import *  # noqa: E402,F401,F403
 from app.database.session import make_engine, set_engine  # noqa: E402
 from app.market_data.ingestion.service import seed_reference_data  # noqa: E402
 from app.market_data.types import Candle  # noqa: E402
+
+
+@event.listens_for(OrmSession, "before_flush")
+def _enforce_declared_string_lengths(session, flush_context, instances):
+    """SQLite ignores VARCHAR(n) but PostgreSQL rejects longer values. Enforce every declared length in the tests, so a value that
+    would fail on PostgreSQL (as 'insufficient_data' in VARCHAR(16) once did, breaking every scan there) fails here too."""
+    for obj in list(session.new) + list(session.dirty):
+        mapper = sa_inspect(obj).mapper
+        for col in mapper.columns:
+            if isinstance(col.type, String) and col.type.length:
+                v = getattr(obj, mapper.get_property_by_column(col).key, None)
+                if isinstance(v, str) and len(v) > col.type.length:
+                    raise AssertionError(f"{mapper.class_.__name__}.{col.key} = {v!r} has {len(v)} characters; the column allows "
+                                         f"{col.type.length} (PostgreSQL would reject it)")
 
 
 @pytest.fixture()

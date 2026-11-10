@@ -39,7 +39,7 @@ class TimeframeAnalysis(Base):
     instrument_id: Mapped[int] = mapped_column(ForeignKey("instruments.id"), index=True)
     provider_id: Mapped[int | None] = mapped_column(ForeignKey("data_providers.id"))
     timeframe: Mapped[str] = mapped_column(String(4))
-    status: Mapped[str] = mapped_column(String(16))  # completed | running | insufficient_data | unsupported | failed
+    status: Mapped[str] = mapped_column(String(24))  # completed | running | insufficient_data | unsupported | failed (migration 0005)
     signature: Mapped[str | None] = mapped_column(String(64), index=True)
     reused_from_id: Mapped[int | None] = mapped_column(ForeignKey("timeframe_analyses.id"))
     n_bars: Mapped[int] = mapped_column(Integer, default=0)
