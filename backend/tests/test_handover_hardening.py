@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 import pytest
-from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
 from app.core.config import get_settings
@@ -34,8 +33,9 @@ def _concrete(path: str) -> str:
 
 
 def test_every_endpoint_except_health_requires_a_key(auth_client):
-    app = auth_client.app
-    routes = [(m, r.path) for r in app.routes if isinstance(r, APIRoute) and r.path.startswith("/api/v1") for m in r.methods]
+    # Enumerated from the OpenAPI schema (stable across FastAPI versions, unlike the internal route objects).
+    paths = create_app().openapi()["paths"]
+    routes = [(m.upper(), p) for p, ops in paths.items() if p.startswith("/api/v1") for m in ops]
     assert len(routes) > 50
     open_routes = []
     for method, path in routes:
@@ -79,6 +79,7 @@ def test_quotes_never_call_a_provider_or_cache_unknown_names(engine, monkeypatch
         q = c.get("/api/v1/market/quotes", params={"symbols": "XAUUSD,xauusd"}).json()
         assert len(q) == 1 and q[0]["status"] == "ok" and q[0]["delayed"] is True and "not a live price" in q[0]["message"]
         assert set(market._quote_cache) == {"XAUUSD"}
+    market._quote_cache.clear()  # the cache is module-level: never leak the fake quote into other tests
     get_settings.cache_clear()
 
 
@@ -151,3 +152,25 @@ def test_the_part15_report_copies_the_plan_levels_and_validation():
     tp = r["trade_plan"]
     assert (tp["entry"], tp["stop_loss"], tp["tp1"], tp["tp2"], tp["tp3"]) == (3950.5, 3935.25, 3990.0, 4012.0, None)
     assert tp["risk_reward"] == [2.59, 4.03] and r["validation"]["status"] == "not_validated"
+
+
+def test_a_research_only_model_cannot_be_activated(engine):
+    get_settings.cache_clear()
+    from app.database.models import DataProvider, Instrument, ModelVersion
+    from app.database.session import session_scope
+
+    with TestClient(create_app()) as c:
+        with session_scope() as s:
+            inst = s.query(Instrument).filter_by(canonical_symbol="BTCUSDT").one()
+            prov = s.query(DataProvider).filter_by(code="binance").one()
+            common = dict(instrument_id=inst.id, provider_id=prov.id, timeframe="1H", algorithm="logistic", artifact_path="x.joblib",
+                          n_samples=1000)
+            research = ModelVersion(name="r", version="1", validation_status="research_only", is_calibrated=True, **common)
+            passed = ModelVersion(name="p", version="2", validation_status="passed_minimum_checks", is_calibrated=True, **common)
+            s.add_all([research, passed])
+            s.flush()
+            rid, pid = research.id, passed.id
+        r = c.post(f"/api/v1/models/{rid}/activate")
+        assert r.status_code == 409 and r.json()["error"]["code"] == "not_promotable"
+        assert c.post(f"/api/v1/models/{pid}/activate").status_code == 200
+    get_settings.cache_clear()

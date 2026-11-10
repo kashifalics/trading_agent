@@ -60,7 +60,9 @@ export default function ModelsPage() {
                       <div className="flex items-center gap-2">
                         {m.is_active && <Badge variant="info">active</Badge>}
                         <Badge variant={m.validation_status === "passed_minimum_checks" ? "buy" : "wait"}>{m.validation_status.replace(/_/g, " ")}</Badge>
-                        {!m.is_active && <Button size="sm" variant="outline" loading={activate.isPending} onClick={() => activate.mutate(m.id)}>Activate</Button>}
+                        {!m.is_active && (m.validation_status === "passed_minimum_checks" && m.is_calibrated
+                          ? <Button size="sm" variant="outline" loading={activate.isPending} onClick={() => activate.mutate(m.id)}>Activate</Button>
+                          : <span className="text-[11px] text-muted-foreground" title="Only a calibrated model that passed the out-of-sample checks can be activated">not activatable</span>)}
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3">

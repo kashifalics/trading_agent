@@ -1,4 +1,4 @@
-import { useSettings } from "@/lib/store";
+import { SETTINGS_STORAGE_KEY, useSettings } from "@/lib/store";
 
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 const PREFIX = "/api/v1";
@@ -39,9 +39,21 @@ interface RequestOptions {
   signal?: AbortSignal;
 }
 
+/** The key saved in this browser, read straight from storage. The settings store is rehydrated in an effect of <Providers/>, which runs
+ * after the pages' first queries have already started; without this, every full page load sent its first requests without the key. */
+function storedApiKey(): string {
+  try {
+    const raw = typeof window === "undefined" ? null : window.localStorage.getItem(SETTINGS_STORAGE_KEY);
+    const key = raw ? (JSON.parse(raw) as { state?: { apiKey?: unknown } })?.state?.apiKey : "";
+    return typeof key === "string" ? key : "";
+  } catch {
+    return "";
+  }
+}
+
 export async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
-  const key = useSettings.getState().apiKey;
+  const key = useSettings.getState().apiKey || (useSettings.persist.hasHydrated() ? "" : storedApiKey());
   if (key) headers["X-API-Key"] = key;
   let body: BodyInit | undefined;
   if (opts.form) body = opts.form;

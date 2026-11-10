@@ -32,6 +32,8 @@ interface SettingsState {
   setOverlay: (key: keyof OverlayToggles, value: boolean) => void;
 }
 
+export const SETTINGS_STORAGE_KEY = "ati-settings";
+
 export const useSettings = create<SettingsState>()(
   persist(
     (set) => ({
@@ -51,7 +53,7 @@ export const useSettings = create<SettingsState>()(
       setOverlay: (key, value) => set((s) => ({ overlays: { ...s.overlays, [key]: value } })),
     }),
     {
-      name: "ati-settings",
+      name: SETTINGS_STORAGE_KEY,
       storage: createJSONStorage(() => localStorage),
       skipHydration: true, // rehydrated in <Providers/> after mount to avoid SSR mismatch
     },

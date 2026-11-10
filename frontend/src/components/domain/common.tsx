@@ -55,9 +55,8 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
     return (
       <div role="alert" className="flex flex-col items-start gap-2 rounded-md border border-warn/40 bg-cta/10 p-4 text-sm">
         <div className="flex items-center gap-2 font-medium text-warn">
-          <AlertTriangle className="h-4 w-4" aria-hidden /> API key required
+          <AlertTriangle className="h-4 w-4" aria-hidden /> {e.message === "Invalid API key" ? "Invalid API key" : "API key required"}
         </div>
-        <p className="text-muted-foreground">{e.message}</p>
         <p className="text-muted-foreground">
           {e.message === "Invalid API key" ? "The saved platform API key was rejected by the server." : "This server requires a platform API key."}{" "}
           <Link href="/settings" className="font-medium text-primary hover:underline">Enter it in Settings</Link>.

@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import AppError, NotFoundError
 from app.core.security import get_current_user
 from app.database.models import Instrument, ModelVersion, User
 from app.database.session import get_session
@@ -15,6 +15,12 @@ from app.ml_engine.training import ALGORITHMS
 from app.schemas.common import Page
 
 router = APIRouter(prefix="/models", tags=["models"])
+PASSED = "passed_minimum_checks"
+
+
+class NotPromotable(AppError):
+    status_code = 409
+    code = "not_promotable"
 
 
 class TrainRequest(BaseModel):
@@ -96,5 +102,10 @@ def activate(model_id: int, session: Session = Depends(get_session), user: User 
     m = session.get(ModelVersion, model_id)
     if not m or not m.artifact_path:
         raise NotFoundError("Model not found or has no artifact")
+    if m.validation_status != PASSED or not m.is_calibrated:
+        # No promotion of experimental models: only a calibrated model that passed the out-of-sample gate can be activated.
+        raise NotPromotable(f"Model {m.id} is '{m.validation_status}'{'' if m.is_calibrated else ' and not calibrated'}: only a calibrated model "
+                            "that passed the out-of-sample checks can be activated.", details={"validation_status": m.validation_status,
+                                                                                               "is_calibrated": m.is_calibrated})
     activate_model(session, m)
     return _row(session, m)

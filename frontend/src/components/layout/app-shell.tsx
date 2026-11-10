@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useHealth } from "@/lib/hooks";
 import { useSettings } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -75,7 +75,12 @@ function Nav({ onNavigate }: { onNavigate?: () => void }) {
 function ApiKeyBanner() {
   const { data } = useHealth();
   const apiKey = useSettings((s) => s.apiKey);
-  if (!data?.auth_required || apiKey) return null;
+  const [hydrated, setHydrated] = useState(false); // never flash the banner before the saved key has been loaded
+  useEffect(() => {
+    if (useSettings.persist.hasHydrated()) setHydrated(true);
+    return useSettings.persist.onFinishHydration(() => setHydrated(true));
+  }, []);
+  if (!hydrated || !data?.auth_required || apiKey) return null;
   return (
     <div role="alert" data-testid="api-key-banner" className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-warn/40 bg-cta/10 px-4 py-3 text-sm">
       <KeyRound className="h-4 w-4 text-warn" aria-hidden />

@@ -28,6 +28,19 @@ describe("api client", () => {
     expect((fetchMock.mock.calls[1] as unknown as [string, RequestInit])[1].headers).toHaveProperty("X-API-Key", "ati_test");
   });
 
+  it("sends the saved key on the very first requests, before the settings store has rehydrated", async () => {
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    localStorage.setItem("ati-settings", JSON.stringify({ state: { apiKey: "ati_saved" }, version: 0 }));
+    expect(useSettings.persist.hasHydrated()).toBe(false);
+    await api.get("/signals");
+    expect((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].headers).toHaveProperty("X-API-Key", "ati_saved");
+    localStorage.setItem("ati-settings", "not json");
+    await api.get("/signals");
+    expect((fetchMock.mock.calls[1] as unknown as [string, RequestInit])[1].headers).not.toHaveProperty("X-API-Key");
+    localStorage.removeItem("ati-settings");
+  });
+
   it("maps the backend error envelope to ApiError", async () => {
     vi.stubGlobal("fetch", vi.fn(async () =>
       new Response(JSON.stringify({ error: { code: "unsupported", message: "US30 is unsupported", details: { instrument: "US30" }, request_id: "abc" } }), { status: 422 })));
