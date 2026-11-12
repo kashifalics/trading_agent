@@ -51,7 +51,7 @@ export default function PatternsPage() {
                     {Object.keys(d.counts ?? {}).map((k) => <option key={k} value={k}>{k}</option>)}
                   </Select>
                 </CardHeader>
-                <CardContent className="max-h-[560px] overflow-auto p-0">
+                <CardContent className="max-h-[560px] overflow-auto p-0" tabIndex={0} role="region" aria-label="Detections table (scrollable)">
                   <Table>
                     <THead><TR><TH>Confirmed</TH><TH>Kind</TH><TH>Dir</TH><TH className="text-right">Level / zone</TH><TH>Status</TH><TH>Evidence</TH></TR></THead>
                     <TBody>

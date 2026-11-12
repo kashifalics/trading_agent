@@ -17,7 +17,7 @@ Interactive, always-current reference: **`/docs`** (Swagger UI) and **`/openapi.
 |---|---|
 | `GET /health` | Public. DB/Redis/OCR/job-backend status, `mode: analysis_only`, `auth_required` (whether clients need a key) |
 | `GET /auth/status` | `{authenticated, auth_required, mode, key_used}`: confirms the key in `X-API-Key` is accepted (used by Settings → Save & verify) |
-| `GET /market/instruments?all=` · `/instruments/{symbol}` | Instruments with provider mappings and `supported` flag (`FOCUS_SYMBOLS` by default: BTCUSDT, XAUUSD, EURUSD, GBPUSD; `all=true` adds US30, USOIL) |
+| `GET /market/instruments?all=` · `/instruments/{symbol}` | Instruments with provider mappings and `supported` flag (`FOCUS_SYMBOLS` by default: all six signal instruments XAUUSD, EURUSD, GBPUSD, BTCUSDT, US30, USOIL) |
 | `GET /market/timeframes` | 14-timeframe registry + which providers serve each natively |
 | `GET /market/candles?symbol&timeframe&provider&limit&start&end&include_incomplete` | Stored candles (complete only by default) |
 | `GET /market/coverage?symbol` | Counts, first/last, gaps, last sync per series |

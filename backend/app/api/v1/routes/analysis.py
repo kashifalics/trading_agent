@@ -58,12 +58,16 @@ def run(req: AnalysisRunRequest, request: Request, background: BackgroundTasks, 
     return JobAccepted(id=a.id, status=a.status, poll_url=f"/api/v1/analysis/{a.id}")
 
 
-@router.get("", response_model=Page[AnalysisOut])
-def list_analyses(limit: int = Query(25, ge=1, le=100), offset: int = Query(0, ge=0), session: Session = Depends(get_session),
-                  user: User = Depends(get_current_user)):
+@router.get("", response_model=Page[AnalysisOut] | Page[dict])
+def list_analyses(limit: int = Query(25, ge=1, le=100), offset: int = Query(0, ge=0),
+                  compact: bool = Query(False, description="only id, symbol, timeframe, status and times (for job lists)"),
+                  session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     q = select(Analysis).where(Analysis.user_id == user.id)
     total = session.scalar(select(func.count()).select_from(q.subquery()))
     rows = session.scalars(q.order_by(Analysis.id.desc()).limit(limit).offset(offset)).all()
+    if compact:
+        return Page(items=[{"id": a.id, "symbol": a.symbol, "timeframe": a.timeframe, "status": a.status, "created_at": a.created_at,
+                            "finished_at": getattr(a, "finished_at", None)} for a in rows], total=total, limit=limit, offset=offset)
     return Page(items=[analysis_out(session, a) for a in rows], total=total, limit=limit, offset=offset)
 
 

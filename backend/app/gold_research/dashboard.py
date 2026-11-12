@@ -134,7 +134,18 @@ def _experiments(symbol: str) -> list[dict]:
     return out
 
 
+_CACHE: dict = {}
+
+
 def load() -> dict:
     if not DASHBOARD.exists():
         return {"available": False, "status": {"pattern_study": "not run yet"}}
     return {"available": True, **json.loads(DASHBOARD.read_text(encoding="utf8"))}
+
+
+def load_bytes() -> bytes:
+    """The dashboard as JSON bytes, re-read only when the file changes (the API sends it as is)."""
+    key = DASHBOARD.stat().st_mtime_ns if DASHBOARD.exists() else None
+    if _CACHE.get("key") != key or "body" not in _CACHE:
+        _CACHE.update(key=key, body=json.dumps(load(), separators=(",", ":")).encode("utf8"))
+    return _CACHE["body"]

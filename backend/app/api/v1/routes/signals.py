@@ -38,9 +38,7 @@ def signals_track_record(user: User = Depends(get_current_user)) -> dict:
 def signal_detail(symbol: str = Symbol, experimental: bool = Experimental, session: Session = Depends(get_session),
                   user: User = Depends(get_current_user)) -> dict:
     """Full top-down analysis of one instrument: the call per timeframe and for the instrument, plans, checklist, reasons, report."""
-    r = service.analyze(session, symbol, experimental=experimental)
-    service.remember(r, experimental)
-    return r
+    return service.analyze_cached(session, symbol, experimental)
 
 
 @router.post("/{symbol}/sync")
@@ -50,6 +48,9 @@ def signal_sync(request: Request, symbol: str = Symbol, experimental: bool = Exp
     res = service.sync(session, symbol)
     audit(session, user.id, "signals.sync", "instrument", symbol.upper(), request.client.host if request.client else None,
           {"provider": res.get("provider"), "fetched": res.get("fetched")})
-    r = service.analyze(session, symbol, experimental=experimental)
-    service.remember(r, experimental)
+    if res.get("fetched"):  # new candles: analyse them now
+        r = service.analyze(session, symbol, experimental=experimental)
+        service.remember(r, experimental)
+    else:  # nothing new since the last analysis (the paper cycle syncs every instrument each minute)
+        r = service.analyze_cached(session, symbol, experimental)
     return {**res, "analysis": r}

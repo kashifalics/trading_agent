@@ -81,7 +81,9 @@ export function VerdictCard({ s }: { s: PaperSummary }) {
       <CardContent className="space-y-3 pt-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className={cn("text-lg font-semibold", v.status === "negative" && "text-bear", v.status === "validated" && "text-bull")}>{VERDICT_TITLE[v.status]}</h2>
-          <span className="num text-sm text-muted-foreground">{v.n} / {v.needed} closed trades</span>
+          <span className="num text-sm text-muted-foreground">
+            {v.n < v.needed ? `${v.n} / ${v.needed} closed trades` : `${v.n} closed trades (the ${v.needed} needed for a verdict are reached)`}
+          </span>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded bg-muted" role="progressbar" aria-label="Closed trades toward a verdict" aria-valuemin={0} aria-valuemax={v.needed} aria-valuenow={v.n}>
           <div className="h-full rounded bg-primary" style={{ width: `${pct * 100}%` }} />
@@ -122,7 +124,7 @@ export function EquityCurve({ points, label }: { points: { t: string; v: number 
   }
   const W = 640;
   const H = 200;
-  const P = { l: 40, r: 12, t: 12, b: 12 };
+  const P = { l: 64, r: 12, t: 12, b: 12 };
   const vals = [0, ...points.map((p) => p.v)];
   const n = vals.length - 1;
   const lo = Math.min(...vals);
@@ -151,7 +153,9 @@ export function EquityCurve({ points, label }: { points: { t: string; v: number 
         }}
       >
         <line x1={P.l} x2={W - P.r} y1={y(0)} y2={y(0)} className="stroke-border" strokeWidth={1} />
-        <text x={P.l - 6} y={y(0) + 4} textAnchor="end" className="fill-muted-foreground text-[11px]">0R</text>
+        {Math.abs(y(0) - P.t) > 16 && Math.abs(H - P.b - y(0)) > 16 && (
+          <text x={P.l - 6} y={y(0) + 4} textAnchor="end" className="fill-muted-foreground text-[11px]">0R</text>
+        )}
         {hi > 0 && <text x={P.l - 6} y={P.t + 4} textAnchor="end" className="fill-muted-foreground text-[11px]">{fmtR(hi)}</text>}
         {lo < 0 && <text x={P.l - 6} y={H - P.b} textAnchor="end" className="fill-muted-foreground text-[11px]">{fmtR(lo)}</text>}
         <path d={d} fill="none" className="stroke-primary" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
@@ -364,7 +368,7 @@ export function TradesTable({ trades, kind }: { trades: PaperTrade[]; kind: Tabl
               <TR
                 className="cursor-pointer"
                 tabIndex={0}
-                aria-expanded={open === t.id}
+                title={open === t.id ? "Hide the plan" : "Show the plan as it was when the signal fired"}
                 onClick={() => setOpen(open === t.id ? null : t.id)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(open === t.id ? null : t.id); } }}
               >

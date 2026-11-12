@@ -1,4 +1,4 @@
-import type { TradeCall } from "@/lib/decision-types";
+import type { CallDecision, TradeCall } from "@/lib/decision-types";
 // Types for /api/v1/signals (backend: app/signals, docs/SIGNAL_ENGINE.md).
 
 export type SignalState =
@@ -231,6 +231,9 @@ export interface SignalsSummaryItem {
   active?: CompactPlan[];
   last_candle?: string | null;
   call?: TradeCall | null;
+  /** Every timeframe's decision, one line each (the Market Scanner matrix). */
+  tfs?: { timeframe: string; decision: CallDecision | null; label: string | null; headline: string | null; direction: string | null;
+    score: number | null; state: string | null; unrealized_r: number | null }[];
   /** Timeframes where the paper-trading test holds a trade or a pending order (their call carries `trade`). */
   trades?: CompactPlan[];
   /** When this instrument's analysis ran (the backend reuses it for up to `refresh_s`). */

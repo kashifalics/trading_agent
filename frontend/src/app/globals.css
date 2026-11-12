@@ -10,7 +10,7 @@
   --card: 0 0% 100%;
   --border: 214 32% 91%;
   --muted: 210 38% 96%;
-  --muted-foreground: 217 15% 47%;
+  --muted-foreground: 217 18% 37%;
   --foreground: 231 62% 20%; /* navy */
   --primary: 226 62% 40%; /* navy-blue: links, info */
   --primary-foreground: 0 0% 100%;
@@ -18,9 +18,9 @@
   --cta-foreground: 231 62% 20%;
   --nav: 122 38% 92%; /* active navigation: pale green */
   --nav-foreground: 122 42% 32%;
-  --bull: 123 40% 38%;
-  --bear: 4 72% 52%;
-  --warn: 30 92% 40%;
+  --bull: 123 46% 28%;
+  --bear: 4 72% 42%;
+  --warn: 27 92% 30%;
   --ring: 226 62% 40%;
   color-scheme: light;
 }

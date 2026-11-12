@@ -122,7 +122,7 @@ Templates: `.env.example`, `backend/.env.example`, `frontend/.env.example`. **Ne
 | `TWELVE_DATA_API_KEY` | – | Twelve Data free-plan key (optional) |
 | `OANDA_API_TOKEN`, `OANDA_BASE_URL` | –, practice host | OANDA practice account (optional, read-only) |
 | `BINANCE_API_BASE_URL`, `BIQUOTE_BASE_URL` | public hosts | Override only for mirrors |
-| `FOCUS_SYMBOLS` | `BTCUSDT,XAUUSD,EURUSD,GBPUSD` | Instruments shown by default |
+| `FOCUS_SYMBOLS` | `XAUUSD,EURUSD,GBPUSD,BTCUSDT,US30,USOIL` | Instruments shown by default |
 | `SIGNAL_SYMBOLS` | `XAUUSD,EURUSD,GBPUSD,BTCUSDT,US30,USOIL` | Instruments on the Signals page and in paper trading |
 | `SIGNAL_SPREADS` | `BTCUSDT:2,XAUUSD:0.30` | Round-trip spread in price units per instrument; others pay 0.02% of price (conservative for FX: about 2 pips). **Set your broker's spreads**, e.g. `EURUSD:0.00012` |
 | `SIGNAL_PROVIDER_OVERRIDES` | `BTCUSDT:binance` | One provider per instrument for the signal engine |

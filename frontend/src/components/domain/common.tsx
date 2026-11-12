@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
+import { useEffect } from "react";
 import Link from "next/link";
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,9 @@ import type { Decision, JobStatus } from "@/lib/types";
 import { TIMEFRAME_CODES, cn } from "@/lib/utils";
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: React.ReactNode }) {
+  useEffect(() => {
+    document.title = `${title} · AI Trading Intel`; // each page has its own tab title (history, bookmarks, screen readers)
+  }, [title]);
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>

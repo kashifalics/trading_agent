@@ -75,7 +75,7 @@ unknown ids, `401` without a valid API key when `AUTH_REQUIRED=true`.
 | Variable | Default | Meaning |
 |---|---|---|
 | `OPPORTUNITY_SYMBOLS` | `XAUUSD,US30,BTCUSDT,USOIL` | Instruments scanned |
-| `OPPORTUNITY_SCAN_INTERVAL_MINUTES` | `0` | `> 0` enables automatic scanning inside the API process (first run 30 s after start; 2 retries with backoff when a scan fails) |
+| `OPPORTUNITY_SCAN_INTERVAL_MINUTES` | `15` | `> 0` enables automatic scanning inside the API process (first run 30 s after start; 2 retries with backoff when a scan fails) |
 | `OPPORTUNITY_REFRESH_PROVIDERS` | `biquote,binance` | Providers a **scheduled** scan may sync. Quota-limited providers (Twelve Data free: 8/min, 800/day) are only synced when a user asks for "Refresh data & scan" |
 | `OPPORTUNITY_MAX_SYNC_TFS` | `4` | Timeframes refreshed per instrument by a refresh scan |
 Everything analytical (style profiles, weights, caps, penalties, costs) is in `app/opportunities/config.py` and versioned by `CONFIG_VERSION`.

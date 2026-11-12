@@ -4,6 +4,7 @@ os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ["PREFERRED_PROVIDER"] = ""  # legacy tests assert status-based routing; preference has its own tests
 os.environ["TWELVE_DATA_API_KEY"] = ""  # unit tests must never reach a real provider, whatever .env contains
 os.environ["PAPER_TRADING_INTERVAL_SECONDS"] = "0"  # no background paper-trading loop (it would sync from real providers)
+os.environ["OPPORTUNITY_SCAN_INTERVAL_MINUTES"] = "0"  # no scheduled opportunity scan either
 os.environ.setdefault("MODEL_DIR", "./.test_model_store")
 os.environ.setdefault("UPLOAD_DIR", "./.test_uploads")
 
@@ -43,8 +44,10 @@ def _fresh_signal_summary():
     """Each test gets its own database, so the in-memory signal summary from an earlier test must not be reused."""
     from app.signals import service as signal_service
     signal_service._ITEMS.clear()
+    signal_service._FULL.clear()
     yield
     signal_service._ITEMS.clear()
+    signal_service._FULL.clear()
 
 
 @pytest.fixture()

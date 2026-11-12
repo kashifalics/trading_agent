@@ -250,6 +250,16 @@ export interface AnalysisResult {
   model: Record<string, unknown> | null;
 }
 
+/** A row of the recent-jobs list (GET /analysis?compact=true). */
+export interface AnalysisJob {
+  id: number;
+  symbol: string;
+  timeframe: string;
+  status: JobStatus;
+  created_at: string;
+  finished_at?: string | null;
+}
+
 export interface Analysis {
   id: number;
   instrument_id: number;

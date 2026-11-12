@@ -128,6 +128,13 @@ describe("Paper Trading page", () => {
     expect(api.calls.some((c) => c.key === "POST /api/v1/paper/account/reset")).toBe(false);
   });
 
+  it("says when the trades needed for a verdict are reached instead of showing a count above 100%", async () => {
+    const done = { ...SUMMARY, forward: { ...SUMMARY.forward, verdict: { status: "no_edge" as const, n: 223, needed: 100, summary: "no edge" } } };
+    mockApi(routes({ "GET /api/v1/paper/summary": done }));
+    renderWithClient(<PaperTradingPage />);
+    expect(await screen.findByText("223 closed trades (the 100 needed for a verdict are reached)")).toBeInTheDocument();
+  });
+
   it("warns when automatic paper trading is off", async () => {
     mockApi(routes({ "GET /api/v1/paper/summary": { ...SUMMARY, worker: { ...SUMMARY.worker, enabled: false } } }));
     renderWithClient(<PaperTradingPage />);

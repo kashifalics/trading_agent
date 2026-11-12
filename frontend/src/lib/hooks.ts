@@ -7,6 +7,7 @@ import type { GoldResearch } from "@/lib/research-types";
 import type {
   AnaloguesResponse,
   Analysis,
+  AnalysisJob,
   Backtest,
   CandlesResponse,
   ChartAnalyzeResult,
@@ -88,8 +89,9 @@ export const useAnalysis = (id: number | null) => {
 };
 export const useAnalogues = (id: number | null) =>
   useQuery({ queryKey: ["analogues", id], queryFn: () => api.get<AnaloguesResponse>(`/analysis/${id}/analogues`), enabled: id !== null, refetchInterval: false });
+/** Recent analysis jobs (id, symbol, timeframe, status, times only: the full analyses are large). */
 export const useAnalyses = (limit = 10) =>
-  useQuery({ queryKey: ["analyses", limit], queryFn: () => api.get<Page<Analysis>>("/analysis", { limit }), refetchInterval: 20_000 });
+  useQuery({ queryKey: ["analyses", limit], queryFn: () => api.get<Page<AnalysisJob>>("/analysis", { limit, compact: true }) });
 
 export interface PredictionFilters {
   symbol?: string;
@@ -122,7 +124,7 @@ export const useBacktest = (id: number | null) =>
 export const useBacktests = () => useQuery({ queryKey: ["backtests"], queryFn: () => api.get<Page<Backtest>>("/backtests", { limit: 20 }) });
 export const useStrategies = () => useQuery({ queryKey: ["strategies"], queryFn: () => api.get<{ id: string; description: string }[]>("/backtests/strategies"), staleTime: Infinity, refetchInterval: false });
 
-export const useModels = () => useQuery({ queryKey: ["models"], queryFn: () => api.get<Page<ModelRow>>("/models"), refetchInterval: 10_000 });
+export const useModels = () => useQuery({ queryKey: ["models"], queryFn: () => api.get<Page<ModelRow>>("/models"), refetchInterval: 30_000 });
 export const useWatchlists = () => useQuery({ queryKey: ["watchlists"], queryFn: () => api.get<Watchlist[]>("/watchlists") });
 
 // ---- mutations ----

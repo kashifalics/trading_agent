@@ -16,6 +16,21 @@ const TONE: Record<CallDecision, { box: string; text: string; badge: "buy" | "wa
   "NO TRADE": { box: "border-border bg-muted/60", text: "text-muted-foreground", badge: "neutral" },
 };
 
+export const callVariant = (d?: CallDecision | null) => (d ? TONE[d].badge : "neutral");
+
+/** One matrix cell: the decision word, the reason after the dash in small type, the full sentence on hover. */
+export function ShortCall({ label, decision, headline, className }: { label?: string | null; decision?: CallDecision | null; headline?: string | null; className?: string }) {
+  if (!label || !decision) return <span className="text-xs text-muted-foreground">—</span>;
+  const [word, why] = label.split(" — ");
+  return (
+    <Badge variant={callVariant(decision)} className={cn("flex-col items-start gap-0 whitespace-nowrap rounded-md px-1.5 py-0.5 leading-tight", className)}
+      title={headline ? `${label}: ${headline}` : label}>
+      <span className="text-[10px] font-semibold">{word}</span>
+      {why && <span className="text-[9px] font-medium lowercase opacity-90">{why}</span>}
+    </Badge>
+  );
+}
+
 /** Compact call for tables and tabs: the full label (e.g. "WAIT — UNVALIDATED SETUP"). */
 export function CallBadge({ call, className }: { call?: TradeCall | null; className?: string }) {
   if (!call) return <Badge variant="neutral" className={className}>—</Badge>;
@@ -86,13 +101,13 @@ export function TradeManagementLine({ m, p }: { m: TradeManagement; p: number })
 }
 
 /** The decision panel: readable in three seconds (decision, direction, what comes next), with the detail below. */
-export function CallCard({ call, symbol, precision = 2, title }: { call: TradeCall; symbol: string; precision?: number; title?: string }) {
+export function CallCard({ call, symbol, precision = 2, title, compact = false }: { call: TradeCall; symbol: string; precision?: number; title?: string; compact?: boolean }) {
   const t = TONE[call.decision];
   const p = precision;
   const unvalidated = call.validation.status !== "validated";
   const against = [...(call.failed_checks ?? []).map((c) => `${c.name}: ${c.detail}`), ...(call.reasons_against ?? [])].slice(0, 5);
   return (
-    <section className={cn("rounded-2xl border-2 p-4 sm:p-5", t.box)} data-testid="call-card" aria-label={`Decision for ${symbol}`}>
+    <section className={cn("rounded-2xl border-2 p-4 sm:p-5", t.box)} data-testid="call-card" aria-label={`${title ?? "Decision"} for ${symbol}${call.timeframe ? ` ${call.timeframe}` : ""}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{title ?? "Decision"}</div>
@@ -125,7 +140,7 @@ export function CallCard({ call, symbol, precision = 2, title }: { call: TradeCa
             <span className="block text-xs text-muted-foreground">Entry, stop and targets are shown only with an ENTER decision.</span>
           </Field>
         ) : null}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className={cn("grid grid-cols-1 gap-3", !compact && "sm:grid-cols-3")}>
           {!call.trade && <Field label="Confirmation">{call.alignment?.confirmation ? `${call.alignment.confirmation.timeframe}: ${call.alignment.confirmation.status}` : call.technical_status ?? "—"}</Field>}
           <Field label="Data quality" testId="call-data">
             <span className={call.data_quality.status === "ok" ? "" : "text-bear"}>{call.data_quality.status}</span>
@@ -134,7 +149,7 @@ export function CallCard({ call, symbol, precision = 2, title }: { call: TradeCa
           {!call.trade && <Field label="Timeframes" testId="call-alignment">{call.alignment?.summary ?? "—"}</Field>}
         </div>
         {(call.reasons_for?.length || against.length) ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className={cn("grid grid-cols-1 gap-3", !compact && "sm:grid-cols-2")}>
             <div>
               <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-bull">Supports</div>
               <ul className="space-y-1 text-xs">{(call.reasons_for ?? []).slice(0, 4).map((r, i) => <li key={i} className="flex gap-1.5"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-bull" aria-hidden />{r}</li>)}</ul>

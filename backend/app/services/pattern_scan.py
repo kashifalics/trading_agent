@@ -51,14 +51,29 @@ def verdict(ev: dict | None) -> str:
     return "no_edge_found"
 
 
+def resolve_source(session: Session, symbol: str, provider: str | None):
+    """An explicit provider, else the one the Signals page uses for this instrument (so both pages read the same candles)."""
+    if provider:
+        return resolve_mapping(session, symbol, provider)
+    from app.signals.service import resolve
+    return resolve(session, symbol)
+
+
+def series(session: Session, inst, prov, pi, tf: str, lookback: int):
+    """Stored complete candles, or (when the native series is too short) candles built from a lower timeframe, as Signals does."""
+    from app.opportunities.analysis import prepare_tf
+    t = prepare_tf(session, inst, prov, pi, tf, lookback=lookback)
+    return (t.bars if t.bars is not None else load_bars(session, inst, prov, tf, lookback)), t.derived_from
+
+
 def scan_symbol(session: Session, symbol: str, provider: str | None = None, recent: int = 3, lookback: int = 800,
                 evidence_file: Path | None = None) -> dict:
-    inst, prov, _ = resolve_mapping(session, symbol, provider)
+    inst, prov, pi = resolve_source(session, symbol, provider)
     store = load_evidence(evidence_file)
     ev_sym = store.get("symbols", {}).get(inst.canonical_symbol, {})
     frames = []
     for tf in TIMEFRAME_ORDER:
-        bars = load_bars(session, inst, prov, tf, lookback)
+        bars, derived = series(session, inst, prov, pi, tf, lookback)
         n = len(bars)
         if n < MIN_BARS:
             frames.append({"timeframe": tf, "bars": n, "status": "insufficient_data"})
@@ -82,7 +97,7 @@ def scan_symbol(session: Session, symbol: str, provider: str | None = None, rece
             "structure_trend": int(pa.trend[-1]), "last_break": (pa.breaks[-1].kind + ":" + pa.breaks[-1].direction) if pa.breaks else None,
             "zone": pd_.status if pd_ else None, "range_position": pd_.meta["position"] if pd_ else None,
             "atr": float(pa.atr[-1]) if n and pa.atr[-1] == pa.atr[-1] else None, "last_close": float(bars.c[-1]),
-            "live_zones": len(live_zones), "patterns_firing": firing,
+            "live_zones": len(live_zones), "patterns_firing": firing, "derived_from": derived,
         })
     ok = [f for f in frames if f["status"] == "ok"]
     ups = sum(f["structure_trend"] > 0 for f in ok)

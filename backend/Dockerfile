@@ -17,6 +17,9 @@ USER app
 
 # Hosts such as Railway inject $PORT; locally and in docker compose it stays 8000.
 ENV PORT=8000
+# Behind the host's proxy every request comes from the proxy's address; trust its X-Forwarded-For so the per-client rate limit
+# counts real clients (otherwise all users share one budget).
+ENV FORWARDED_ALLOW_IPS="*"
 EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=5s --retries=5 CMD python -c "import os, urllib.request as u; u.urlopen('http://localhost:%s/api/v1/health' % os.environ.get('PORT', '8000'), timeout=4)"
 CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]

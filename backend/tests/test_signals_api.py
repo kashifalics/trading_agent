@@ -118,6 +118,23 @@ def test_summary_lists_the_timeframes_where_a_paper_trade_is_held_with_its_level
     assert [p["timeframe"] for p in item["active"]] == ["1H"]
 
 
+def test_a_page_view_reuses_a_fresh_analysis_and_large_responses_are_compressed(client, monkeypatch):
+    _seed("XAUUSD")
+    calls = []
+    real = service.analyze
+    monkeypatch.setattr(service, "analyze", lambda s, sym, *a, **k: calls.append(sym) or real(s, sym, *a, **k))
+    first = client.get("/api/v1/signals/XAUUSD", headers={"Accept-Encoding": "gzip"})
+    again = client.get("/api/v1/signals/XAUUSD").json()
+    assert calls == ["XAUUSD"] and again["generated_at"] == first.json()["generated_at"]  # the second view did not re-analyse
+    assert first.headers.get("content-encoding") == "gzip"
+    cached = service._FULL[("XAUUSD", False)]
+    service._FULL[("XAUUSD", False)] = (cached[0] - service.DETAIL_TTL_S - 1, cached[1])  # too old now
+    client.get("/api/v1/signals/XAUUSD")
+    assert calls == ["XAUUSD", "XAUUSD"]
+    jobs = client.get("/api/v1/analysis", params={"compact": "true"})
+    assert jobs.status_code == 200 and jobs.json()["items"] == []
+
+
 def test_config_track_record_and_validation_errors(client):
     cfg = client.get("/api/v1/signals/config").json()
     assert sum(cfg["factors"].values()) == 100 and cfg["thresholds"]["signal"] == 60

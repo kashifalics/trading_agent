@@ -42,5 +42,5 @@ export function SeriesChart({
     c.timeScale().fitContent();
     return () => c.remove();
   }, [data, color, kind, precision]);
-  return <div ref={el} style={{ height }} className="w-full overflow-hidden rounded-md border" role="img" aria-label={label} />;
+  return <div ref={el} style={{ height }} className="w-full overflow-hidden rounded-md border" role="figure" aria-label={label} />;
 }

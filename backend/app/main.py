@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
@@ -18,7 +19,8 @@ from app.database.init_db import init_db
 log = logging.getLogger("app")
 API_DESCRIPTION = (
     "AI Trading Intelligence Platform - ANALYSIS ONLY. No order execution, no broker connectivity. "
-    "Decisions are BUY / SELL / WAIT with evidence; probabilities are only shown when genuinely calibrated and validated."
+    "Every instrument and timeframe gets one decision (ENTER / HOLD / WAIT / EXIT / NO TRADE) with its evidence; ENTER requires "
+    "research-validated rules, and probabilities are only shown when genuinely calibrated and validated."
 )
 
 
@@ -61,6 +63,7 @@ def create_app() -> FastAPI:
     origins = [s.frontend_url] if s.is_production else [s.frontend_url, "http://localhost:3000", "http://127.0.0.1:3000"]
     app.add_middleware(CORSMiddleware, allow_origins=list(dict.fromkeys(origins)),
                        allow_methods=["GET", "POST", "DELETE", "PATCH"], allow_headers=["*"], allow_credentials=False)
+    app.add_middleware(GZipMiddleware, minimum_size=1024)  # JSON compresses ~8x (the Gold Research summary is 840 KB raw)
 
     hits: dict[str, deque] = defaultdict(deque)
     sweep = {"at": time.monotonic()}

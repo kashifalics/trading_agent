@@ -22,7 +22,7 @@ shown as **WAIT — UNVALIDATED SETUP**.
 | **Paper Trading** | A simulated account that records every technically complete setup automatically and follows it on later candles, with a HOLD / EXIT / WAIT recommendation for open trades (section 5) |
 | **Trade Opportunities** | Setups ranked across instruments and timeframes by an evidence score (not a win probability) |
 | **Chart Analysis** | Analyse one instrument and timeframe in depth, or upload a chart screenshot |
-| **Market Scanner** | The latest stored analysis per instrument and timeframe |
+| **Market Scanner** | The live decision for every instrument and timeframe on one grid (updated every minute; click a cell for its checklist), plus on-demand deep analyses |
 | **Historical Patterns** | Which patterns and structures are present now on every timeframe, each with its measured history |
 | **Predictions** | Every analysis you ran, with its evidence and what happened afterwards |
 | **Gold Research** | Results of the 20-year gold study (no validated strategy was found) |

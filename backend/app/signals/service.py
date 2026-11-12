@@ -52,6 +52,9 @@ MAX_FRAMES = 400
 # and stores the result here (so does every Signals request), so the summary normally answers at once instead of analysing all of them.
 SUMMARY_TTL_S = 90
 _ITEMS: dict[tuple[str, bool], tuple[float, dict]] = {}
+# The full analysis of one instrument is reused for this long by GET /signals/{symbol} and by a sync that fetched nothing new.
+DETAIL_TTL_S = 45
+_FULL: dict[tuple[str, bool], tuple[float, dict]] = {}
 REFRESH_TFS = ("1m", "3m", "5m", "15m", "30m", "1H", "2H", "4H", "1D", "1W", "1M")
 NOT_SERVED = {"biquote": {"1M"}}  # BiQuote has no monthly series (docs/BIQUOTE_PROVIDER_EVALUATION.md)
 PUBLISH_GRACE_S = 90  # providers publish a closed candle within a minute or two: one more try after that
@@ -231,6 +234,12 @@ def summary_item(r: dict) -> dict:
                "active": [_compact_plan(p) for p in r.get("plans") or [] if p["timeframe"] in (r.get("active") or [])],
                # timeframes where the paper-trading test holds a trade or a pending order (shown with their levels and open R)
                "trades": [_compact_plan(p) for p in r.get("plans") or [] if (p.get("call") or {}).get("trade")],
+               # every timeframe's decision in one line each (the Market Scanner matrix)
+               "tfs": [{"timeframe": p["timeframe"], "decision": (p.get("call") or {}).get("decision"),
+                        "label": (p.get("call") or {}).get("label"), "headline": (p.get("call") or {}).get("headline"),
+                        "direction": (p.get("call") or {}).get("direction"), "score": p.get("score"), "state": p.get("state"),
+                        "unrealized_r": ((p.get("call") or {}).get("trade") or {}).get("unrealized_r")}
+                       for p in r.get("plans") or []],
                "last_candle": max((t.get("close_time") or "" for t in r.get("timeframes") or []), default=None) or None,
                "as_of": r.get("generated_at")})
 
@@ -238,7 +247,19 @@ def summary_item(r: dict) -> dict:
 def remember(r: dict, experimental: bool = False) -> None:
     """Keep an instrument's latest analysis for the summary (from the paper cycle, a Signals request or a sync)."""
     if r.get("status") == "ok" and r.get("symbol"):
-        _ITEMS[(r["symbol"], experimental)] = (time.monotonic(), summary_item(r))
+        now = time.monotonic()
+        _ITEMS[(r["symbol"], experimental)] = (now, summary_item(r))
+        _FULL[(r["symbol"], experimental)] = (now, r)
+
+
+def analyze_cached(session: Session, symbol: str, experimental: bool = False, max_age: float = DETAIL_TTL_S) -> dict:
+    """The latest analysis of an instrument if it is younger than `max_age` seconds, else a fresh one (which is then kept)."""
+    hit = _FULL.get((symbol.upper(), experimental))
+    if hit is not None and time.monotonic() - hit[0] < max_age:
+        return hit[1]
+    r = analyze(session, symbol, experimental=experimental)
+    remember(r, experimental)
+    return r
 
 
 def summary(session: Session, experimental: bool = False) -> dict:

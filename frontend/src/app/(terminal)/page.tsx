@@ -124,9 +124,9 @@ export default function DashboardPage() {
     <>
       <PageHeader title="Overview" description="Live quotes, structure bias, recent predictions and data health for the tracked instruments. Every number comes from the backend; nothing is simulated." />
 
-      <QueryState query={instruments} skeleton={<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-36" />)}</div>}>
+      <QueryState query={instruments} skeleton={<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-36" />)}</div>}>
         {(list) => (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {list.map((i) => (
               <QuoteCard key={i.id} inst={i} quote={quotes.data?.find((q) => q.symbol === i.canonical_symbol)} />
             ))}
@@ -150,7 +150,7 @@ export default function DashboardPage() {
             >
               {(d) => (
                 <Table>
-                  <THead><TR><TH>Instrument</TH><TH>TF</TH><TH>Decision</TH><TH>R:R</TH><TH>As of</TH><TH /></TR></THead>
+                  <THead><TR><TH>Instrument</TH><TH>TF</TH><TH>Decision</TH><TH>R:R</TH><TH>As of</TH><TH><span className="sr-only">Details</span></TH></TR></THead>
                   <TBody>
                     {d.items.map((p) => (
                       <TR key={p.id}>

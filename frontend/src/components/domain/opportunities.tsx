@@ -90,8 +90,8 @@ export function SummaryBar({ s }: { s: OppSummary }) {
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-testid="opp-summary">
       <Stat label="Latest scan" value={sc ? timeAgo(sc.finished_at) : "never"} sub={sc ? `#${sc.id} · ${sc.status.replace(/_/g, " ")} · ${sc.trigger}` : "no scan yet"} testId="stat-scan" />
-      <Stat label="Data freshness" value={fresh?.max_stale_bars == null ? "—" : fresh.max_stale_bars === 0 ? "current" : `${fresh.max_stale_bars} bars behind`}
-        sub={sum?.latest_candle_ts ? `latest candle ${fmtDate(new Date(sum.latest_candle_ts * 1000).toISOString())}` : "worst timeframe"} testId="stat-fresh" />
+      <Stat label="Data at scan time" value={fresh?.max_stale_bars == null ? "—" : fresh.max_stale_bars === 0 ? "up to date" : `${fresh.max_stale_bars} bars behind`}
+        sub={sum?.latest_candle_ts ? `latest candle ${timeAgo(new Date(sum.latest_candle_ts * 1000).toISOString())} (${fmtDate(new Date(sum.latest_candle_ts * 1000).toISOString())})` : "worst timeframe"} testId="stat-fresh" />
       <Stat label="Instruments scanned" value={sum ? `${sum.instruments_scanned} / ${sum.instruments_requested}` : "—"}
         sub={sum?.instruments_unavailable.length ? `unavailable: ${sum.instruments_unavailable.join(", ")}` : "all available"} testId="stat-instruments" />
       <Stat label="Timeframes completed" value={sum ? `${sum.timeframes_completed} / ${sum.timeframes_total}` : "—"} sub="of 14 per instrument" testId="stat-tfs" />

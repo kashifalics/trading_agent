@@ -71,8 +71,11 @@ export default function SignalsPage() {
   const [tf, setTf] = useState<string | null>(null);
   useEffect(() => {
     // deep link from Overview "Decisions now": /signals?symbol=XAUUSD
-    const s = new URLSearchParams(window.location.search).get("symbol");
+    const qs = new URLSearchParams(window.location.search);
+    const s = qs.get("symbol");
     if (s) setSymbol(s.toUpperCase());
+    const t = qs.get("tf");
+    if (t) setTf(t);
   }, []);
   const { liveSignals, experimentalMode, set } = useSettings();
   const sync = useSyncSignal();

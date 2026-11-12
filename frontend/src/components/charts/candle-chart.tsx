@@ -188,5 +188,5 @@ export function CandleChart({ candles, precision, markers = [], zones = [], segm
     );
   }, [lines]);
 
-  return <div ref={el} style={{ height }} className="w-full overflow-hidden rounded-md border" role="img" aria-label="Candlestick chart" />;
+  return <div ref={el} style={{ height }} className="w-full overflow-hidden rounded-md border" role="figure" aria-label="Candlestick chart" />;
 }

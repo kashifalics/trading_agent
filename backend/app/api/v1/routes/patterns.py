@@ -5,11 +5,9 @@ from app.candlestick.patterns import PATTERN_DEFINITIONS
 from app.core.exceptions import AppError
 from app.core.jsonutil import to_jsonable
 from app.database.session import get_session
-from app.market_data.ingestion.service import resolve_mapping
 from app.market_data.timeframes import TIMEFRAMES
 from app.price_action.engine import analyze_price_action
-from app.services.data_service import load_bars
-from app.services.pattern_scan import scan_symbol
+from app.services.pattern_scan import resolve_source, scan_symbol, series
 from app.services.pipeline import overlay_events, swing_points
 
 router = APIRouter(prefix="/patterns", tags=["patterns"])
@@ -47,8 +45,8 @@ def patterns(symbol: str, timeframe: str, provider: str | None = None, lookback_
     """Pattern/structure detections on stored complete candles (no network call)."""
     if timeframe not in TIMEFRAMES:
         raise AppError(f"Unsupported timeframe '{timeframe}'")
-    inst, prov, _ = resolve_mapping(session, symbol, provider)
-    bars = load_bars(session, inst, prov, timeframe, lookback_bars)
+    inst, prov, pi = resolve_source(session, symbol, provider)
+    bars, _derived = series(session, inst, prov, pi, timeframe, lookback_bars)
     if len(bars) < 30:
         return {"symbol": inst.canonical_symbol, "timeframe": timeframe, "provider": prov.code, "n_bars": len(bars),
                 "events": [], "swings": [], "message": "Not enough stored candles; sync data first."}

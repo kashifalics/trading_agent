@@ -207,7 +207,7 @@ export default function ChartPage() {
               {result && (
                 <>
                   <div className="text-xs text-muted-foreground">{analysis.data?.symbol} · {analysis.data?.timeframe} · as of {fmtDate(analysis.data?.as_of_ts)}</div>
-                  {analysis.data?.call && <CallCard call={analysis.data.call} symbol={analysis.data.symbol ?? ""} precision={precision} />}
+                  {analysis.data?.call && <CallCard call={analysis.data.call} symbol={analysis.data.symbol ?? ""} precision={precision} compact />}
                   {(analysis.data?.call?.levels || analysis.data?.call?.hypothetical) && (
                     <div data-testid="hypothetical-plan">
                       {analysis.data?.call?.hypothetical && <p className="mb-1 text-xs font-semibold text-warn">HYPOTHETICAL — UNVALIDATED plan</p>}
