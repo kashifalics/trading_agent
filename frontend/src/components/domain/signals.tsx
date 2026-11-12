@@ -75,11 +75,11 @@ export function AllSignalsTable({ items, value, onPick }: { items: SignalsSummar
           const where = [i.call?.timeframe, i.call && i.call.direction !== "NONE" ? i.call.direction : null].filter(Boolean).join(" · ");
           return (
             <TR key={i.symbol} data-testid={`all-${i.symbol}`} className={cn(value === i.symbol && "bg-primary/5")}>
-              <TD className="whitespace-nowrap">
+              <TD className="min-w-[8rem]">
                 <button className="font-semibold hover:underline" onClick={() => onPick(i.symbol, i.call?.timeframe ?? undefined)}>{i.symbol}</button>
                 {i.name && <span className="block text-[11px] text-muted-foreground">{i.name}</span>}
               </TD>
-              <TD className="whitespace-nowrap">
+              <TD className="min-w-[11rem] max-w-[16rem]">
                 <CallBadge call={i.call} className="text-[10px]" />
                 <span className="block text-[11px] text-muted-foreground">{where || (i.status !== "ok" ? "no data" : "")}</span>
                 {i.call?.trade && <TradeBrief m={i.call.trade} p={px} />}
@@ -112,7 +112,7 @@ export function AllSignalsTable({ items, value, onPick }: { items: SignalsSummar
                   </div>
                 )}
               </TD>
-              <TD className="min-w-[14rem] max-w-[24rem] text-xs text-muted-foreground">{i.call?.next_condition ?? i.call?.headline ?? i.reason ?? "—"}</TD>
+              <TD className="min-w-[11rem] max-w-[20rem] text-xs text-muted-foreground">{i.call?.next_condition ?? i.call?.headline ?? i.reason ?? "—"}</TD>
             </TR>
           );
         })}
