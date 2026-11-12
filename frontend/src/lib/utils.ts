@@ -43,3 +43,8 @@ export function signClass(v: number | null | undefined): string {
   if (v === null || v === undefined || v === 0) return "text-muted-foreground";
   return v > 0 ? "text-bull" : "text-bear";
 }
+
+/** The oldest of several ISO times (e.g. the analysis time of each instrument): everything shown is at least this fresh. */
+export function oldestTime(times: (string | null | undefined)[]): string | null {
+  return times.filter((x): x is string => !!x).sort()[0] ?? null;
+}

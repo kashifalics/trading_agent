@@ -48,6 +48,10 @@ _FRAMES: dict[tuple, Frame] = {}
 _MEMORY: dict = {}
 _QUOTES: dict[str, tuple[float, dict | None]] = {}
 MAX_FRAMES = 400
+# The summary reuses each instrument's latest analysis for this long. The paper-trading cycle re-analyses every instrument every minute
+# and stores the result here (so does every Signals request), so the summary normally answers at once instead of analysing all of them.
+SUMMARY_TTL_S = 90
+_ITEMS: dict[tuple[str, bool], tuple[float, dict]] = {}
 REFRESH_TFS = ("1m", "3m", "5m", "15m", "30m", "1H", "2H", "4H", "1D", "1W", "1M")
 NOT_SERVED = {"biquote": {"1M"}}  # BiQuote has no monthly series (docs/BIQUOTE_PROVIDER_EVALUATION.md)
 PUBLISH_GRACE_S = 90  # providers publish a closed candle within a minute or two: one more try after that
@@ -216,9 +220,32 @@ def compact_call(c: dict | None) -> dict | None:
                                   "validation", "data_quality", "levels", "hypothetical", "experimental")}
 
 
+def summary_item(r: dict) -> dict:
+    """One instrument's row of the summary, from its full analysis. `as_of` is when that analysis ran."""
+    if r["status"] != "ok":
+        return ({k: r.get(k) for k in ("symbol", "name", "status", "reason", "provider", "price_precision")}
+                | {"call": compact_call(r.get("call")), "as_of": r.get("generated_at")})
+    return ({k: r.get(k) for k in ("symbol", "name", "status", "provider", "price_precision", "market_open", "quote", "overall", "counts",
+                                   "session")}
+            | {"best": _compact_plan(r.get("best")), "call": compact_call(r.get("call")),
+               "active": [_compact_plan(p) for p in r.get("plans") or [] if p["timeframe"] in (r.get("active") or [])],
+               "last_candle": max((t.get("close_time") or "" for t in r.get("timeframes") or []), default=None) or None,
+               "as_of": r.get("generated_at")})
+
+
+def remember(r: dict, experimental: bool = False) -> None:
+    """Keep an instrument's latest analysis for the summary (from the paper cycle, a Signals request or a sync)."""
+    if r.get("status") == "ok" and r.get("symbol"):
+        _ITEMS[(r["symbol"], experimental)] = (time.monotonic(), summary_item(r))
+
+
 def summary(session: Session, experimental: bool = False) -> dict:
     items = []
     for sym in get_settings().signal_list:
+        hit = _ITEMS.get((sym, experimental))
+        if hit is not None and time.monotonic() - hit[0] < SUMMARY_TTL_S:
+            items.append(hit[1])
+            continue
         try:
             r = analyze(session, sym, experimental=experimental)
         except AppError as exc:
@@ -229,16 +256,10 @@ def summary(session: Session, experimental: bool = False) -> dict:
             items.append({"symbol": sym, "status": "failed", "reason": f"{exc.__class__.__name__}: {exc}"[:200],
                           "call": compact_call(unavailable_call(sym, "the analysis failed"))})
             continue
-        if r["status"] != "ok":
-            items.append({k: r.get(k) for k in ("symbol", "name", "status", "reason", "provider", "price_precision")} | {"call": compact_call(r.get("call"))})
-            continue
-        items.append({k: r.get(k) for k in ("symbol", "name", "status", "provider", "price_precision", "market_open", "quote", "overall",
-                                             "counts", "session")}
-                     | {"best": _compact_plan(r.get("best")), "call": compact_call(r.get("call")),
-                        "active": [_compact_plan(p) for p in r["plans"] if p["timeframe"] in r["active"]],
-                        "last_candle": max((t.get("close_time") or "" for t in r["timeframes"]), default=None) or None})
+        remember(r, experimental)
+        items.append(summary_item(r))
     return to_jsonable({"items": items, "generated_at": datetime.now(timezone.utc).isoformat(), "config_version": CONFIG_VERSION,
-                        "disclaimer": DISCLAIMER})
+                        "refresh_s": SUMMARY_TTL_S, "disclaimer": DISCLAIMER})
 
 
 def latest_expected_close(last_ts: datetime, tf: str, now: datetime, calendar: str, anchor) -> datetime | None:

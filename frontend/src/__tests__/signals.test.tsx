@@ -184,6 +184,32 @@ describe("Signals page", () => {
     expect(screen.getByTestId("plan-detail")).toHaveTextContent("Watchlist"); // the technical state, shown below the decision
   });
 
+  it("shows every instrument's signals on one screen and opens the one you click", async () => {
+    const withSetups: SignalsSummary = { ...SUMMARY, items: [
+      { ...SUMMARY.items[0], name: "Gold Spot", as_of: new Date().toISOString(), active: [
+        { timeframe: "1H", state: "ENTRY_READY", instruction: "EXECUTE NOW", decision: "BUY", direction: "BUY", score: 72, grade: "A", tp1: 3990, call: CALL_READY },
+        { timeframe: "4H", state: "WATCHLIST", instruction: "NO TRADE", decision: "WAIT", direction: "SELL", score: 66, grade: null, tp1: 3900, call: CALL_WATCH }] },
+      { ...SUMMARY.items[1], as_of: new Date().toISOString() }] };
+    routes({ "GET /api/v1/signals": withSetups });
+    useSettings.setState({ liveSignals: false });
+    const user = userEvent.setup();
+    renderWithClient(<SignalsPage />);
+    const all = await screen.findByTestId("all-signals");
+    expect(within(all).getAllByRole("row")).toHaveLength(3); // header + every instrument
+    const gold = within(all).getByTestId("all-XAUUSD");
+    expect(gold).toHaveTextContent("WAIT — UNVALIDATED SETUP");
+    expect(gold).toHaveTextContent("Bullish");
+    expect(within(gold).getByTestId("setup-XAUUSD-1H")).toHaveTextContent("1HBUY72/100");
+    expect(within(gold).getByTestId("setup-XAUUSD-4H")).toHaveTextContent("NO TRADE — CONDITION FAILED");
+    expect(within(all).getByTestId("all-BTCUSDT")).toHaveTextContent("NO TRADE — DATA");
+    expect(all).not.toHaveTextContent("3,990"); // levels of unvalidated setups never appear in the list
+    expect(screen.getByTestId("all-signals-updated")).toHaveTextContent("refreshes automatically");
+    await user.click(within(gold).getByTestId("setup-XAUUSD-4H"));
+    await waitFor(() => expect(screen.getByTestId("plan-detail")).toHaveTextContent("structural stop is 4.6 ATR"));
+    await user.click(within(all).getByRole("button", { name: "BTCUSDT" }));
+    expect(await screen.findByText("BTCUSDT: no analysis yet")).toBeInTheDocument();
+  });
+
   it("syncs fresh candles on load and on demand", async () => {
     const api = routes();
     const user = userEvent.setup();

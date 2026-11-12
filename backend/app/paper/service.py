@@ -230,6 +230,9 @@ def process_symbol(session: Session, symbol: str, now: datetime | None = None) -
     changed = step_trades(session, inst, frames, now)
     new = record_signals(session, acc, inst, prov.id, analysis, now)
     session.commit()
+    if new or changed:  # the decisions about tracked trades changed: show the new ones at once
+        analysis = signals.analyze(session, symbol, now)
+    signals.remember(analysis)  # the Overview and Signals summary read this instead of re-analysing every instrument
     return {"symbol": inst.canonical_symbol, "status": "ok", "new": [{"id": t.id, "timeframe": t.timeframe, "side": t.direction,
                                                                      "order_type": t.order_type} for t in new],
             "updated": [{"id": t.id, "timeframe": t.timeframe, "status": t.status, "exit_reason": t.exit_reason} for t in changed]}

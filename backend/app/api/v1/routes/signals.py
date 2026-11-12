@@ -38,7 +38,9 @@ def signals_track_record(user: User = Depends(get_current_user)) -> dict:
 def signal_detail(symbol: str = Symbol, experimental: bool = Experimental, session: Session = Depends(get_session),
                   user: User = Depends(get_current_user)) -> dict:
     """Full top-down analysis of one instrument: the call per timeframe and for the instrument, plans, checklist, reasons, report."""
-    return service.analyze(session, symbol, experimental=experimental)
+    r = service.analyze(session, symbol, experimental=experimental)
+    service.remember(r, experimental)
+    return r
 
 
 @router.post("/{symbol}/sync")
@@ -48,4 +50,6 @@ def signal_sync(request: Request, symbol: str = Symbol, experimental: bool = Exp
     res = service.sync(session, symbol)
     audit(session, user.id, "signals.sync", "instrument", symbol.upper(), request.client.host if request.client else None,
           {"provider": res.get("provider"), "fetched": res.get("fetched")})
-    return {**res, "analysis": service.analyze(session, symbol, experimental=experimental)}
+    r = service.analyze(session, symbol, experimental=experimental)
+    service.remember(r, experimental)
+    return {**res, "analysis": r}

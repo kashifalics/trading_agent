@@ -83,6 +83,27 @@ def test_summary_lists_configured_instruments_and_is_honest_about_missing_data(c
     assert items["XAUUSD"]["call"]["decision"] in ("WAIT", "NO TRADE")
 
 
+def test_summary_reuses_each_instruments_latest_analysis_until_it_is_too_old(client, monkeypatch):
+    _seed("XAUUSD")
+    detail = client.get("/api/v1/signals/XAUUSD").json()  # any fresh analysis is kept for the summary
+    calls = []
+    real = service.analyze
+    monkeypatch.setattr(service, "analyze", lambda s, sym, *a, **k: calls.append(sym) or real(s, sym, *a, **k))
+    first = {i["symbol"]: i for i in client.get("/api/v1/signals").json()["items"]}
+    assert "XAUUSD" not in calls  # answered from the analysis above, not recomputed
+    assert first["XAUUSD"]["as_of"] == detail["generated_at"] and first["XAUUSD"]["call"] == service.compact_call(detail["call"])
+    calls.clear()
+    client.get("/api/v1/signals")
+    assert calls.count("XAUUSD") == 0  # still fresh
+    cached = service._ITEMS[("XAUUSD", False)]
+    service._ITEMS[("XAUUSD", False)] = (cached[0] - service.SUMMARY_TTL_S - 1, cached[1])  # now too old
+    again = {i["symbol"]: i for i in client.get("/api/v1/signals").json()["items"]}
+    assert calls.count("XAUUSD") == 1 and again["XAUUSD"]["as_of"] >= first["XAUUSD"]["as_of"]
+    calls.clear()
+    client.get("/api/v1/signals?experimental=true")
+    assert "XAUUSD" in calls  # experimental decisions are kept separately
+
+
 def test_config_track_record_and_validation_errors(client):
     cfg = client.get("/api/v1/signals/config").json()
     assert sum(cfg["factors"].values()) == 100 and cfg["thresholds"]["signal"] == 60

@@ -4,7 +4,7 @@ import { Info, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { EmptyState, ErrorState, PageHeader, QueryState } from "@/components/domain/common";
 import { CallCard } from "@/components/domain/call";
-import { InstrumentTabs, OverviewCard, PlanDetail, TimeframeTable, isActionable } from "@/components/domain/signals";
+import { AllSignalsTable, InstrumentTabs, OverviewCard, PlanDetail, TimeframeTable, isActionable } from "@/components/domain/signals";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/form";
@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/misc";
 import { useSignal, useSignalsSummary, useSyncSignal } from "@/lib/hooks";
 import type { SignalAnalysis } from "@/lib/signal-types";
 import { useSettings } from "@/lib/store";
-import { timeAgo } from "@/lib/utils";
+import { oldestTime, timeAgo } from "@/lib/utils";
 
 const AUTO_SYNC_MS = 60_000;
 
@@ -95,7 +95,7 @@ export default function SignalsPage() {
         description="Top-down multi-timeframe price-action analysis: one decision per instrument and timeframe (ENTER, WAIT, EXIT or NO TRADE) with its reasons, what must happen next and a 100-point confluence checklist. Entry, stop and targets appear only with ENTER. Analysis only: no orders are placed."
         actions={
           <>
-            <Checkbox label="Live refresh (60 s)" checked={liveSignals} onChange={(e) => set({ liveSignals: e.target.checked })} />
+            <Checkbox label="Live refresh (fetch new candles every 60 s)" checked={liveSignals} onChange={(e) => set({ liveSignals: e.target.checked })} />
             <Checkbox label="Experimental mode (show unvalidated levels)" checked={experimentalMode} onChange={(e) => set({ experimentalMode: e.target.checked })} />
             <Button onClick={() => current && mutate(current)} disabled={!current || sync.isPending} data-testid="refresh-now">
               <RefreshCw className={`h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} /> {sync.isPending ? "Refreshing…" : "Refresh now"}
@@ -119,10 +119,27 @@ export default function SignalsPage() {
         empty={<EmptyState title="No instruments configured" hint="Set SIGNAL_SYMBOLS in the backend .env." />}>
         {(d) => (
           <div className="space-y-5">
+            <Card>
+              <CardHeader>
+                <CardTitle>All signals ({d.items.length} instruments)</CardTitle>
+                <span className="text-xs text-muted-foreground" data-testid="all-signals-updated">
+                  {oldestTime(d.items.map((i) => i.as_of)) ? `analysed ${timeAgo(oldestTime(d.items.map((i) => i.as_of))!)}` : ""} · refreshes automatically · click an instrument or a timeframe for its detail
+                </span>
+              </CardHeader>
+              <CardContent className="p-0">
+                <AllSignalsTable items={d.items} value={current} onPick={(s, t) => {
+                  setSymbol(s);
+                  setTf(t ?? null);
+                  if (typeof document !== "undefined") document.getElementById("signal-detail")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+                }} />
+              </CardContent>
+            </Card>
+            <div id="signal-detail" className="space-y-5">
             <InstrumentTabs items={d.items} value={current} onChange={(s) => { setSymbol(s); setTf(null); }} />
             <QueryState query={q} skeleton={<Skeleton className="h-96 w-full" />}>
               {(a) => <Analysis a={a} tf={tf} setTf={setTf} />}
             </QueryState>
+            </div>
           </div>
         )}
       </QueryState>

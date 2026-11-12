@@ -231,11 +231,14 @@ export interface SignalsSummaryItem {
   active?: CompactPlan[];
   last_candle?: string | null;
   call?: TradeCall | null;
+  /** When this instrument's analysis ran (the backend reuses it for up to `refresh_s`). */
+  as_of?: string | null;
 }
 
 export interface SignalsSummary {
   items: SignalsSummaryItem[];
   generated_at: string;
+  refresh_s?: number;
   config_version: string;
   disclaimer: string;
 }

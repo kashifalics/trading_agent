@@ -37,9 +37,12 @@ export const retryPolicy = (failureCount: number, error: unknown) =>
 
 const isActive = (s?: string) => s === "queued" || s === "running";
 
+/** Default refresh interval of every query (app/providers.tsx). */
+export const AUTO_REFRESH_MS = 60_000;
+
 export const useHealth = () => useQuery({ queryKey: ["health"], queryFn: () => api.get<Health>("/health"), refetchInterval: 30_000 });
 export const useInstruments = () => useQuery({ queryKey: ["instruments"], queryFn: () => api.get<Instrument[]>("/market/instruments"), staleTime: 60_000 });
-export const useTimeframes = () => useQuery({ queryKey: ["timeframes"], queryFn: () => api.get<Timeframe[]>("/market/timeframes"), staleTime: Infinity });
+export const useTimeframes = () => useQuery({ queryKey: ["timeframes"], queryFn: () => api.get<Timeframe[]>("/market/timeframes"), staleTime: Infinity, refetchInterval: false });
 export const useQuotes = () => useQuery({ queryKey: ["quotes"], queryFn: () => api.get<Quote[]>("/market/quotes"), refetchInterval: 15_000 });
 export const useCoverage = (symbol?: string) =>
   useQuery({ queryKey: ["coverage", symbol ?? "all"], queryFn: () => api.get<Coverage[]>("/market/coverage", { symbol }) });
@@ -68,7 +71,7 @@ export const usePatternScan = (symbol: string, recent = 3) =>
     retry: retryPolicy,
   });
 export const usePatternDefinitions = () =>
-  useQuery({ queryKey: ["pattern-defs"], queryFn: () => api.get<PatternDefinitions>("/patterns/definitions"), staleTime: Infinity });
+  useQuery({ queryKey: ["pattern-defs"], queryFn: () => api.get<PatternDefinitions>("/patterns/definitions"), staleTime: Infinity, refetchInterval: false });
 
 /** The experimental-mode flag sent with every request that returns a trading decision (undefined = off). */
 export const useExperimental = () => useSettings((s) => s.experimentalMode);
@@ -84,7 +87,7 @@ export const useAnalysis = (id: number | null) => {
   });
 };
 export const useAnalogues = (id: number | null) =>
-  useQuery({ queryKey: ["analogues", id], queryFn: () => api.get<AnaloguesResponse>(`/analysis/${id}/analogues`), enabled: id !== null });
+  useQuery({ queryKey: ["analogues", id], queryFn: () => api.get<AnaloguesResponse>(`/analysis/${id}/analogues`), enabled: id !== null, refetchInterval: false });
 export const useAnalyses = (limit = 10) =>
   useQuery({ queryKey: ["analyses", limit], queryFn: () => api.get<Page<Analysis>>("/analysis", { limit }), refetchInterval: 20_000 });
 
@@ -117,7 +120,7 @@ export const useBacktest = (id: number | null) =>
     refetchInterval: (q) => (isActive(q.state.data?.status) ? 2000 : false),
   });
 export const useBacktests = () => useQuery({ queryKey: ["backtests"], queryFn: () => api.get<Page<Backtest>>("/backtests", { limit: 20 }) });
-export const useStrategies = () => useQuery({ queryKey: ["strategies"], queryFn: () => api.get<{ id: string; description: string }[]>("/backtests/strategies"), staleTime: Infinity });
+export const useStrategies = () => useQuery({ queryKey: ["strategies"], queryFn: () => api.get<{ id: string; description: string }[]>("/backtests/strategies"), staleTime: Infinity, refetchInterval: false });
 
 export const useModels = () => useQuery({ queryKey: ["models"], queryFn: () => api.get<Page<ModelRow>>("/models"), refetchInterval: 10_000 });
 export const useWatchlists = () => useQuery({ queryKey: ["watchlists"], queryFn: () => api.get<Watchlist[]>("/watchlists") });
@@ -225,7 +228,7 @@ export const useOpportunity = (id: number | null) => {
     retry: retryPolicy,
   });
 };
-export const useOppValidation = () => useQuery({ queryKey: ["opp-validation"], queryFn: () => api.get<OppValidation>("/opportunities/validation"), staleTime: 300_000 });
+export const useOppValidation = () => useQuery({ queryKey: ["opp-validation"], queryFn: () => api.get<OppValidation>("/opportunities/validation"), staleTime: 300_000, refetchInterval: 300_000 });
 
 export function useStartScan() {
   const qc = useQueryClient();
@@ -238,7 +241,8 @@ export function useStartScan() {
 // ---- Signals (top-down multi-timeframe engine) ----
 export const useSignalsSummary = () => {
   const x = useExperimental();
-  return useQuery({ queryKey: ["signals", x], queryFn: () => api.get<SignalsSummary>("/signals", expParam(x)), refetchInterval: 60_000, retry: retryPolicy });
+  // the backend keeps every instrument's latest analysis (refreshed each minute by the paper-trading cycle), so this is cheap to poll
+  return useQuery({ queryKey: ["signals", x], queryFn: () => api.get<SignalsSummary>("/signals", expParam(x)), refetchInterval: 30_000, retry: retryPolicy });
 };
 
 export const useSignal = (symbol: string | null) => {
@@ -314,4 +318,4 @@ export function useResetPaperAccount() {
 
 // ---- Gold Research (historical study; refreshed when the research pipeline rebuilds its summary) ----
 export const useGoldResearch = () =>
-  useQuery({ queryKey: ["gold-research"], queryFn: () => api.get<GoldResearch>("/research/gold"), staleTime: 300_000, retry: retryPolicy });
+  useQuery({ queryKey: ["gold-research"], queryFn: () => api.get<GoldResearch>("/research/gold"), staleTime: 300_000, refetchInterval: 300_000, retry: retryPolicy });

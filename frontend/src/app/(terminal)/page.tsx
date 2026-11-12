@@ -10,7 +10,7 @@ import { DecisionBadge, EmptyState, ErrorState, JobBadge, PageHeader, QueryState
 import { AnalysisOnlyNotice } from "@/components/domain/decision";
 import { useAnalyses, useCoverage, useInstruments, useModels, usePatterns, usePredictions, useQuotes, useSignalsSummary } from "@/lib/hooks";
 import type { Instrument, Quote } from "@/lib/types";
-import { fmtDate, fmtNum, fmtPrice, timeAgo } from "@/lib/utils";
+import { fmtDate, fmtNum, fmtPrice, oldestTime, timeAgo } from "@/lib/utils";
 
 const STATUS_TEXT: Record<Quote["status"], string> = {
   ok: "live",
@@ -79,10 +79,16 @@ function DecisionsNow() {
     <Card data-testid="decisions-now">
       <CardHeader>
         <CardTitle>Decisions now</CardTitle>
-        <Link href="/signals" className="text-xs text-primary hover:underline">Signals</Link>
+        <span className="flex items-center gap-3 text-xs">
+          {q.data && oldestTime(q.data.items.map((i) => i.as_of)) && (
+            <span className="text-muted-foreground" data-testid="decisions-updated">analysed {timeAgo(oldestTime(q.data.items.map((i) => i.as_of))!)} · refreshes automatically</span>
+          )}
+          <Link href="/signals" className="text-primary hover:underline">All signals</Link>
+        </span>
       </CardHeader>
       <CardContent className="p-0">
-        <QueryState query={q} isEmpty={(d) => d.items.length === 0} empty={<div className="p-4"><EmptyState title="No instruments" /></div>}>
+        <QueryState query={q} isEmpty={(d) => d.items.length === 0} empty={<div className="p-4"><EmptyState title="No instruments" /></div>}
+          skeleton={<div className="space-y-2 p-4"><p className="text-xs text-muted-foreground">Loading the decision for every instrument…</p>{[0, 1, 2, 3].map((k) => <Skeleton key={k} className="h-8 w-full" />)}</div>}>
           {(d) => (
             <Table>
               <THead><TR><TH>Instrument</TH><TH>Decision</TH><TH>Next</TH></TR></THead>

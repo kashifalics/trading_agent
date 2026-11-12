@@ -38,6 +38,15 @@ def _enforce_declared_string_lengths(session, flush_context, instances):
                                          f"{col.type.length} (PostgreSQL would reject it)")
 
 
+@pytest.fixture(autouse=True)
+def _fresh_signal_summary():
+    """Each test gets its own database, so the in-memory signal summary from an earlier test must not be reused."""
+    from app.signals import service as signal_service
+    signal_service._ITEMS.clear()
+    yield
+    signal_service._ITEMS.clear()
+
+
 @pytest.fixture()
 def engine():
     eng = make_engine("sqlite://")

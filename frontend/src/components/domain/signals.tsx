@@ -61,6 +61,52 @@ export function ScoreMeter({ score, grade }: { score: number | null; grade?: "A"
 }
 
 // ------------------------------------------------------------------------------------------------ instrument tabs
+/** Every instrument on one screen: its decision now, its bias and each timeframe with a live setup (click one to open its detail). */
+export function AllSignalsTable({ items, value, onPick }: { items: SignalsSummaryItem[]; value: string | null; onPick: (symbol: string, tf?: string) => void }) {
+  return (
+    <Table data-testid="all-signals">
+      <THead><TR><TH>Instrument</TH><TH>Decision now</TH><TH>Bias</TH><TH>Setups by timeframe</TH><TH>What must happen next</TH></TR></THead>
+      <TBody>
+        {items.map((i) => {
+          const active = i.active ?? [];
+          const where = [i.call?.timeframe, i.call && i.call.direction !== "NONE" ? i.call.direction : null].filter(Boolean).join(" · ");
+          return (
+            <TR key={i.symbol} data-testid={`all-${i.symbol}`} className={cn(value === i.symbol && "bg-primary/5")}>
+              <TD className="whitespace-nowrap">
+                <button className="font-semibold hover:underline" onClick={() => onPick(i.symbol, i.call?.timeframe ?? undefined)}>{i.symbol}</button>
+                {i.name && <span className="block text-[11px] text-muted-foreground">{i.name}</span>}
+              </TD>
+              <TD className="whitespace-nowrap">
+                <CallBadge call={i.call} className="text-[10px]" />
+                <span className="block text-[11px] text-muted-foreground">{where || (i.status !== "ok" ? "no data" : "")}</span>
+              </TD>
+              <TD className={cn("whitespace-nowrap text-xs", biasTone(i.overall?.label))}>{i.overall?.label ?? "—"}</TD>
+              <TD>
+                {active.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">{i.status === "ok" ? "no live setup" : "—"}</span>
+                ) : (
+                  <div className="flex flex-col items-start gap-1">
+                    {active.map((p) => (
+                      <button key={p.timeframe} onClick={() => onPick(i.symbol, p.timeframe)} data-testid={`setup-${i.symbol}-${p.timeframe}`}
+                        className="flex items-center gap-2 whitespace-nowrap rounded-md px-1 py-0.5 text-left text-xs hover:bg-muted/60">
+                        <span className="num w-8 font-medium">{p.timeframe}</span>
+                        <span className={p.direction === "BUY" ? "text-bull" : p.direction === "SELL" ? "text-bear" : "text-muted-foreground"}>{p.direction ?? "—"}</span>
+                        <span className="num text-muted-foreground">{p.score ?? "—"}/100</span>
+                        {p.call && <CallBadge call={p.call} className="text-[10px]" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </TD>
+              <TD className="min-w-[14rem] max-w-[24rem] text-xs text-muted-foreground">{i.call?.next_condition ?? i.call?.headline ?? i.reason ?? "—"}</TD>
+            </TR>
+          );
+        })}
+      </TBody>
+    </Table>
+  );
+}
+
 export function InstrumentTabs({ items, value, onChange }: { items: SignalsSummaryItem[]; value: string | null; onChange: (s: string) => void }) {
   return (
     <div role="tablist" aria-label="Instrument" className="flex flex-wrap gap-2">

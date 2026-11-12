@@ -31,8 +31,12 @@ shown as **WAIT — UNVALIDATED SETUP**.
 
 ## 3. Reading a decision (Signals page)
 
-1. Pick an instrument tab (XAUUSD, EURUSD, GBPUSD, BTCUSDT, US30, USOIL). Each tab already shows that instrument's decision. Press
-   **Refresh now** to load the latest candles; with **Live refresh** on, the page updates every 60 seconds.
+1. The **All signals** table at the top lists every instrument (XAUUSD, EURUSD, GBPUSD, BTCUSDT, US30, USOIL) on one screen: its
+   decision now, its bias, every timeframe with a live setup (side, score and that timeframe's decision) and what must happen next.
+   Click an instrument or a timeframe to open its detail below (or use the instrument tabs). Nothing needs a manual refresh: the
+   server re-analyses every instrument each minute, every page fetches new data by itself (the list every 30 seconds, most pages every
+   60 seconds, and at once when you come back to the tab), and the table says how long ago the analysis ran. **Refresh now** loads
+   the latest candles at once; with **Live refresh** on, the open instrument also fetches new candles every 60 seconds.
 2. The **Decision now** card at the top tells you, in this order:
    * **The decision:** ENTER, WAIT, EXIT or NO TRADE, with the reason in capitals (for example WAIT — CONFIRMATION PENDING).
    * The instrument, direction, timeframe and setup, and **Research: Not validated / Validated**.
