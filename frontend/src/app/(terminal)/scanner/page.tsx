@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/misc";
 import { useInstruments, usePredictions, useRunAnalysis, useSignalsSummary } from "@/lib/hooks";
 import type { SignalsSummaryItem } from "@/lib/signal-types";
 import type { Instrument, Prediction } from "@/lib/types";
-import { TIMEFRAME_CODES, cn, fmtNum, oldestTime, timeAgo } from "@/lib/utils";
+import { TIMEFRAME_CODES, cn, fmtNum, fmtSignedR, oldestTime, timeAgo } from "@/lib/utils";
 
 const SCAN_TFS = TIMEFRAME_CODES;
 
@@ -82,7 +82,7 @@ function LiveMatrix() {
                                 <ShortCall label={t.label} decision={t.decision} headline={t.headline} />
                                 <span className={cn("num text-[10px]", side === "BUY" ? "text-bull" : side === "SELL" ? "text-bear" : "text-muted-foreground")}>
                                   {side ?? ""}
-                                  {t.unrealized_r != null ? ` ${t.unrealized_r >= 0 ? "+" : ""}${fmtNum(t.unrealized_r, 1)}R` : t.score != null ? ` ${t.score}` : ""}
+                                  {t.unrealized_r != null ? ` ${fmtSignedR(t.unrealized_r)}` : t.score != null ? ` ${t.score}` : ""}
                                 </span>
                               </Link>
                             ) : (

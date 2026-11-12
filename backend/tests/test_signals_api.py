@@ -100,8 +100,8 @@ def test_summary_reuses_each_instruments_latest_analysis_until_it_is_too_old(cli
     again = {i["symbol"]: i for i in client.get("/api/v1/signals").json()["items"]}
     assert calls.count("XAUUSD") == 1 and again["XAUUSD"]["as_of"] >= first["XAUUSD"]["as_of"]
     calls.clear()
-    client.get("/api/v1/signals?experimental=true")
-    assert "XAUUSD" in calls  # experimental decisions are kept separately
+    exp = {i["symbol"]: i for i in client.get("/api/v1/signals?experimental=true").json()["items"]}
+    assert "XAUUSD" not in calls and exp["XAUUSD"]["call"]["experimental"] is True  # derived from the fresh analysis, not recomputed
 
 
 def test_summary_lists_the_timeframes_where_a_paper_trade_is_held_with_its_levels():
@@ -133,6 +133,19 @@ def test_a_page_view_reuses_a_fresh_analysis_and_large_responses_are_compressed(
     assert calls == ["XAUUSD", "XAUUSD"]
     jobs = client.get("/api/v1/analysis", params={"compact": "true"})
     assert jobs.status_code == 200 and jobs.json()["items"] == []
+
+
+def test_the_experimental_variant_equals_a_full_experimental_analysis(client):
+    _seed("XAUUSD")
+    with session_scope() as s:
+        normal = service.analyze(s, "XAUUSD")
+        full = service.analyze(s, "XAUUSD", experimental=True)
+        derived = service.experimental_variant(s, normal)
+    assert derived["experimental"] is True and normal["experimental"] is False
+    assert [p["call"] for p in derived["plans"]] == [p["call"] for p in full["plans"]]
+    assert derived["call"] == full["call"]
+    assert [p["call"] for p in normal["plans"]] != [p["call"] for p in derived["plans"]] or not any(
+        p["call"].get("hypothetical") for p in full["plans"])  # the variant really carries the experimental levels
 
 
 def test_config_track_record_and_validation_errors(client):

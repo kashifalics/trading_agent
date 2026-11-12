@@ -4,7 +4,7 @@ import { CheckCircle2, CircleSlash, Info, XCircle } from "lucide-react";
 import { useMemo } from "react";
 import { CandleChart } from "@/components/charts/candle-chart";
 import { COLORS, type ChartLine, type ChartZone } from "@/components/charts/overlays";
-import { CallBadge, CallCard, TradeBrief } from "@/components/domain/call";
+import { CallBadge, CallCard, HypoBrief, TradeBrief } from "@/components/domain/call";
 import { EmptyState, ErrorState } from "@/components/domain/common";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +15,7 @@ import { useSignalCandles } from "@/lib/hooks";
 import { DEFAULT_CONTRACT_SIZE, positionSize } from "@/lib/position-size";
 import type { Overall, SignalAnalysis, SignalState, SignalsSummaryItem, TimeframePlan, TimeframeRow } from "@/lib/signal-types";
 import { useSettings } from "@/lib/store";
-import { cn, fmtNum, fmtPct, fmtPrice } from "@/lib/utils";
+import { cn, fmtNum, fmtPct, fmtPrice, fmtSignedR } from "@/lib/utils";
 
 export const STATE_LABEL: Record<SignalState, string> = {
   ENTRY_READY: "Entry ready",
@@ -83,6 +83,7 @@ export function AllSignalsTable({ items, value, onPick }: { items: SignalsSummar
                 <CallBadge call={i.call} className="text-[10px]" />
                 <span className="block text-[11px] text-muted-foreground">{where || (i.status !== "ok" ? "no data" : "")}</span>
                 {i.call?.trade && <TradeBrief m={i.call.trade} p={px} />}
+                {!i.call?.trade && i.call?.hypothetical && <HypoBrief lv={i.call.hypothetical} p={px} />}
               </TD>
               <TD className={cn("whitespace-nowrap text-xs", biasTone(i.overall?.label))}>{i.overall?.label ?? "—"}</TD>
               <TD>
@@ -94,19 +95,22 @@ export function AllSignalsTable({ items, value, onPick }: { items: SignalsSummar
                       const tr = p.call?.trade;
                       const side = tr ? tr.direction : p.direction;
                       return (
-                        <button key={p.timeframe} onClick={() => onPick(i.symbol, p.timeframe)} data-testid={`setup-${i.symbol}-${p.timeframe}`}
+                        <div key={p.timeframe}>
+                        <button onClick={() => onPick(i.symbol, p.timeframe)} data-testid={`setup-${i.symbol}-${p.timeframe}`}
                           className="flex items-center gap-2 whitespace-nowrap rounded-md px-1 py-0.5 text-left text-xs hover:bg-muted/60">
                           <span className="num w-8 font-medium">{p.timeframe}</span>
                           <span className={side === "BUY" ? "text-bull" : side === "SELL" ? "text-bear" : "text-muted-foreground"}>{side ?? "—"}</span>
                           {tr ? (
                             <span className={cn("num", tr.unrealized_r == null ? "text-muted-foreground" : tr.unrealized_r >= 0 ? "text-bull" : "text-bear")}>
-                              {tr.unrealized_r == null ? (tr.status === "pending" ? "order" : "open") : `${tr.unrealized_r >= 0 ? "+" : ""}${fmtNum(tr.unrealized_r, 1)}R`}
+                              {tr.unrealized_r == null ? (tr.status === "pending" ? "order" : "open") : fmtSignedR(tr.unrealized_r)}
                             </span>
                           ) : (
                             <span className="num text-muted-foreground">{p.score ?? "—"}/100</span>
                           )}
                           {p.call && <CallBadge call={p.call} className="text-[10px]" />}
                         </button>
+                        {!tr && p.call?.hypothetical && <HypoBrief lv={p.call.hypothetical} p={px} className="pl-11" />}
+                        </div>
                       );
                     })}
                   </div>

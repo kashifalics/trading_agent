@@ -252,12 +252,28 @@ def remember(r: dict, experimental: bool = False) -> None:
         _FULL[(r["symbol"], experimental)] = (now, r)
 
 
-def analyze_cached(session: Session, symbol: str, experimental: bool = False, max_age: float = DETAIL_TTL_S) -> dict:
-    """The latest analysis of an instrument if it is younger than `max_age` seconds, else a fresh one (which is then kept)."""
+def experimental_variant(session: Session, r: dict) -> dict:
+    """The same analysis with experimental-mode calls (hypothetical levels attached). Only the calls are recomputed: the rest of the
+    analysis does not depend on the mode, so this equals analyze(..., experimental=True) at a fraction of the cost."""
+    import copy
+    x = copy.deepcopy(r)
+    attach_calls(session, r["symbol"], x, x.get("quote"), True)
+    return to_jsonable(x)
+
+
+def _fresh(symbol: str, experimental: bool, max_age: float) -> dict | None:
     hit = _FULL.get((symbol.upper(), experimental))
-    if hit is not None and time.monotonic() - hit[0] < max_age:
-        return hit[1]
-    r = analyze(session, symbol, experimental=experimental)
+    return hit[1] if hit is not None and time.monotonic() - hit[0] < max_age else None
+
+
+def analyze_cached(session: Session, symbol: str, experimental: bool = False, max_age: float = DETAIL_TTL_S) -> dict:
+    """The latest analysis of an instrument if it is younger than `max_age` seconds, else a fresh one (which is then kept). An
+    experimental-mode request is derived from a fresh normal analysis when there is one."""
+    hit = _fresh(symbol, experimental, max_age)
+    if hit is not None:
+        return hit
+    base = _fresh(symbol, False, max_age) if experimental else None
+    r = experimental_variant(session, base) if base is not None else analyze(session, symbol, experimental=experimental)
     remember(r, experimental)
     return r
 
@@ -269,8 +285,9 @@ def summary(session: Session, experimental: bool = False) -> dict:
         if hit is not None and time.monotonic() - hit[0] < SUMMARY_TTL_S:
             items.append(hit[1])
             continue
+        base = _fresh(sym, False, SUMMARY_TTL_S) if experimental else None
         try:
-            r = analyze(session, sym, experimental=experimental)
+            r = experimental_variant(session, base) if base is not None else analyze(session, sym, experimental=experimental)
         except AppError as exc:
             items.append({"symbol": sym, "status": "unavailable", "reason": exc.message, "call": compact_call(unavailable_call(sym, exc.message))})
             continue

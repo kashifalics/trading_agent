@@ -48,3 +48,11 @@ export function signClass(v: number | null | undefined): string {
 export function oldestTime(times: (string | null | undefined)[]): string | null {
   return times.filter((x): x is string => !!x).sort()[0] ?? null;
 }
+
+/** "+2.6R", "-0.5R", and "0.0R" for anything that rounds to zero (never "-0.0R"). */
+export function fmtSignedR(v: number | null | undefined, digits = 1): string {
+  if (v === null || v === undefined || Number.isNaN(v)) return "—";
+  const r = Number(v.toFixed(digits));
+  if (r === 0) return `${(0).toFixed(digits)}R`;
+  return `${r > 0 ? "+" : ""}${r.toFixed(digits)}R`;
+}

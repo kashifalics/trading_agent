@@ -6,7 +6,7 @@ import { AlertTriangle, ArrowRight, CheckCircle2, CircleSlash, FlaskConical, XCi
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import type { CallDecision, CallLevels, TradeCall, TradeManagement } from "@/lib/decision-types";
-import { cn, fmtNum, fmtPrice } from "@/lib/utils";
+import { cn, fmtNum, fmtPrice, fmtSignedR } from "@/lib/utils";
 
 const TONE: Record<CallDecision, { box: string; text: string; badge: "buy" | "wait" | "sell" | "neutral" | "info" }> = {
   ENTER: { box: "border-bull/40 bg-bull/10", text: "text-bull", badge: "buy" },
@@ -68,7 +68,7 @@ function LevelsGrid({ lv, p }: { lv: CallLevels; p: number }) {
   );
 }
 
-const signedR = (r: number) => `${r >= 0 ? "+" : ""}${fmtNum(r, 1)}R`;
+const signedR = (r: number) => fmtSignedR(r, 1);
 
 /** One line for tables: the held paper trade's side, entry, stop, first target and open result in R. */
 export function TradeBrief({ m, p, className }: { m: TradeManagement; p: number; className?: string }) {
@@ -77,6 +77,17 @@ export function TradeBrief({ m, p, className }: { m: TradeManagement; p: number;
       {m.status === "pending" ? "limit " : ""}{m.direction} {m.status === "pending" ? "at" : "from"} {fmtPrice(m.entry_price, p)} · SL {fmtPrice(m.stop_loss, p)} · TP1{" "}
       {fmtPrice(m.take_profit, p)}
       {m.unrealized_r != null && <> · <span className={m.unrealized_r >= 0 ? "text-bull" : "text-bear"}>{signedR(m.unrealized_r)} open</span></>}
+    </span>
+  );
+}
+
+/** One line for tables (experimental mode only): an unvalidated setup's hypothetical entry, stop, first target and reward:risk. */
+export function HypoBrief({ lv, p, className }: { lv: NonNullable<TradeCall["hypothetical"]>; p: number; className?: string }) {
+  const tp1 = lv.targets?.[0];
+  return (
+    <span className={cn("num block text-[11px] text-warn", className)} data-testid="hypo-brief" title={lv.note}>
+      Hypothetical {lv.direction}: entry {fmtPrice(lv.entry, p)} · SL {fmtPrice(lv.stop_loss, p)}
+      {tp1 ? ` · TP1 ${fmtPrice(tp1.price, p)}` : ""}{lv.risk_reward != null ? ` · 1:${fmtNum(lv.risk_reward, 2)}` : ""}
     </span>
   );
 }

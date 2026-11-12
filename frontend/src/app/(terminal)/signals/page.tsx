@@ -129,6 +129,11 @@ export default function SignalsPage() {
                 <span className="text-xs text-muted-foreground" data-testid="all-signals-updated">
                   {oldestTime(d.items.map((i) => i.as_of)) ? `analysed ${timeAgo(oldestTime(d.items.map((i) => i.as_of))!)}` : ""} · refreshes automatically · click an instrument or a timeframe for its detail
                 </span>
+                <span className="basis-full text-xs text-muted-foreground" data-testid="levels-note">
+                  {experimentalMode
+                    ? "Experimental mode: each unvalidated setup shows its hypothetical entry, stop-loss (SL), first target (TP1) and reward:risk in orange. These rules are not validated; this is not a recommendation."
+                    : "Entry, stop-loss and targets of unvalidated setups are hidden. Tick Experimental mode above to show them, marked hypothetical."}
+                </span>
               </CardHeader>
               <CardContent className="p-0">
                 <AllSignalsTable items={d.items} value={current} onPick={(s, t) => {

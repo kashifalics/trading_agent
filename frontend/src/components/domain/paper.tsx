@@ -12,10 +12,10 @@ import { Tabs } from "@/components/ui/misc";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { usePaperTrade, useResetPaperAccount, useUpdatePaperAccount } from "@/lib/hooks";
 import type { BreakdownKey, BreakdownRow, PaperAccountSummary, PaperSummary, PaperTrade, PaperWorker } from "@/lib/paper-types";
-import { cn, fmtDate, fmtNum, fmtPct, fmtPrice, signClass, timeAgo } from "@/lib/utils";
+import { cn, fmtDate, fmtNum, fmtPct, fmtPrice, fmtSignedR, signClass, timeAgo } from "@/lib/utils";
 
 // ---- formatting ----
-export const fmtR = (v: number | null | undefined) => (v === null || v === undefined || Number.isNaN(v) ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(2)}R`);
+export const fmtR = (v: number | null | undefined) => fmtSignedR(v, 2);
 export function fmtMoney(v: number | null | undefined, signed = false): string {
   if (v === null || v === undefined || Number.isNaN(v)) return "—";
   const s = `$${Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

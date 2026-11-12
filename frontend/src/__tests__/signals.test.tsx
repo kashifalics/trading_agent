@@ -221,6 +221,27 @@ describe("Signals page", () => {
     expect(await screen.findByText("BTCUSDT: no analysis yet")).toBeInTheDocument();
   });
 
+  it("shows each setup's hypothetical entry, stop and target in the table only in experimental mode", async () => {
+    const item = (call: typeof CALL_READY) => ({ ...SUMMARY.items[0], call, as_of: new Date().toISOString(), active: [
+      { timeframe: "1H", state: "ENTRY_READY" as const, instruction: "EXECUTE NOW" as const, decision: "BUY", direction: "BUY" as const, score: 72, grade: "A" as const, tp1: 3990, call }] });
+    routes({ "GET /api/v1/signals": (_i?: RequestInit, u?: URL) => ({ ...SUMMARY, items: [item(isExp(u) ? CALL_READY_X : CALL_READY), SUMMARY.items[1]] }) });
+    useSettings.setState({ liveSignals: false });
+    const { unmount } = renderWithClient(<SignalsPage />);
+    const off = await screen.findByTestId("all-signals");
+    await within(off).findByTestId("setup-XAUUSD-1H");
+    expect(within(off).queryByTestId("hypo-brief")).toBeNull(); // hidden by default
+    expect(screen.getByTestId("levels-note")).toHaveTextContent("Tick Experimental mode above to show them");
+    unmount();
+
+    useSettings.setState({ experimentalMode: true });
+    renderWithClient(<SignalsPage />);
+    const on = await screen.findByTestId("all-signals");
+    const briefs = await within(on).findAllByTestId("hypo-brief");
+    expect(briefs[0]).toHaveTextContent("Hypothetical BUY: entry 3,950.50 · SL 3,935.25 · TP1 3,990.00 · 1:2.59");
+    expect(within(on).getByTestId("all-XAUUSD")).toHaveTextContent("WAIT — UNVALIDATED SETUP"); // the decision itself does not change
+    expect(screen.getByTestId("levels-note")).toHaveTextContent("this is not a recommendation");
+  });
+
   it("syncs fresh candles on load and on demand", async () => {
     const api = routes();
     const user = userEvent.setup();
