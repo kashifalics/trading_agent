@@ -3,7 +3,8 @@
 import { Info, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { EmptyState, ErrorState, PageHeader, QueryState } from "@/components/domain/common";
-import { BestPlanCard, InstrumentTabs, OverviewCard, PlanDetail, TimeframeTable, isActionable } from "@/components/domain/signals";
+import { CallCard } from "@/components/domain/call";
+import { InstrumentTabs, OverviewCard, PlanDetail, TimeframeTable, isActionable } from "@/components/domain/signals";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/form";
@@ -25,12 +26,17 @@ function Notice({ children, tone = "info" }: { children: React.ReactNode; tone?:
 }
 
 function defaultTf(a: SignalAnalysis): string {
-  return a.best?.timeframe ?? a.plans.find((p) => isActionable(p.state))?.timeframe ?? a.plans.find((p) => p.state === "WATCHLIST")?.timeframe ?? "1H";
+  return a.call?.timeframe ?? a.best?.timeframe ?? a.plans.find((p) => isActionable(p.state))?.timeframe ?? a.plans.find((p) => p.state === "WATCHLIST")?.timeframe ?? "1H";
 }
 
 function Analysis({ a, tf, setTf }: { a: SignalAnalysis; tf: string | null; setTf: (tf: string) => void }) {
   if (a.status !== "ok") {
-    return <EmptyState title={`${a.symbol}: no analysis yet`} hint={`${a.reason ?? "No stored candles."} Press "Refresh now" to load candles from ${a.provider}.`} />;
+    return (
+      <div className="space-y-4">
+        {a.call && <CallCard call={a.call} symbol={a.symbol} precision={a.price_precision} title="Decision now" />}
+        <EmptyState title={`${a.symbol}: no analysis yet`} hint={`${a.reason ?? "No stored candles."} Press "Refresh now" to load candles from ${a.provider}.`} />
+      </div>
+    );
   }
   const sel = tf && a.plans.some((p) => p.timeframe === tf) ? tf : defaultTf(a);
   const select = (t: string) => {
@@ -39,8 +45,13 @@ function Analysis({ a, tf, setTf }: { a: SignalAnalysis; tf: string | null; setT
   };
   return (
     <div className="space-y-5">
+      {a.call && (
+        <div className="space-y-1">
+          <CallCard call={a.call} symbol={a.symbol} precision={a.price_precision} title="Decision now" />
+          {a.call.timeframe && <button className="text-xs font-medium text-primary hover:underline" onClick={() => select(a.call!.timeframe!)}>Technical detail for {a.call.timeframe} ↓</button>}
+        </div>
+      )}
       <OverviewCard a={a} />
-      <BestPlanCard a={a} onSelect={select} />
       <Card>
         <CardHeader>
           <CardTitle>All timeframes</CardTitle>
@@ -58,7 +69,12 @@ export default function SignalsPage() {
   const summary = useSignalsSummary();
   const [symbol, setSymbol] = useState<string | null>(null);
   const [tf, setTf] = useState<string | null>(null);
-  const { liveSignals, set } = useSettings();
+  useEffect(() => {
+    // deep link from Overview "Decisions now": /signals?symbol=XAUUSD
+    const s = new URLSearchParams(window.location.search).get("symbol");
+    if (s) setSymbol(s.toUpperCase());
+  }, []);
+  const { liveSignals, experimentalMode, set } = useSettings();
   const sync = useSyncSignal();
   const { mutate } = sync;
   const items = summary.data?.items ?? [];
@@ -76,10 +92,11 @@ export default function SignalsPage() {
     <>
       <PageHeader
         title="Signals"
-        description="Top-down multi-timeframe price-action signals: higher-timeframe bias, a structural entry, stop loss and targets, and a 100-point confluence checklist for every timeframe. Analysis only: no orders are placed."
+        description="Top-down multi-timeframe price-action analysis: one decision per instrument and timeframe (ENTER, WAIT, EXIT or NO TRADE) with its reasons, what must happen next and a 100-point confluence checklist. Entry, stop and targets appear only with ENTER. Analysis only: no orders are placed."
         actions={
           <>
             <Checkbox label="Live refresh (60 s)" checked={liveSignals} onChange={(e) => set({ liveSignals: e.target.checked })} />
+            <Checkbox label="Experimental mode (show unvalidated levels)" checked={experimentalMode} onChange={(e) => set({ experimentalMode: e.target.checked })} />
             <Button onClick={() => current && mutate(current)} disabled={!current || sync.isPending} data-testid="refresh-now">
               <RefreshCw className={`h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} /> {sync.isPending ? "Refreshing…" : "Refresh now"}
             </Button>
@@ -88,10 +105,11 @@ export default function SignalsPage() {
       />
       <div className="mb-4 space-y-2">
         <Notice tone="warn">
-          Every signal here is <strong>not validated</strong>: no strategy or model in this product has passed out-of-sample validation (the replay of these
-          rules and the XAUUSD research found no verified edge). Signals are hypothetical setups for analysis, not proven trades. The confluence score measures
-          <strong> setup quality, not the chance of winning</strong>, and no win probability is shown. High-impact news is not filtered. Never risk money you
-          cannot afford to lose.
+          Every instrument and timeframe gets one decision: <strong>ENTER</strong>, <strong>WAIT</strong>, <strong>EXIT</strong> or{" "}
+          <strong>NO TRADE</strong>. ENTER requires every mandatory condition <em>and</em> research-validated rules; none has passed
+          out-of-sample validation, so a technically complete setup is shown as <strong>WAIT — UNVALIDATED SETUP</strong>. The score measures
+          setup quality, not the chance of winning, and no win probability is shown. High-impact news is not filtered.
+          {experimentalMode && <> Experimental mode is on: hypothetical levels of unvalidated setups are shown, clearly marked.</>}
         </Notice>
         {sync.isError && <ErrorState error={sync.error} />}
         {sync.data && sync.data.notes.length > 0 && <Notice>{sync.data.notes.slice(0, 3).join(" · ")}</Notice>}

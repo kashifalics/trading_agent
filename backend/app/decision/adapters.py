@@ -110,7 +110,8 @@ def signal_call(plan: dict, symbol: str, *, price_now: float | None = None, pric
         technical, mode, wait_kind = "developing", plan.get("entry_type"), "developing"
     nxt = conds[0] if conds and technical != "developing" else None
     if technical == "developing":
-        missing = [r.split(":")[0] for r in plan.get("reasons_against") or [] if " missing" in r][:3]
+        # "Reward:risk >= 2 ... missing: detail" -> the check's name; split on " missing", never on the first colon
+        missing = [r.split(" missing")[0] for r in plan.get("reasons_against") or [] if " missing" in r][:3]
         nxt = f"The setup quality reaches {THRESHOLDS['signal']}/100 (now {plan.get('score')}/100)" + (f": {', '.join(missing)}" if missing else "")
     return decide(DecisionInput(
         **base, technical=technical, technical_detail=plan.get("summary"), direction=d,
@@ -174,3 +175,12 @@ def prediction_call(p: dict, *, wait_reasons: list[str] | None = None, experimen
         validation=_validation("untested", "The decision engine's rules have no out-of-sample validated edge (backtests: negative "
                                            "expectancy); no model passed validation."),
         experimental=experimental))
+
+
+def redact_explanation(text: str | None, call: dict) -> str | None:
+    """Stored explanations embed the technical plan ("Plan: entry …, stop …"). Without an ENTER call (or experimental
+    hypothetical levels) those numbers must not reach the customer, so the line is replaced by a pointer to the decision."""
+    if not text or call.get("levels") or call.get("hypothetical"):
+        return text
+    return "\n".join("Plan: entry, stop and targets withheld - see the decision (" + call["label"] + ")."
+                     if ln.startswith("Plan:") else ln for ln in text.split("\n"))

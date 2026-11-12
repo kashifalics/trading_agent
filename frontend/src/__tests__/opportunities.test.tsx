@@ -5,6 +5,7 @@ import OpportunitiesPage from "@/app/(terminal)/opportunities/page";
 import { NAV } from "@/components/layout/app-shell";
 import type { Opportunity, OppSummary, OppTfInfo, OpportunityDetail } from "@/lib/opportunity-types";
 import { useSettings } from "@/lib/store";
+import { CALL_OPP_BUY, CALL_OPP_BUY_X, CALL_OPP_LONG, CALL_OPP_SELL, CALL_OPP_SELL_ENTER, CALL_OPP_WAIT, CALL_OPP_WATCH } from "@/test/calls";
 import { CANDLES, INSTRUMENTS } from "@/test/fixtures";
 import { mockApi, renderWithClient } from "@/test/utils";
 
@@ -24,15 +25,15 @@ const opp = (o: Partial<Opportunity>): Opportunity => ({
 });
 const BUY = opp({ id: 11, symbol: "XAUUSD", style: "swing", direction: "BUY", status: "waiting_for_confirmation", setup_timeframe: "4H", setup_type: "trend_pullback", side: "BUY",
   actionable: true, entry_low: 3900.5, entry_high: 3920.25, stop_loss: 3880.1, take_profit_1: 3990, take_profit_2: 4040, take_profit_3: 4100, invalidation: 3885,
-  risk_reward: 2.4, evidence_score: 61, expected_holding_seconds: 345600, rank: 1, provider: "twelve_data", thesis: "4H structure is bullish." });
+  risk_reward: 2.4, evidence_score: 61, expected_holding_seconds: 345600, rank: 1, provider: "twelve_data", thesis: "4H structure is bullish.", call: CALL_OPP_BUY });
 const SELL = opp({ id: 12, symbol: "BTCUSDT", style: "intraday", direction: "SELL", status: "entry_triggered", setup_timeframe: "30m", side: "SELL", actionable: true,
   entry_low: 77000, entry_high: 77100, stop_loss: 77400, take_profit_1: 76400, take_profit_2: 76000, take_profit_3: null, invalidation: 77300, risk_reward: 2.0,
-  evidence_score: 57, rank: 2, correlated_with_rank: null });
+  evidence_score: 57, rank: 2, correlated_with_rank: null, call: CALL_OPP_SELL });
 const WATCH = opp({ id: 13, symbol: "XAUUSD", style: "intraday", direction: "WAIT", status: "watchlist", side: "BUY", setup_timeframe: "15m", entry_low: 3910, entry_high: 3915,
-  stop_loss: 3895, take_profit_1: 3950, take_profit_2: 3970, risk_reward: 1.9, evidence_score: 41, rank: 3, wait_reasons: ["evidence score 41 is below the 55 needed to publish"] });
+  stop_loss: 3895, take_profit_1: 3950, take_profit_2: 3970, risk_reward: 1.9, evidence_score: 41, rank: 3, wait_reasons: ["evidence score 41 is below the 55 needed to publish"], call: CALL_OPP_WATCH });
 const WAIT = opp({ id: 14, symbol: "BTCUSDT", style: "scalping", direction: "WAIT", status: "none", setup_timeframe: "1m",
-  wait_reasons: ["1m: latest candle is 90 bars old; too stale to scalp", "5m: round-trip costs would consume 2.20R"] });
-const LONG = opp({ id: 15, symbol: "BTCUSDT", style: "long_term", direction: "WAIT", status: "none", wait_reasons: ["1D: BUY: no zone"] });
+  wait_reasons: ["1m: latest candle is 90 bars old; too stale to scalp", "5m: round-trip costs would consume 2.20R"], call: CALL_OPP_WAIT });
+const LONG = opp({ id: 15, symbol: "BTCUSDT", style: "long_term", direction: "WAIT", status: "none", wait_reasons: ["1D: BUY: no zone"], call: CALL_OPP_LONG });
 
 const tf = (timeframe: string, status: OppTfInfo["status"], n: number): OppTfInfo => ({ timeframe, status, n_bars: n, last_ts: 1_790_000_000, stale_bars: 0, derived_from: null, reason: status === "completed" ? null : "no stored candles", reused: false });
 const summary = (ranking: Opportunity[], over: Partial<OppSummary> = {}): OppSummary => ({
@@ -96,7 +97,7 @@ const base = {
   "GET /api/v1/health": { status: "ok", version: "0.1.0", env: "test", time: "", mode: "analysis_only", components: {} },
 };
 
-beforeEach(() => useSettings.setState({ symbol: "BTCUSDT", timeframe: "1H" }));
+beforeEach(() => useSettings.setState({ symbol: "BTCUSDT", timeframe: "1H", experimentalMode: false }));
 afterEach(() => vi.unstubAllGlobals());
 
 describe("navigation", () => {
@@ -132,36 +133,49 @@ describe("Trade Opportunities page", () => {
     expect(screen.queryByTestId("opp-table")).not.toBeInTheDocument();
   });
 
-  it("reports WAIT as a valid result, with the missing confirmation spelled out", async () => {
+  it("reports NO TRADE as a valid result, with the reason and the next condition spelled out", async () => {
     mockApi({ ...base, "GET /api/v1/opportunities/summary": summary([WAIT, LONG]), "GET /api/v1/opportunities/14": detail(WAIT, { actionable: false, setup: null, score: null, thesis: undefined }) });
     renderWithClient(<OpportunitiesPage />);
-    expect(await screen.findByText(/WAIT is a valid result/i)).toBeInTheDocument();
+    expect(await screen.findByText(/NO TRADE and WAIT are valid results/i)).toBeInTheDocument();
     const card = screen.getByTestId("style-scalping");
-    expect(within(card).getAllByText("WAIT").length).toBeGreaterThanOrEqual(2); // badge + explicit statement
-    expect(within(card).getByText(/too stale to scalp/)).toBeInTheDocument();
+    expect(within(card).getByTestId("call-badge")).toHaveTextContent(/^NO TRADE$/);
+    expect(within(card).getByText(/No setup qualifies: 1m: latest candle is 90 bars old/)).toBeInTheDocument();
+    expect(within(card).getByText(/Next: 1m: latest candle is 90 bars old; too stale to scalp/)).toBeInTheDocument();
     expect(within(card).queryByText(/\/ 100/)).not.toBeInTheDocument(); // no score is invented for a non-setup
   });
 
-  it("lists BUY and SELL setups with every level, an honest score label and validation status", async () => {
+  it("lists every setup with the backend decision; unvalidated setups never show entry, stop or targets", async () => {
     mockApi({ ...base, "GET /api/v1/opportunities/summary": summary([BUY, SELL, WATCH, WAIT]), "GET /api/v1/opportunities/11": detail(BUY) });
     renderWithClient(<OpportunitiesPage />);
     const table = await screen.findByTestId("opp-table");
     const buy = within(within(table).getByTestId("opp-row-11"));
-    expect(buy.getByText("BUY")).toBeInTheDocument();
-    for (const t of ["3,900.50 – 3,920.25", "3,880.10", "3,990.00", "4,040.00", "4,100.00", "2.40R", "61"]) expect(buy.getByText(t, { exact: false })).toBeInTheDocument();
-    expect(buy.getByText("Waiting for confirmation")).toBeInTheDocument();
+    expect(buy.getByTestId("call-badge")).toHaveTextContent("WAIT — CONFIRMATION PENDING");
+    expect(buy.getByText("Waiting for confirmation")).toBeInTheDocument(); // the technical status, kept separate from the decision
     expect(buy.getByText("Not validated")).toBeInTheDocument();
+    expect(buy.getByText("61")).toBeInTheDocument();
+    expect(buy.getAllByText("—").length).toBeGreaterThanOrEqual(6); // entry, stop, TP1-3 and R/R withheld
     const sell = within(within(table).getByTestId("opp-row-12"));
-    expect(sell.getByText("SELL")).toBeInTheDocument();
+    expect(sell.getByTestId("call-badge")).toHaveTextContent("WAIT — UNVALIDATED SETUP"); // technically triggered, but not validated: never ENTER
     expect(sell.getByText("Entry triggered")).toBeInTheDocument();
-    expect(sell.getAllByText("—").length).toBeGreaterThan(0); // TP3 absent: shown as an em dash, never made up
+    const watch = within(within(table).getByTestId("opp-row-13"));
+    expect(watch.getByTestId("call-badge")).toHaveTextContent("WAIT — SETUP DEVELOPING");
+    expect(watch.getByText("Watchlist")).toBeInTheDocument();
+    expect(within(table).getByTestId("opp-row-14")).toHaveTextContent("NO TRADE");
+    for (const t of ["3,880.10", "3,990.00", "77,400.00", "76,400.00", "3,895.00"]) expect(table).not.toHaveTextContent(t);
     expect(within(table).getByText(/Evidence Score/)).toHaveAttribute("title", "Evidence Score — Not Win Probability");
     expect(screen.getByText(/not a win probability/i)).toBeInTheDocument();
-    const watch = within(within(table).getByTestId("opp-row-13"));
-    expect(watch.getByText("WAIT")).toBeInTheDocument();
-    expect(watch.getByText("lean BUY")).toBeInTheDocument(); // a non-actionable watchlist item is never presented as a BUY
-    expect(watch.getByText("Watchlist")).toBeInTheDocument();
-    expect(screen.queryByText(/WAIT is a valid result/i)).not.toBeInTheDocument(); // there ARE actionable setups
+    expect(screen.queryByText(/EXECUTE NOW/)).toBeNull();
+    expect(screen.queryByText(/NO TRADE and WAIT are valid results/i)).not.toBeInTheDocument(); // there ARE technical setups
+  });
+
+  it("shows every level only when the backend decision is ENTER", async () => {
+    const enter = { ...SELL, call: CALL_OPP_SELL_ENTER, validation_status: "validated" as const };
+    mockApi({ ...base, "GET /api/v1/opportunities/summary": summary([enter, WATCH]), "GET /api/v1/opportunities/12": detail(enter) });
+    renderWithClient(<OpportunitiesPage />);
+    const row = within(within(await screen.findByTestId("opp-table")).getByTestId("opp-row-12"));
+    expect(row.getByTestId("call-badge")).toHaveTextContent(/^ENTER$/);
+    for (const t of ["77,000.00 – 77,100.00", "77,400.00", "76,400.00", "76,000.00", "2.00R"]) expect(row.getByText(t, { exact: false })).toBeInTheDocument();
+    expect(row.getAllByText("—").length).toBeGreaterThan(0); // TP3 absent: shown as an em dash, never made up
   });
 
   it("shows what every timeframe is doing even when no setup qualifies", async () => {
@@ -212,14 +226,17 @@ describe("Trade Opportunities page", () => {
     expect(await screen.findByText("Invalid API key")).toBeInTheDocument();
   });
 
-  it("opens the full evidence for a selected opportunity: levels, chart, score breakdown, analogues, risks, invalidation", async () => {
+  it("opens the full evidence for a selected opportunity: decision, chart, score breakdown, analogues, risks, invalidation; levels withheld", async () => {
     mockApi({ ...base, "GET /api/v1/opportunities/summary": summary([BUY, WAIT]), "GET /api/v1/opportunities/11": detail(BUY) });
     renderWithClient(<OpportunitiesPage />);
     const d = await screen.findByTestId("opp-detail"); // top-ranked opportunity is opened by default
-    await waitFor(() => expect(within(d).getByTestId("levels")).toBeInTheDocument());
-    expect(within(d).getByText("TP2 · 3.50R")).toBeInTheDocument();
-    await waitFor(() => expect(within(d).getByTestId("candle-chart")).toHaveTextContent("BUY entry,SL,TP1,TP2,Invalidation"));
-    expect(within(d).getByTestId("candle-chart")).toHaveTextContent("zones: 2"); // detected order block + entry zone
+    const card = await within(d).findByTestId("call-card");
+    expect(within(card).getByTestId("call-decision")).toHaveTextContent("WAIT — CONFIRMATION PENDING");
+    expect(within(card).getByTestId("call-next")).toHaveTextContent("A confirmation signal in the BUY direction");
+    expect(within(d).queryByTestId("levels")).toBeNull();
+    expect(within(d).queryByTestId("sec-entry")).toBeNull();
+    await waitFor(() => expect(within(d).getByTestId("candle-chart")).toHaveTextContent("lines: ;"));
+    expect(within(d).getByTestId("candle-chart")).toHaveTextContent("zones: 1"); // the detected order block only: no entry zone drawn
     const score = within(d).getByTestId("score-panel");
     expect(within(score).getByText("61")).toBeInTheDocument();
     expect(within(score).getByText("Evidence Score — Not Win Probability")).toBeInTheDocument();
@@ -231,9 +248,25 @@ describe("Trade Opportunities page", () => {
     expect(mtf.getByText("opposes")).toBeInTheDocument();
     expect(mtf.getByText("Insufficient data")).toBeInTheDocument();
     expect(within(within(d).getByTestId("sec-risks")).getByText(/1D structure is bearish/)).toBeInTheDocument();
-    expect(within(within(d).getByTestId("sec-invalid")).getByText(/closing below 3,885\.00/)).toBeInTheDocument();
+    expect(within(within(d).getByTestId("sec-invalid")).getByText(/Price closes beyond 3885/)).toBeInTheDocument();
     expect(within(d).getByText(/No out-of-sample validation exists/)).toBeInTheDocument();
+  });
+
+  it("experimental mode shows the hypothetical levels, chart lines and reasoning, clearly marked", async () => {
+    useSettings.setState({ experimentalMode: true });
+    const x = { ...BUY, call: CALL_OPP_BUY_X };
+    const api = mockApi({ ...base, "GET /api/v1/opportunities/summary": summary([x, WAIT]), "GET /api/v1/opportunities/11": detail(x) });
+    renderWithClient(<OpportunitiesPage />);
+    const d = await screen.findByTestId("opp-detail");
+    await waitFor(() => expect(within(d).getByTestId("levels")).toHaveTextContent("HYPOTHETICAL — UNVALIDATED"));
+    expect(within(d).getByText("TP2 · 3.50R")).toBeInTheDocument();
+    expect(within(d).getByTestId("call-hypothetical")).toHaveTextContent("3,880.10");
+    expect(within(d).getByTestId("call-decision")).toHaveTextContent("WAIT — CONFIRMATION PENDING"); // the decision does not change
+    await waitFor(() => expect(within(d).getByTestId("candle-chart")).toHaveTextContent("BUY entry,SL,TP1,TP2,Invalidation"));
+    expect(within(d).getByTestId("candle-chart")).toHaveTextContent("zones: 2"); // detected order block + entry zone
     expect(within(within(d).getByTestId("sec-entry")).getByText(/entry reference is its upper edge/)).toBeInTheDocument();
+    expect(within(within(d).getByTestId("sec-invalid")).getByText(/closing below 3,885\.00/)).toBeInTheDocument();
+    expect(api.fn.mock.calls.some(([u]) => String(u).includes("experimental=true"))).toBe(true);
   });
 
   it("shows validation results and the user's existing negative backtests unchanged", async () => {
@@ -250,6 +283,6 @@ describe("Trade Opportunities page", () => {
     renderWithClient(<OpportunitiesPage />);
     await screen.findByTestId("opp-detail");
     await userEvent.click(screen.getByTestId("opp-row-12"));
-    await waitFor(() => expect(within(screen.getByTestId("opp-detail")).getByText("SELL")).toBeInTheDocument());
+    await waitFor(() => expect(within(screen.getByTestId("opp-detail")).getByTestId("call-card")).toHaveTextContent("BTCUSDT · SELL · 30m"));
   });
 });

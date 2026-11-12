@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus, Trash2, X } from "lucide-react";
+import { CallBadge } from "@/components/domain/call";
 import { useState } from "react";
 import { DecisionBadge, EmptyState, ErrorState, InstrumentSelect, PageHeader, QueryState } from "@/components/domain/common";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,7 @@ export default function WatchlistsPage() {
                         <span className="font-medium">{it.symbol}</span>
                         <span className="num text-muted-foreground">{q?.status === "ok" ? fmtPrice(q.price, prec) : q ? "no quote" : "…"}</span>
                         <span className="flex items-center gap-2">
-                          {p ? <><DecisionBadge decision={p.decision} /><span className="text-[11px] text-muted-foreground">{p.timeframe} · {timeAgo(p.created_at)}</span></> : <span className="text-xs text-muted-foreground">no analysis</span>}
+                          {p ? <>{p.call ? <CallBadge call={p.call} className="text-[10px]" /> : <DecisionBadge decision={p.decision} />}<span className="text-[11px] text-muted-foreground">{p.timeframe} · {timeAgo(p.created_at)}</span></> : <span className="text-xs text-muted-foreground">no analysis</span>}
                           <Button size="icon" variant="ghost" aria-label={`Remove ${it.symbol}`} onClick={() => m.removeItem.mutate({ id: w.id, itemId: it.id })}><X className="h-3.5 w-3.5" /></Button>
                         </span>
                       </div>

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { CallBadge, CallCard } from "@/components/domain/call";
 import { use } from "react";
-import { DecisionBadge, EmptyState, NotValidatedBadge, PageHeader, QueryState } from "@/components/domain/common";
+import { DecisionBadge, EmptyState, PageHeader, QueryState } from "@/components/domain/common";
 import { AnalysisOnlyNotice, ConfidencePanelView, EvidenceList, PlanCard, SectionCard } from "@/components/domain/decision";
 import { Badge } from "@/components/ui/badge";
 import { Stat } from "@/components/ui/card";
@@ -31,11 +32,14 @@ export default function PredictionDetailPage({ params }: { params: Promise<{ id:
             <PageHeader
               title={`Prediction #${p.id} · ${p.symbol} ${p.timeframe}`}
               description={`Analysis as of ${fmtDate(p.as_of_ts)} using ${p.provider_code ?? "unknown provider"} candles.`}
-              actions={<><DecisionBadge decision={p.decision} className="text-base" />{p.decision !== "WAIT" && <NotValidatedBadge />}<Link href="/predictions" className="text-xs text-primary hover:underline">All predictions</Link></>}
+              actions={<>{p.call ? <CallBadge call={p.call} /> : <DecisionBadge decision={p.decision} className="text-base" />}<Link href="/predictions" className="text-xs text-primary hover:underline">All predictions</Link></>}
             />
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
               <div className="min-w-0 space-y-4">
-                <SectionCard title="Trade plan"><PlanCard decision={p.decision} plan={plan} waitReasons={p.wait_reasons} /></SectionCard>
+                {p.call && <CallCard call={p.call} symbol={p.symbol ?? ""} title={`Decision · ${p.timeframe}`} />}
+                {(p.call?.levels || p.call?.hypothetical) && (
+                  <SectionCard title={p.call?.hypothetical ? "Hypothetical plan (unvalidated)" : "Trade plan"}><PlanCard decision={p.decision} plan={plan} waitReasons={p.wait_reasons} /></SectionCard>
+                )}
                 <SectionCard title="Explanation">
                   <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-muted-foreground">{p.explanation}</pre>
                 </SectionCard>

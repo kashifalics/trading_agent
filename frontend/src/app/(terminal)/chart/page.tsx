@@ -8,7 +8,8 @@ import { useForm } from "react-hook-form";
 import { CandleChart } from "@/components/charts/candle-chart";
 import { buildMarkers, buildPlanLines, buildStructure, buildZones } from "@/components/charts/overlay-build";
 import { ChartLegend } from "@/components/charts/legend";
-import { DecisionBadge, EmptyState, ErrorState, InstrumentSelect, JobBadge, PageHeader, SourceNote, TimeframeSelect } from "@/components/domain/common";
+import { EmptyState, ErrorState, InstrumentSelect, JobBadge, PageHeader, SourceNote, TimeframeSelect } from "@/components/domain/common";
+import { CallCard } from "@/components/domain/call";
 import { AnalysisOnlyNotice, ConfidencePanelView, EvidenceList, PlanCard, SectionCard } from "@/components/domain/decision";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -115,7 +116,9 @@ export default function ChartPage() {
   const markers = useMemo(() => (result ? buildMarkers(result.events, result.swings, s.overlays, firstVisible, detail, lastTs, barSeconds) : []), [result, s.overlays, firstVisible, detail, lastTs, barSeconds]);
   const zones = useMemo(() => (result ? buildZones(result.events, s.overlays, firstVisible, { price: result.last_close, atr: result.atr }, detail) : []), [result, s.overlays, firstVisible, detail]);
   const segments = useMemo(() => (result ? buildStructure(result.events, s.overlays, firstVisible, detail) : []), [result, s.overlays, firstVisible, detail]);
-  const lines = useMemo(() => buildPlanLines(result?.decision.plan ?? null, s.overlays), [result, s.overlays]);
+  // entry/stop/target lines only when the backend call provides levels (ENTER) or hypothetical ones (experimental mode)
+  const showPlan = !!(analysis.data?.call?.levels || analysis.data?.call?.hypothetical);
+  const lines = useMemo(() => buildPlanLines(showPlan ? result?.decision.plan ?? null : null, s.overlays), [result, s.overlays, showPlan]);
   const resultMatchesChart = analysis.data?.symbol === s.symbol && analysis.data?.timeframe === s.timeframe;
 
   const onRun = form.handleSubmit((v) => {
@@ -197,14 +200,20 @@ export default function ChartPage() {
               {analysis.data && <JobBadge status={analysis.data.status} />}
             </CardHeader>
             <CardContent className="space-y-3" data-testid="decision-panel">
-              {!analysisId && <EmptyState title="No analysis yet" hint="Run an analysis to get BUY, SELL or WAIT with evidence." />}
+              {!analysisId && <EmptyState title="No analysis yet" hint="Run an analysis to get a decision (ENTER, WAIT or NO TRADE) with its evidence." />}
               {jobActive && <div role="status" className="space-y-2 text-sm text-muted-foreground"><Skeleton className="h-2 w-full" />Analysis {analysis.data?.status}…</div>}
               {analysis.isError && <ErrorState error={analysis.error} onRetry={() => void analysis.refetch()} />}
               {analysis.data?.status === "failed" && <p role="alert" className="text-sm text-bear">{analysis.data.error}</p>}
               {result && (
                 <>
                   <div className="text-xs text-muted-foreground">{analysis.data?.symbol} · {analysis.data?.timeframe} · as of {fmtDate(analysis.data?.as_of_ts)}</div>
-                  <PlanCard decision={result.decision.decision} plan={result.decision.plan} precision={precision} waitReasons={result.decision.wait_reasons} />
+                  {analysis.data?.call && <CallCard call={analysis.data.call} symbol={analysis.data.symbol ?? ""} precision={precision} />}
+                  {(analysis.data?.call?.levels || analysis.data?.call?.hypothetical) && (
+                    <div data-testid="hypothetical-plan">
+                      {analysis.data?.call?.hypothetical && <p className="mb-1 text-xs font-semibold text-warn">HYPOTHETICAL — UNVALIDATED plan</p>}
+                      <PlanCard decision={result.decision.decision} plan={result.decision.plan} precision={precision} waitReasons={result.decision.wait_reasons} />
+                    </div>
+                  )}
                   <pre className="whitespace-pre-wrap rounded-md bg-surface p-3 font-sans text-xs leading-relaxed text-muted-foreground">{result.decision.explanation}</pre>
                   {analysis.data?.prediction_id && <Link className="text-xs text-primary hover:underline" href={`/predictions/${analysis.data.prediction_id}`}>Full prediction details →</Link>}
                 </>
@@ -219,7 +228,7 @@ export default function ChartPage() {
                     {result.mtf.views.map((v) => (
                       <li key={v.role} className="flex items-center justify-between gap-2">
                         <span>{v.timeframe} <span className="text-xs text-muted-foreground">({v.role})</span></span>
-                        <DecisionBadge decision={v.direction > 0 ? "BUY" : v.direction < 0 ? "SELL" : "WAIT"} />
+                        <Badge variant={v.direction > 0 ? "buy" : v.direction < 0 ? "sell" : "neutral"}>{v.direction > 0 ? "bullish" : v.direction < 0 ? "bearish" : "neutral"}</Badge>
                       </li>
                     ))}
                   </ul>

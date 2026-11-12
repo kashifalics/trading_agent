@@ -1,4 +1,6 @@
+import type { TradeCall } from "@/lib/decision-types";
 import type { Analysis, Instrument, Quote } from "@/lib/types";
+import { CALL_PRED_BUY, CALL_PRED_WAIT } from "@/test/calls";
 
 const inst = (id: number, sym: string, name: string, supported: boolean, provider: string, status: "active" | "unverified" | "unsupported", prec = 2): Instrument => ({
   id, canonical_symbol: sym, name, asset_class: "x", quote_currency: "USD", price_precision: prec, tick_size: 0.01, calendar: "continuous",
@@ -30,8 +32,9 @@ const conf = {
   analytical_confluence: { score: 0.55, scale: "[-1, +1]", components: [] }, data_quality: { score: 0.9, issues: [] }, uncertainty: [],
 };
 
-export const analysis = (decision: "BUY" | "WAIT", status: Analysis["status"] = "completed"): Analysis => ({
+export const analysis = (decision: "BUY" | "WAIT", status: Analysis["status"] = "completed", call?: TradeCall): Analysis => ({
   id: 7, instrument_id: 3, symbol: "BTCUSDT", timeframe: "1H", source: "market_data", status, params: null, error: null,
+  call: status !== "completed" ? null : call ?? (decision === "BUY" ? CALL_PRED_BUY : CALL_PRED_WAIT),
   as_of_ts: "2026-10-31T20:00:00Z", created_at: "2026-10-31T20:00:00Z", completed_at: null, prediction_id: 9,
   result: status !== "completed" ? null : {
     events: [], swings: [], analogues: null, mtf: null, atr: 1, last_close: 104, bars_used: 700, model: null,

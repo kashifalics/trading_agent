@@ -4,7 +4,8 @@ import { CheckCircle2, CircleSlash, Info, XCircle } from "lucide-react";
 import { useMemo } from "react";
 import { CandleChart } from "@/components/charts/candle-chart";
 import { COLORS, type ChartLine, type ChartZone } from "@/components/charts/overlays";
-import { EmptyState, ErrorState, NotValidatedBadge } from "@/components/domain/common";
+import { CallBadge, CallCard } from "@/components/domain/call";
+import { EmptyState, ErrorState } from "@/components/domain/common";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Label } from "@/components/ui/form";
@@ -12,9 +13,9 @@ import { Meter, Skeleton } from "@/components/ui/misc";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { useSignalCandles } from "@/lib/hooks";
 import { DEFAULT_CONTRACT_SIZE, positionSize } from "@/lib/position-size";
-import type { Instruction, Overall, SignalAnalysis, SignalState, SignalsSummaryItem, TimeframePlan, TimeframeRow } from "@/lib/signal-types";
+import type { Overall, SignalAnalysis, SignalState, SignalsSummaryItem, TimeframePlan, TimeframeRow } from "@/lib/signal-types";
 import { useSettings } from "@/lib/store";
-import { cn, fmtDate, fmtNum, fmtPct, fmtPrice } from "@/lib/utils";
+import { cn, fmtNum, fmtPct, fmtPrice } from "@/lib/utils";
 
 export const STATE_LABEL: Record<SignalState, string> = {
   ENTRY_READY: "Entry ready",
@@ -40,11 +41,6 @@ export function StateBadge({ state }: { state: SignalState }) {
 export function SideBadge({ side }: { side: "BUY" | "SELL" | null | undefined }) {
   if (!side) return <span className="text-muted-foreground">—</span>;
   return <Badge variant={side === "BUY" ? "buy" : "sell"} className="num px-2.5 font-semibold tracking-wider">{side}</Badge>;
-}
-
-export function InstructionText({ instruction, className }: { instruction: Instruction; className?: string }) {
-  const tone = instruction === "EXECUTE NOW" ? "text-bull" : instruction === "PLACE LIMIT ORDER" ? "text-primary" : instruction === "WAIT FOR CONFIRMATION" ? "text-warn" : "text-muted-foreground";
-  return <span className={cn("font-semibold tracking-wide", tone, className)}>{instruction}</span>;
 }
 
 function biasTone(label?: string) {
@@ -75,7 +71,12 @@ export function InstrumentTabs({ items, value, onChange }: { items: SignalsSumma
             className={cn("flex min-w-[150px] flex-col items-start rounded-2xl border px-4 py-2.5 text-left shadow-card transition-colors",
               value === i.symbol ? "border-primary/50 bg-primary/5" : "border-border/60 bg-card hover:bg-muted/50")}>
             <span className="text-sm font-semibold">{i.symbol}</span>
-            {i.status !== "ok" ? (
+            {i.call ? (
+              <span className="flex flex-col items-start gap-1">
+                <CallBadge call={i.call} className="text-[10px]" />
+                <span className="text-[11px] text-muted-foreground">{i.call.timeframe ?? (i.status !== "ok" ? "no data" : "")}{i.call.direction !== "NONE" ? ` · ${i.call.direction}` : ""}</span>
+              </span>
+            ) : i.status !== "ok" ? (
               <span className="text-xs text-muted-foreground">{i.status === "failed" ? "analysis failed" : "no data yet"}</span>
             ) : best ? (
               <span className="flex items-center gap-1.5 text-xs">
@@ -177,57 +178,6 @@ function ProbabilityLine({ plan }: { plan: TimeframePlan }) {
   );
 }
 
-export function BestPlanCard({ a, onSelect }: { a: SignalAnalysis; onSelect: (tf: string) => void }) {
-  const b = a.best;
-  const p = a.price_precision;
-  if (!b) {
-    const watch = a.plans.filter((x) => x.state === "WATCHLIST").sort((x, y) => (y.score ?? 0) - (x.score ?? 0))[0];
-    return (
-      <Card data-testid="best-plan">
-        <CardHeader><CardTitle>Best setup</CardTitle></CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <p><InstructionText instruction="NO TRADE" /> — no timeframe has a setup scoring 60/100 or more that passes every must-pass rule (structural stop, R:R ≥ 1:2, spread, fresh data).</p>
-          {watch && (
-            <p className="text-muted-foreground">
-              Closest: <button className="font-medium text-primary underline-offset-2 hover:underline" onClick={() => onSelect(watch.timeframe)}>{watch.timeframe} {watch.side} ({watch.score}/100)</button>
-              {watch.blocked[0] ? ` — blocked: ${watch.blocked[0]}` : watch.reasons_against[0] ? ` — ${watch.reasons_against[0]}` : ""}
-            </p>
-          )}
-        </CardContent>
-      </Card>
-    );
-  }
-  return (
-    <Card data-testid="best-plan" className="border-primary/30">
-      <CardHeader>
-        <CardTitle>Best setup</CardTitle>
-        <span className="text-xs text-muted-foreground">bias {b.bias_tfs.join(" + ") || "—"} → setup {b.timeframe} → confirmation {b.confirm_tf}</span>
-      </CardHeader>
-      <CardContent className="grid grid-cols-1 gap-5 lg:grid-cols-[1.1fr_1fr]">
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <SideBadge side={b.side} />
-            <span className="text-lg font-semibold">{a.symbol} · {b.timeframe}</span>
-            <StateBadge state={b.state} />
-            <NotValidatedBadge status={b.validation?.status} note={b.validation?.note} />
-          </div>
-          <div className="text-base"><InstructionText instruction={b.instruction} /> <span className="text-sm text-muted-foreground">· {words(b.setup_type)}</span></div>
-          <ScoreMeter score={b.score} grade={b.grade} />
-          <ul className="space-y-1 text-sm">
-            {b.conditions.map((c, i) => <li key={i} className="flex gap-2"><span className="text-primary">•</span>{c}</li>)}
-          </ul>
-          <p className="text-xs text-muted-foreground">Signal {fmtDate(b.signal_time)} · valid until {fmtDate(b.valid_until)}</p>
-          <ProbabilityLine plan={b} />
-        </div>
-        <div className="space-y-3">
-          <Levels plan={b} p={p} />
-          <button className="text-xs font-medium text-primary hover:underline" onClick={() => onSelect(b.timeframe)}>Full checklist and reasoning ↓</button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 // ------------------------------------------------------------------------------------------------ timeframe table
 export function TimeframeTable({ a, selected, onSelect }: { a: SignalAnalysis; selected: string | null; onSelect: (tf: string) => void }) {
   const rows = new Map<string, TimeframeRow>(a.timeframes.map((r) => [r.timeframe, r]));
@@ -235,36 +185,32 @@ export function TimeframeTable({ a, selected, onSelect }: { a: SignalAnalysis; s
   return (
     <Table data-testid="tf-table">
       <THead>
-        <TR><TH>TF</TH><TH>Market</TH><TH>State</TH><TH>Signal</TH><TH>Score</TH><TH className="text-right">Entry</TH><TH className="text-right">Stop</TH><TH className="text-right">TP1</TH><TH className="text-right">R:R</TH><TH>Instruction</TH></TR>
+        <TR><TH>TF</TH><TH>Decision</TH><TH>Market</TH><TH>Technical state</TH><TH>Score</TH><TH className="text-right">Entry</TH><TH className="text-right">Stop</TH><TH className="text-right">TP1</TH><TH className="text-right">R:R</TH></TR>
       </THead>
       <TBody>
         {a.plans.map((pl) => {
           const r = rows.get(pl.timeframe);
-          const levels = isActionable(pl.state) || pl.state === "WATCHLIST";
+          const lv = pl.call?.levels ?? pl.call?.hypothetical ?? null; // shown only for ENTER, or as hypothetical in experimental mode
           return (
             <TR key={pl.timeframe} data-testid={`tf-row-${pl.timeframe}`} onClick={() => onSelect(pl.timeframe)} aria-selected={selected === pl.timeframe}
               className={cn("cursor-pointer", selected === pl.timeframe && "bg-primary/5")}>
               <TD className="num font-semibold">{pl.timeframe}</TD>
+              <TD><CallBadge call={pl.call} className="text-[10px]" /></TD>
               <TD>
                 {r?.label ? (
                   <div><span className={cn("font-medium", biasTone(r.label))}>{r.label}</span>{r.structure && <span className="num ml-1 text-xs text-muted-foreground">{r.structure}</span>}</div>
                 ) : <span className="text-xs text-muted-foreground">{pl.status === "insufficient_data" ? "not enough data" : r?.reason ?? "—"}</span>}
               </TD>
               <TD><StateBadge state={pl.state} /></TD>
-              <TD>
-                <SideBadge side={isActionable(pl.state) ? pl.direction : null} />
-                {isActionable(pl.state) && pl.validation?.status !== "validated" && <span className="ml-1 text-[10px] text-warn" title={pl.validation?.note}>not validated</span>}
-              </TD>
               <TD className="num text-xs">
                 {pl.buy_score === null && pl.sell_score === null ? "—" : (
                   <span><span className="text-bull">B {pl.buy_score ?? "—"}</span> / <span className="text-bear">S {pl.sell_score ?? "—"}</span></span>
                 )}
               </TD>
-              <TD className="num text-right">{levels ? fmtPrice(pl.entry, p) : "—"}</TD>
-              <TD className="num text-right text-bear">{levels ? fmtPrice(pl.stop_loss, p) : "—"}</TD>
-              <TD className="num text-right text-bull">{levels && pl.targets[0] ? fmtPrice(pl.targets[0].price, p) : "—"}</TD>
-              <TD className="num text-right">{levels && pl.risk_reward ? `${fmtNum(pl.risk_reward, 2)}` : "—"}</TD>
-              <TD className="text-xs"><InstructionText instruction={pl.instruction} /></TD>
+              <TD className="num text-right">{lv ? fmtPrice(lv.entry, p) : "—"}</TD>
+              <TD className="num text-right text-bear">{lv ? fmtPrice(lv.stop_loss, p) : "—"}</TD>
+              <TD className="num text-right text-bull">{lv?.targets[0] ? fmtPrice(lv.targets[0].price, p) : "—"}</TD>
+              <TD className="num text-right">{lv?.risk_reward ? `${fmtNum(lv.risk_reward, 2)}` : "—"}</TD>
             </TR>
           );
         })}
@@ -306,10 +252,13 @@ function PlanChart({ a, plan }: { a: SignalAnalysis; plan: TimeframePlan }) {
   const { lines, zones } = useMemo(() => {
     const ls: ChartLine[] = [];
     const zs: ChartZone[] = [];
+    const lv = plan.call?.levels ?? plan.call?.hypothetical ?? null;
+    if (lv && plan.side) {
+      ls.push({ price: lv.entry, color: COLORS.primary, title: `${plan.call?.hypothetical ? "Hypothetical " : ""}Entry ${plan.side}` });
+      ls.push({ price: lv.stop_loss, color: COLORS.bear, title: "SL", dashed: true });
+      lv.targets.forEach((t) => ls.push({ price: t.price, color: COLORS.bull, title: t.label, dashed: true }));
+    }
     if (plan.entry !== undefined && plan.side) {
-      ls.push({ price: plan.entry, color: COLORS.primary, title: `Entry ${plan.side}` });
-      if (plan.stop_loss !== undefined) ls.push({ price: plan.stop_loss, color: COLORS.bear, title: "SL", dashed: true });
-      plan.targets.forEach((t) => ls.push({ price: t.price, color: COLORS.bull, title: t.label, dashed: true }));
       const first = q.data?.candles[Math.max(0, (q.data?.candles.length ?? 1) - 60)]?.time;
       if (plan.entry_zone && first) zs.push({ from: first, low: plan.entry_zone[0], high: plan.entry_zone[1], color: "rgba(59,91,219,0.12)", border: COLORS.primary, label: words(plan.zone_kind) });
     }
@@ -353,6 +302,7 @@ export function PlanDetail({ a, tf }: { a: SignalAnalysis; tf: string }) {
   if (!plan) return null;
   const p = a.price_precision;
   const hasPlan = !!plan.side && plan.targets.length > 0;
+  const showLevels = hasPlan && !!(plan.call?.levels ?? plan.call?.hypothetical);
   return (
     <Card data-testid="plan-detail">
       <CardHeader>
@@ -360,11 +310,11 @@ export function PlanDetail({ a, tf }: { a: SignalAnalysis; tf: string }) {
         <span className="text-xs text-muted-foreground">bias {plan.bias_tfs.join(" + ") || "none"} · confirmation {plan.confirm_tf}</span>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="flex flex-wrap items-center gap-2">
+        {plan.call && <CallCard call={plan.call} symbol={a.symbol} precision={p} title={`Decision · ${plan.timeframe}`} />}
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground" data-testid="technical-state">
+          <span className="text-[11px] font-semibold uppercase tracking-wider">Technical analysis</span>
           <StateBadge state={plan.state} />
-          <InstructionText instruction={plan.instruction} />
-          {plan.side && <NotValidatedBadge status={plan.validation?.status} note={plan.validation?.note} />}
-          {plan.side && <span className="text-sm text-muted-foreground">· {plan.side} {words(plan.setup_type)} · {plan.score}/100{plan.checks_total ? ` · ${plan.checks_met}/${plan.checks_total} checks met` : ""}</span>}
+          {plan.side && <span>{plan.side} {words(plan.setup_type)} · {plan.score}/100{plan.checks_total ? ` · ${plan.checks_met}/${plan.checks_total} checks met` : ""}</span>}
         </div>
         {plan.previous && (
           <p className="rounded-md border border-warn/30 bg-warn/5 p-2 text-xs text-warn">Previous {plan.previous.side} plan (entry {fmtPrice(plan.previous.entry, p)}): {plan.previous.reason}.</p>
@@ -375,15 +325,18 @@ export function PlanDetail({ a, tf }: { a: SignalAnalysis; tf: string }) {
         )}
         {!hasPlan ? (
           <div className="space-y-1 text-sm">
-            <p className="font-medium">NO TRADE</p>
             {plan.reasons_against.map((r, i) => <p key={i} className="text-muted-foreground">• {r}</p>)}
           </div>
         ) : (
           <>
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="space-y-4">
-                <Levels plan={plan} p={p} />
-                {plan.conditions.length > 0 && (
+                {showLevels ? <Levels plan={plan} p={p} /> : (
+                  <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground" data-testid="levels-hidden">
+                    Entry, stop and targets are shown only with an ENTER decision, or marked hypothetical in experimental analysis mode.
+                  </p>
+                )}
+                {showLevels && plan.conditions.length > 0 && (
                   <div><div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Conditions</div>
                     <ul className="space-y-1 text-sm">{plan.conditions.map((c, i) => <li key={i}>• {c}</li>)}</ul></div>
                 )}
@@ -393,7 +346,7 @@ export function PlanDetail({ a, tf }: { a: SignalAnalysis; tf: string }) {
                   <div><div className="mb-1 text-xs font-semibold uppercase tracking-wider text-bear">Reasons against</div>
                     <ul className="space-y-1 text-xs" data-testid="reasons-against">{plan.reasons_against.map((r, i) => <li key={i}>• {r}</li>)}</ul></div>
                 </div>
-                {plan.reasoning && (
+                {showLevels && plan.reasoning && (
                   <div className="space-y-1 text-xs text-muted-foreground">
                     <p><strong className="text-foreground">Entry:</strong> {plan.reasoning.entry}</p>
                     <p><strong className="text-foreground">Stop:</strong> {plan.reasoning.stop}</p>
@@ -404,7 +357,7 @@ export function PlanDetail({ a, tf }: { a: SignalAnalysis; tf: string }) {
               </div>
               <div className="space-y-4">
                 <div><div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Confluence checklist ({plan.score}/100)</div><Checklist plan={plan} /></div>
-                <div><div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Position size</div><SizeCalculator symbol={a.symbol} plan={plan} p={p} /></div>
+                {showLevels && <div><div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Position size{plan.call?.hypothetical ? " (hypothetical)" : ""}</div><SizeCalculator symbol={a.symbol} plan={plan} p={p} /></div>}
               </div>
             </div>
             <PlanChart a={a} plan={plan} />

@@ -307,8 +307,8 @@ function TradeDetail({ id }: { id: number }) {
 
 type TableKind = "open" | "pending" | "history";
 const HEADERS: Record<TableKind, string[]> = {
-  open: ["Instrument", "Side", "Fill", "Stop", "TP1", "Last", "Open P&L", "Opened", "Score", "Account"],
-  pending: ["Instrument", "Side", "Order", "Stop", "TP1", "Expires", "Score", "Account"],
+  open: ["Instrument", "Side", "Recommendation", "Fill", "Stop", "TP1", "Last", "Open P&L", "Opened", "Score", "Account"],
+  pending: ["Instrument", "Side", "Recommendation", "Order", "Stop", "TP1", "Expires", "Score", "Account"],
   history: ["Closed", "Instrument", "Side", "Result", "Entry → exit", "R net", "P&L", "Score", "Setup"],
 };
 
@@ -316,15 +316,23 @@ function Cells({ t, kind }: { t: PaperTrade; kind: TableKind }) {
   const inst = <TD className="whitespace-nowrap font-medium">{t.symbol} <span className="text-muted-foreground">{t.timeframe}</span></TD>;
   const side = <TD><SideBadge side={t.direction} /></TD>;
   const score = <TD className="num">{t.score ?? "—"}</TD>;
+  // trade management from the backend decision engine: HOLD / EXIT / WAIT for this tracked paper trade
+  const m = t.management;
+  const rec = (
+    <TD className="text-xs" data-testid="trade-recommendation" title={m?.reason}>
+      {m ? <span className={cn("font-semibold", m.action === "EXIT" ? "text-bear" : m.action === "HOLD" ? "text-bull" : "text-warn")}>{m.action}</span> : "—"}
+      {m && <span className="block max-w-[16rem] truncate text-muted-foreground">{m.reason}</span>}
+    </TD>
+  );
   const account = <TD className="text-xs">{t.account_taken ? fmtMoney(t.risk_amount) : <span className="text-muted-foreground" title={t.account_note ?? undefined}>skipped</span>}</TD>;
   if (kind === "open") {
-    return (<>{inst}{side}<TD className="num">{px(t.fill_price)}</TD><TD className="num">{px(t.stop_loss)}</TD><TD className="num">{px(t.take_profit)}</TD>
+    return (<>{inst}{side}{rec}<TD className="num">{px(t.fill_price)}</TD><TD className="num">{px(t.stop_loss)}</TD><TD className="num">{px(t.take_profit)}</TD>
       <TD className="num">{px(t.last_price)}</TD>
       <TD className={cn("num whitespace-nowrap", signClass(t.unrealized_r))}>{fmtR(t.unrealized_r)}{t.unrealized_pnl !== null && <span className="text-xs"> {fmtMoney(t.unrealized_pnl, true)}</span>}</TD>
       <TD className="whitespace-nowrap text-xs">{timeAgo(t.filled_at)}</TD>{score}{account}</>);
   }
   if (kind === "pending") {
-    return (<>{inst}{side}<TD className="whitespace-nowrap">{t.order_type === "limit" ? `Limit ${px(t.entry_price)}` : "Market · next open"}</TD>
+    return (<>{inst}{side}{rec}<TD className="whitespace-nowrap">{t.order_type === "limit" ? `Limit ${px(t.entry_price)}` : "Market · next open"}</TD>
       <TD className="num">{px(t.stop_loss)}</TD><TD className="num">{px(t.take_profit)}</TD><TD className="whitespace-nowrap text-xs">{fmtDate(t.valid_until)}</TD>{score}{account}</>);
   }
   return (<><TD className="whitespace-nowrap text-xs">{fmtDate(t.closed_at)}</TD>{inst}{side}<TD><PaperStatusBadge t={t} /></TD>

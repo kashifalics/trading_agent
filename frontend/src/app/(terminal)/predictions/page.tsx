@@ -1,9 +1,10 @@
 "use client";
 
 import { RefreshCw } from "lucide-react";
+import { CallBadge } from "@/components/domain/call";
 import Link from "next/link";
 import { useState } from "react";
-import { DecisionBadge, EmptyState, NotValidatedBadge, PageHeader, QueryState } from "@/components/domain/common";
+import { DecisionBadge, EmptyState, PageHeader, QueryState } from "@/components/domain/common";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,7 +29,7 @@ export default function PredictionsPage() {
     <>
       <PageHeader
         title="Predictions"
-        description="Every analysis is stored with its evidence and tracked against subsequent candles, independently of any backtest. BUY/SELL decisions are not validated: the rules behind them have no verified out-of-sample edge."
+        description="Every analysis is stored with its evidence and tracked against subsequent candles, independently of any backtest. Each row shows the decision (ENTER, WAIT or NO TRADE); the rules behind these analyses have no verified out-of-sample edge, so none is ENTER."
         actions={<Button variant="outline" loading={refresh.isPending} onClick={() => refresh.mutate()}><RefreshCw className="h-4 w-4" /> Refresh outcomes</Button>}
       />
       <div className="mb-3 grid max-w-2xl grid-cols-3 gap-2">
@@ -51,20 +52,23 @@ export default function PredictionsPage() {
                 <Table>
                   <THead><TR><TH>#</TH><TH>Instrument</TH><TH>TF</TH><TH>Decision</TH><TH>Entry</TH><TH>Stop</TH><TH>Target 1</TH><TH>R:R</TH><TH>Quality</TH><TH>Outcome</TH><TH>As of</TH></TR></THead>
                   <TBody>
-                    {d.items.map((p) => (
+                    {d.items.map((p) => {
+                      const lv = p.call?.levels ?? p.call?.hypothetical ?? null; // ENTER levels, or hypothetical ones in experimental mode
+                      return (
                       <TR key={p.id}>
                         <TD><Link className="text-primary hover:underline" href={`/predictions/${p.id}`}>{p.id}</Link></TD>
                         <TD className="font-medium">{p.symbol}</TD><TD>{p.timeframe}</TD>
-                        <TD><span className="flex flex-wrap items-center gap-1"><DecisionBadge decision={p.decision} />{p.decision !== "WAIT" && <NotValidatedBadge />}</span></TD>
-                        <TD className="num">{p.entry_low ? `${fmtPrice(p.entry_low)}–${fmtPrice(p.entry_high)}` : "—"}</TD>
-                        <TD className="num">{fmtPrice(p.stop_loss)}</TD>
-                        <TD className="num">{fmtPrice(p.take_profit?.[0])}</TD>
-                        <TD className="num">{p.risk_reward ? fmtNum(p.risk_reward, 2) : "—"}</TD>
+                        <TD>{p.call ? <CallBadge call={p.call} className="text-[10px]" /> : <DecisionBadge decision={p.decision} />}</TD>
+                        <TD className={lv && !p.call?.levels ? "num text-muted-foreground" : "num"}>{lv ? (lv.entry_zone ? `${fmtPrice(lv.entry_zone[0])}–${fmtPrice(lv.entry_zone[1])}` : fmtPrice(lv.entry)) : "—"}</TD>
+                        <TD className="num">{lv ? fmtPrice(lv.stop_loss) : "—"}</TD>
+                        <TD className="num">{lv?.targets[0] ? fmtPrice(lv.targets[0].price) : "—"}</TD>
+                        <TD className="num">{lv?.risk_reward ? fmtNum(lv.risk_reward, 2) : "—"}</TD>
                         <TD className="num">{fmtNum(p.data_quality_score, 2)}</TD>
                         <TD><Badge variant={p.outcome === "tp_hit" ? "buy" : p.outcome === "sl_hit" ? "sell" : "neutral"}>{p.outcome.replace("_", " ")}</Badge></TD>
                         <TD className="num text-muted-foreground">{fmtDate(p.as_of_ts)}</TD>
                       </TR>
-                    ))}
+                      );
+                    })}
                   </TBody>
                 </Table>
                 <div className="flex items-center justify-between border-t px-3 py-2 text-xs text-muted-foreground">

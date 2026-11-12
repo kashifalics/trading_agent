@@ -2,6 +2,7 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "@/lib/api";
+import { useSettings } from "@/lib/store";
 import type { GoldResearch } from "@/lib/research-types";
 import type {
   AnaloguesResponse,
@@ -69,13 +70,19 @@ export const usePatternScan = (symbol: string, recent = 3) =>
 export const usePatternDefinitions = () =>
   useQuery({ queryKey: ["pattern-defs"], queryFn: () => api.get<PatternDefinitions>("/patterns/definitions"), staleTime: Infinity });
 
-export const useAnalysis = (id: number | null) =>
-  useQuery({
-    queryKey: ["analysis", id],
-    queryFn: () => api.get<Analysis>(`/analysis/${id}`),
+/** The experimental-mode flag sent with every request that returns a trading decision (undefined = off). */
+export const useExperimental = () => useSettings((s) => s.experimentalMode);
+const expParam = (x: boolean) => (x ? { experimental: true } : {});
+
+export const useAnalysis = (id: number | null) => {
+  const x = useExperimental();
+  return useQuery({
+    queryKey: ["analysis", id, x],
+    queryFn: () => api.get<Analysis>(`/analysis/${id}`, expParam(x)),
     enabled: id !== null,
     refetchInterval: (q) => (isActive(q.state.data?.status) ? 1500 : false),
   });
+};
 export const useAnalogues = (id: number | null) =>
   useQuery({ queryKey: ["analogues", id], queryFn: () => api.get<AnaloguesResponse>(`/analysis/${id}/analogues`), enabled: id !== null });
 export const useAnalyses = (limit = 10) =>
@@ -88,14 +95,18 @@ export interface PredictionFilters {
   limit?: number;
   offset?: number;
 }
-export const usePredictions = (f: PredictionFilters = {}) =>
-  useQuery({
-    queryKey: ["predictions", f],
-    queryFn: () => api.get<Page<Prediction>>("/predictions", { limit: 25, ...f }),
+export const usePredictions = (f: PredictionFilters = {}) => {
+  const x = useExperimental();
+  return useQuery({
+    queryKey: ["predictions", f, x],
+    queryFn: () => api.get<Page<Prediction>>("/predictions", { limit: 25, ...f, ...expParam(x) }),
     placeholderData: keepPreviousData,
   });
-export const usePrediction = (id: number) =>
-  useQuery({ queryKey: ["prediction", id], queryFn: () => api.get<PredictionDetail>(`/predictions/${id}`), retry: retryPolicy });
+};
+export const usePrediction = (id: number) => {
+  const x = useExperimental();
+  return useQuery({ queryKey: ["prediction", id, x], queryFn: () => api.get<PredictionDetail>(`/predictions/${id}`, expParam(x)), retry: retryPolicy });
+};
 export const usePredictionStats = () => useQuery({ queryKey: ["prediction-stats"], queryFn: () => api.get<PredictionStats>("/predictions/stats") });
 
 export const useBacktest = (id: number | null) =>
@@ -196,20 +207,24 @@ export function useWatchlistMutations() {
 }
 
 // ---- Trade Opportunities ----
-export const useOppSummary = () =>
-  useQuery({
-    queryKey: ["opp-summary"],
-    queryFn: () => api.get<OppSummary>("/opportunities/summary"),
+export const useOppSummary = () => {
+  const x = useExperimental();
+  return useQuery({
+    queryKey: ["opp-summary", x],
+    queryFn: () => api.get<OppSummary>("/opportunities/summary", expParam(x)),
     refetchInterval: (q) => (q.state.data?.running_scan ? 2000 : 60_000),
     retry: retryPolicy,
   });
-export const useOpportunity = (id: number | null) =>
-  useQuery({
-    queryKey: ["opportunity", id],
-    queryFn: () => api.get<OpportunityDetail>(`/opportunities/${id}`),
+};
+export const useOpportunity = (id: number | null) => {
+  const x = useExperimental();
+  return useQuery({
+    queryKey: ["opportunity", id, x],
+    queryFn: () => api.get<OpportunityDetail>(`/opportunities/${id}`, expParam(x)),
     enabled: id !== null,
     retry: retryPolicy,
   });
+};
 export const useOppValidation = () => useQuery({ queryKey: ["opp-validation"], queryFn: () => api.get<OppValidation>("/opportunities/validation"), staleTime: 300_000 });
 
 export function useStartScan() {
@@ -221,18 +236,22 @@ export function useStartScan() {
 }
 
 // ---- Signals (top-down multi-timeframe engine) ----
-export const useSignalsSummary = () =>
-  useQuery({ queryKey: ["signals"], queryFn: () => api.get<SignalsSummary>("/signals"), refetchInterval: 60_000, retry: retryPolicy });
+export const useSignalsSummary = () => {
+  const x = useExperimental();
+  return useQuery({ queryKey: ["signals", x], queryFn: () => api.get<SignalsSummary>("/signals", expParam(x)), refetchInterval: 60_000, retry: retryPolicy });
+};
 
-export const useSignal = (symbol: string | null) =>
-  useQuery({
-    queryKey: ["signal", symbol],
-    queryFn: () => api.get<SignalAnalysis>(`/signals/${symbol}`),
+export const useSignal = (symbol: string | null) => {
+  const x = useExperimental();
+  return useQuery({
+    queryKey: ["signal", symbol, x],
+    queryFn: () => api.get<SignalAnalysis>(`/signals/${symbol}`, expParam(x)),
     enabled: !!symbol,
     refetchInterval: 60_000,
     placeholderData: keepPreviousData,
     retry: retryPolicy,
   });
+};
 
 /** Candles from the SAME provider the signal engine used for this instrument (never mixed). */
 export const useSignalCandles = (symbol: string, timeframe: string, provider: string, enabled = true) =>
@@ -246,10 +265,11 @@ export const useSignalCandles = (symbol: string, timeframe: string, provider: st
 
 export function useSyncSignal() {
   const qc = useQueryClient();
+  const x = useExperimental();
   return useMutation({
-    mutationFn: (symbol: string) => api.post<SignalSync>(`/signals/${symbol}/sync`),
+    mutationFn: (symbol: string) => api.post<SignalSync>(`/signals/${symbol}/sync${x ? "?experimental=true" : ""}`),
     onSuccess: (d, symbol) => {
-      qc.setQueryData(["signal", symbol], d.analysis);
+      qc.setQueryData(["signal", symbol, x], d.analysis);
       void qc.invalidateQueries({ queryKey: ["signals"] });
       void qc.invalidateQueries({ queryKey: ["signal-candles", symbol] });
     },

@@ -30,7 +30,8 @@ STATUSES = ("pending", "open", "closed", "cancelled", "missed", "expired", "skip
 DISCLAIMER = ("Paper trading: simulated orders on live candles, no broker and no real money. Fills assume the spread you configured and no "
               "slippage beyond gaps; real fills can be worse. Results are only evidence once enough trades have closed.")
 METHOD = [
-    "Every EXECUTE NOW (market) and PLACE LIMIT ORDER (limit) signal is recorded when the backend first sees it; nothing is backfilled.",
+    "Every technically complete setup is recorded when the backend first sees it (immediate entry -> market order, limit plan -> "
+    "limit order), whatever the customer decision: this is the forward test of the unvalidated rules; nothing is backfilled.",
     "Market orders fill at the open of the first candle after the signal was seen; skipped if price is already past the stop/TP1 or "
     "more than 0.3R beyond the planned entry.",
     "Limit orders rest until the plan expires; cancelled on a setup-candle close beyond the invalidation level, missed if TP1 trades first.",

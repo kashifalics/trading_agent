@@ -43,6 +43,28 @@ Interactive, always-current reference: **`/docs`** (Swagger UI) and **`/openapi.
 | `GET /research/gold` | Bundled summary of the XAUUSD historical research (dataset, split, pattern and model results); never includes sealed final-test figures |
 | `GET/POST/DELETE /watchlists…` | Per-user watchlists |
 
+## Decision object (`call`)
+
+Every response with a trade idea carries `call` (docs/DECISION_ENGINE.md); each of those endpoints accepts `?experimental=true`.
+
+| Field | Meaning |
+|---|---|
+| `decision` | `ENTER`, `WAIT`, `EXIT` or `NO TRADE` |
+| `label` / `headline` / `next_condition` | e.g. `WAIT — UNVALIDATED SETUP`; one-sentence reason; what must happen next (always present) |
+| `symbol`, `timeframe`, `direction` (`BUY`/`SELL`/`NONE`), `setup`, `entry_mode` (`immediate`/`conditional`, ENTER only) | The setup |
+| `levels` | `{entry, entry_zone, stop_loss, targets[{label, price, rr}], risk_reward, invalidation}`, **only with ENTER**, else `null` |
+| `hypothetical` | Same fields plus `label: "HYPOTHETICAL — UNVALIDATED"`, only with `experimental=true` and never with ENTER |
+| `watch` | `{zone, invalidation}`: the price condition without entry/stop/targets |
+| `checks[]`, `failed_checks[]` | `{name, passed, detail, fix}` mandatory conditions |
+| `validation` | `{status: validated / not_validated, label, note, research_status}` |
+| `data_quality`, `alignment` | `{status, detail}`; higher-timeframe agreement and confirmation timeframe status |
+| `reasons_for[]`, `reasons_against[]`, `invalidation`, `score`, `score_note` | Evidence; the score is a quality checklist, not a probability |
+| `trade` | Management of a tracked paper trade on this timeframe, if any |
+| `wait_kind`, `technical_status`, `technical_detail`, `price_now`, `price_source` | Diagnostics |
+
+Paper trades (`/paper/trades`, `/paper/summary`) that are open or pending carry `management`: `{action: HOLD/EXIT/WAIT/NO TRADE,
+reason, current_price, stop_distance, target_distance, unrealized_r, unrealized_pnl, ...}`.
+
 ## Prediction object (essentials)
 
 ```json

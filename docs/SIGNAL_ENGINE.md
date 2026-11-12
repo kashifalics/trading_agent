@@ -98,6 +98,10 @@ broken level or a confirmed retest), `trend_pullback` (setup-TF structure agrees
 Anything that cannot be measured scores 0. Weights were set a priori, not fitted.
 
 ## Entry states and final instruction
+
+These are the engine's **technical** states. Customers see the decision computed on top of them (docs/DECISION_ENGINE.md): a
+technically complete plan of unvalidated rules is shown as `WAIT — UNVALIDATED SETUP`, and the instructions below are never shown
+as such. The states still drive Paper Trading and the replay.
 | State | Condition | Final instruction |
 |---|---|---|
 | NO_SETUP | no plan, score < 40, stale data, or unclear structure | NO TRADE |

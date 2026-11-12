@@ -13,7 +13,7 @@ from app.database.models import (
     User,
 )
 from app.database.session import get_session
-from app.decision.adapters import prediction_call
+from app.decision.adapters import prediction_call, redact_explanation
 from app.jobs.tasks import dispatch
 from app.schemas.analysis import AnalysisOut, AnalysisRunRequest
 from app.schemas.common import JobAccepted, Page
@@ -36,6 +36,8 @@ def analysis_out(session: Session, a: Analysis, experimental: bool = False) -> A
              "entry_high": plan.get("entry_high"), "stop_loss": plan.get("stop_loss"), "take_profit": plan.get("targets"),
              "risk_reward": plan.get("risk_reward"), "invalidation_level": plan.get("invalidation"), "data_quality_score": dq,
              "warnings": d.get("warnings")}, wait_reasons=d.get("wait_reasons"), experimental=experimental))
+        # copies, never the ORM's JSON in place: the stored result stays untouched
+        out.result = {**out.result, "decision": {**d, "explanation": redact_explanation(d.get("explanation"), out.call)}}
     return out
 
 

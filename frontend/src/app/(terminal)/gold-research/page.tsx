@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { EmptyState, PageHeader, QueryState, SourceNote } from "@/components/domain/common";
 import { Badge } from "@/components/ui/badge";
+import { CallBadge } from "@/components/domain/call";
 import { Card, CardContent, CardHeader, CardTitle, Stat } from "@/components/ui/card";
 import { Tabs } from "@/components/ui/misc";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
@@ -203,7 +204,7 @@ function LiveSignal() {
           {(s) => (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <Stat label="Overall bias" value={s.overall?.label ?? "–"} sub={s.overall?.detail} wrap />
-              <Stat label="Decision" value={s.analysis_report?.final_decision ?? s.report?.final_instruction ?? "NO TRADE"} wrap />
+              <Stat label="Decision" value={s.call ? <CallBadge call={s.call} /> : "–"} sub={s.call?.next_condition ?? undefined} wrap />
               <Stat label="Signal class" value={s.best?.signal_class?.replaceAll("_", " ") ?? "–"} />
               <Stat label="Confluence" value={s.best?.score ?? "–"} sub={s.best?.confluence_band ? `${s.best.confluence_band.replaceAll("_", " ")} (not a probability)` : undefined} />
             </div>

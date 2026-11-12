@@ -20,7 +20,7 @@ const PAPER_EMPTY = {
   breakdowns: { series: [], symbol: [], timeframe: [], setup_type: [], score_band: [], direction: [], order_type: [], session: [] },
   open: [], pending: [], recent: [],
   worker: { enabled: true, interval_s: 60, running: false, cycles: 3, last_cycle_at: "2026-11-07T11:59:30Z", last_duration_s: 11.2, last_results: [], last_error: null },
-  method: ["Every EXECUTE NOW (market) and PLACE LIMIT ORDER (limit) signal is recorded when the backend first sees it; nothing is backfilled."],
+  method: ["Every technically complete setup is recorded when the backend first sees it (immediate entry -> market order, limit plan -> limit order), whatever the customer decision: this is the forward test of the unvalidated rules; nothing is backfilled."],
   disclaimer: "Paper trading: simulated orders on live candles, no broker and no real money.",
 };
 
@@ -75,8 +75,10 @@ test("critical workflow: run an analysis and read the decision", async ({ page }
   await page.goto("/chart");
   await page.getByRole("button", { name: /run analysis/i }).click();
   const panel = page.getByTestId("decision-panel");
-  await expect(panel.getByText("BUY", { exact: true }).first()).toBeVisible({ timeout: 10_000 });
-  await expect(panel).toContainText("101.00");
+  await expect(panel.getByTestId("call-decision")).toHaveText("WAIT — UNVALIDATED SETUP", { timeout: 10_000 });
+  await expect(panel.getByTestId("call-validation")).toContainText("Not validated");
+  await expect(panel).not.toContainText("101.00"); // the technical stop is withheld: the rules are not validated
+  await expect(page.getByText("EXECUTE NOW")).toHaveCount(0);
   await expect(page.getByTestId("confidence-panel")).toContainText("no probability is shown");
 });
 
@@ -118,5 +120,5 @@ test("login journey: the server asks for a key, Settings verifies it, then the a
   expect((await firstSignals).headers()["x-api-key"]).toBe("ati_e2e");
   await expect(page.locator("main h1")).toHaveText("Signals");
   await expect(page.getByTestId("api-key-banner")).toHaveCount(0);
-  await expect(page.getByText(/Every signal here is/)).toContainText("not validated");
+  await expect(page.getByText(/Every instrument and timeframe gets one decision/)).toContainText("WAIT — UNVALIDATED SETUP");
 });

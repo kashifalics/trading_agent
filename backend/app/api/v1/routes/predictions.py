@@ -13,7 +13,7 @@ from app.database.models import (
     User,
 )
 from app.database.session import get_session
-from app.decision.adapters import prediction_call
+from app.decision.adapters import prediction_call, redact_explanation
 from app.historical_engine.stats import wilson_interval
 from app.jobs.tasks import dispatch
 from app.schemas.analysis import (
@@ -34,6 +34,7 @@ def _out(session: Session, p: Prediction, cls=PredictionOut, experimental: bool 
     o = cls.model_validate(p)
     o.symbol = session.get(Instrument, p.instrument_id).canonical_symbol
     o.call = to_jsonable(prediction_call(o.model_dump(), wait_reasons=wait_reasons, experimental=experimental))
+    o.explanation = redact_explanation(o.explanation, o.call)
     return o
 
 

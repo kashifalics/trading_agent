@@ -10,6 +10,9 @@ Code: `backend/app/paper/` (simulator, service, stats, worker), shared fill and 
 ## What counts as a signal
 
 The source is the same `analyze()` output the Signals page shows, including its live downgrades (market closed, abnormal spread).
+It records the engine's **technical** states, not the customer decision (docs/DECISION_ENGINE.md): it is the forward test of the
+unvalidated rules, so it records setups whose decision is `WAIT — UNVALIDATED SETUP`. Open and pending trades carry `management`
+(HOLD / EXIT / WAIT / NO TRADE with the reason, distances to stop and target and unrealised R), shown as **Recommendation**.
 
 | Plan on the Signals page | Paper order |
 |---|---|

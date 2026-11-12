@@ -25,7 +25,8 @@ from app.signals.execution import market_entry_ok
 
 ENTER, WAIT, EXIT, NO_TRADE = "ENTER", "WAIT", "EXIT", "NO TRADE"
 ORDER = {EXIT: 0, ENTER: 1, WAIT: 2, NO_TRADE: 3}
-WAIT_ORDER = {"unvalidated": 0, "confirmation": 1, "market": 2, "price": 3, "developing": 4, "trade_open": 5, "order_pending": 6}
+# an open or pending tracked trade is the first thing to manage, then the most concrete new setup
+WAIT_ORDER = {"trade_open": 0, "order_pending": 1, "unvalidated": 2, "confirmation": 3, "market": 4, "price": 5, "developing": 6}
 SCORE_NOTE = "setup quality checklist, not a probability of winning"
 EXIT_LABEL = {"stop_loss": "EXIT — STOP-LOSS HIT", "target": "EXIT — TARGET REACHED", "invalidation": "EXIT — SETUP INVALIDATED"}
 UNVALIDATED_NEXT = ("Research validation of these rules for this instrument and timeframe: at least 100 out-of-sample trades with a "
@@ -198,14 +199,21 @@ def decide(i: DecisionInput) -> dict:
                 "price": f"A {_side(d)} setup is waiting for price to reach its entry zone.",
                 "confirmation": f"A {_side(d)} setup is at its zone; the confirmation signal has not appeared yet.",
                 "market": f"A {_side(d)} setup exists, but current market conditions do not allow an entry."}[kind]
-        return done(WAIT, label, head, i.next_condition, kind, watch=watch, **_hypo(i))
+        zone = f" {_fmt(i.entry_zone[0])} - {_fmt(i.entry_zone[1])}" if i.entry_zone else (f" {_fmt(i.entry)}" if i.entry is not None else "")
+        default = {"developing": "The setup meets enough of its conditions to qualify as a signal.",
+                   "price": f"Price trades into the entry zone{zone}.",
+                   "confirmation": f"A confirmation signal in the {_side(d)} direction (a candle or structure break) on the confirmation timeframe.",
+                   "market": "The market is open and the live spread is back to normal."}[kind]
+        return done(WAIT, label, head, i.next_condition or default, kind, watch=watch, **_hypo(i))
     # 11. technical entry confirmed
     if i.validation.get("status") == "validated":
         mode = "immediate" if i.entry_mode == "market" else "conditional"
         how = (f"Enter {_side(d)} now near {_fmt(i.entry)}" if mode == "immediate"
                else f"Enter {_side(d)} with a limit order at {_fmt(i.entry)} (conditional on a fill)")
+        default = (f"Enter near {_fmt(i.entry)}; skip it if price runs more than {CHASE_R:g}R past the entry (never chase)." if mode == "immediate"
+                   else f"The limit order at {_fmt(i.entry)} fills before the setup expires.")
         return done(ENTER, "ENTER", f"{how}. All mandatory conditions pass and these rules passed out-of-sample validation.",
-                    i.next_condition, entry_mode=mode, levels=_levels(i))
+                    i.next_condition or default, entry_mode=mode, levels=_levels(i))
     return done(WAIT, "WAIT — UNVALIDATED SETUP",
                 f"The technical {_side(d)} conditions are present, but these rules have not shown a profitable edge in out-of-sample "
                 "testing, so the system does not recommend entering.", UNVALIDATED_NEXT, "unvalidated", watch=watch, **_hypo(i))
@@ -222,7 +230,8 @@ def _hypo(i: DecisionInput) -> dict:
 
 
 def rank(calls: list[dict]) -> dict | None:
-    """The instrument-level call: EXIT > ENTER > WAIT (unvalidated, confirmation, market, price, developing) > NO TRADE; ties by score."""
+    """The instrument-level call: EXIT > ENTER > WAIT (trade open, order pending, unvalidated, confirmation, market, price, developing)
+    > NO TRADE; ties by score."""
     if not calls:
         return None
     return min(calls, key=lambda c: (ORDER[c["decision"]], WAIT_ORDER.get(c.get("wait_kind") or "", 9), -(c.get("score") or 0)))

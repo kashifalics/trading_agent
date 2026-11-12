@@ -47,10 +47,12 @@ function Content({ s, selected, onSelect }: { s: OppSummary; selected: number | 
   return (
     <div className="space-y-5">
       <SummaryBar s={s} />
-      {live.length === 0 && <Notice>No setup currently meets the required criteria on any instrument and style. <strong>WAIT is a valid result</strong> — the reasons are listed on each card.</Notice>}
+      {live.length === 0 && <Notice>No setup currently meets the required criteria on any instrument and style. <strong>NO TRADE and WAIT are valid results</strong> — the reasons are listed on each card.</Notice>}
       {!anyValidated && (
         <Notice tone="warn">
-          No setup rule set has passed out-of-sample validation. Every score below is an <strong>evidence-quality score, not a win probability</strong>, and is capped by the strategy&apos;s validation status.
+          No setup rule set has passed out-of-sample validation, so no opportunity is <strong>ENTER</strong>: a technically complete setup is shown as
+          {" "}<strong>WAIT — UNVALIDATED SETUP</strong> and its levels are hidden (turn on experimental mode in Settings to inspect them, marked hypothetical).
+          Every score below is an <strong>evidence-quality score, not a win probability</strong>, and is capped by the strategy&apos;s validation status.
           Past patterns do not guarantee future results. Analysis only: nothing is executed.
         </Notice>
       )}

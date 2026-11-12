@@ -1,3 +1,4 @@
+import type { TradeCall } from "@/lib/decision-types";
 // Types for /api/v1/signals (backend: app/signals, docs/SIGNAL_ENGINE.md).
 
 export type SignalState =
@@ -123,6 +124,8 @@ export interface TimeframePlan {
   track_record?: TrackRecordRef;
   /** Explicit validation label: "not_validated" unless these rules passed out-of-sample validation. */
   validation?: { status: "validated" | "not_validated"; label: string; note: string };
+  /** The customer call for this timeframe (backend app/decision). */
+  call?: TradeCall;
 }
 
 export interface TimeframeRow {
@@ -186,6 +189,9 @@ export interface SignalAnalysis {
   report?: { final_instruction: Instruction; text: string } | null;
   analysis_report?: { final_decision: string; signal_class?: string; confluence_band?: string; market_regime?: string | null } | null;
   disclaimer: string;
+  /** The instrument-level call: the most actionable timeframe call. */
+  call?: TradeCall | null;
+  experimental?: boolean;
 }
 
 export interface CompactPlan {
@@ -206,6 +212,7 @@ export interface CompactPlan {
   risk_reward?: number;
   summary?: string;
   validation_status?: "validated" | "not_validated";
+  call?: TradeCall | null;
 }
 
 export interface SignalsSummaryItem {
@@ -223,6 +230,7 @@ export interface SignalsSummaryItem {
   best?: CompactPlan | null;
   active?: CompactPlan[];
   last_candle?: string | null;
+  call?: TradeCall | null;
 }
 
 export interface SignalsSummary {

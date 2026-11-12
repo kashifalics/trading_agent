@@ -42,7 +42,7 @@ const SUMMARY: PaperSummary = {
   },
   open: [open], pending: [pending], recent: [base],
   worker: { enabled: true, interval_s: 60, running: false, cycles: 12, last_cycle_at: "2026-11-07T11:59:30Z", last_duration_s: 3.2, last_results: [], last_error: null },
-  method: ["Every EXECUTE NOW (market) and PLACE LIMIT ORDER (limit) signal is recorded when the backend first sees it; nothing is backfilled."],
+  method: ["Every technically complete setup is recorded when the backend first sees it (immediate entry -> market order, limit plan -> limit order), whatever the customer decision: this is the forward test of the unvalidated rules; nothing is backfilled."],
   disclaimer: "Paper trading: simulated orders on live candles, no broker and no real money.",
 };
 

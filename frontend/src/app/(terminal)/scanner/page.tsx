@@ -1,6 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
+import { CallBadge } from "@/components/domain/call";
 import { Play, Radar } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -23,7 +24,7 @@ function Cell({ pred, inst, tf, onRun, busy }: { pred?: Prediction; inst: Instru
       <div className="flex items-center gap-2">
         {pred ? (
           <Link href={`/predictions/${pred.id}`} className="flex items-center gap-2" aria-label={`${inst.canonical_symbol} ${tf} ${pred.decision}`}>
-            <DecisionBadge decision={pred.decision} />
+            {pred.call ? <CallBadge call={pred.call} className="text-[10px]" /> : <DecisionBadge decision={pred.decision} />}
             <span className="num text-xs text-muted-foreground">{pred.confluence_score !== null ? fmtNum(pred.confluence_score, 2) : "—"}</span>
             <span className="text-[11px] text-muted-foreground">{timeAgo(pred.created_at)}</span>
           </Link>

@@ -3,7 +3,12 @@ import random
 
 import pytest
 
-from app.decision.adapters import opportunity_call, prediction_call, signal_call
+from app.decision.adapters import (
+    opportunity_call,
+    prediction_call,
+    redact_explanation,
+    signal_call,
+)
 from app.decision.core import (
     ENTER,
     EXIT,
@@ -141,8 +146,10 @@ def test_waits_say_exactly_what_they_wait_for():
     price = call(plan(state="SETUP_DEVELOPING", instruction="WAIT FOR CONFIRMATION", entry_type="limit",
                       conditions=["Price retraces into the demand zone 99.0-100.5"]), price_now=102.0)
     assert price["label"] == "WAIT — PRICE NOT AT ENTRY ZONE" and "retraces" in price["next_condition"]
-    dev = call(plan(state="WATCHLIST", instruction="NO TRADE", score=52, reasons_against=["Liquidity sweep missing: none"]), price_now=100.1)
+    dev = call(plan(state="WATCHLIST", instruction="NO TRADE", score=52, reasons_against=[
+        "Liquidity sweep missing: none", "Reward:risk ≥ 2 with a clear path missing: TP1 at 2.3R, but a band sits in the way"]), price_now=100.1)
     assert dev["label"] == "WAIT — SETUP DEVELOPING" and "60/100 (now 52/100)" in dev["next_condition"]
+    assert dev["next_condition"].endswith(": Liquidity sweep, Reward:risk ≥ 2 with a clear path")  # check names survive their own colons
     none = call(plan(state="NO_SETUP", instruction="NO TRADE", side=None, entry=None, score=None, reason="no zone ahead"))
     assert none["decision"] == NO_TRADE and none["direction"] == "NONE" and "no zone ahead" in none["headline"]
 
@@ -160,6 +167,7 @@ def test_no_failed_mandatory_condition_can_ever_produce_enter():
                           validation=rng.choice([VALID, UNVALID]), open_trade=trade, experimental=rng.random() < 0.5)
         c = decide(i)
         assert c["decision"] in (ENTER, WAIT, EXIT, NO_TRADE)
+        assert c["label"].startswith(c["decision"]) and c["headline"] and c["next_condition"]  # always says what comes next
         if c["decision"] == ENTER:
             assert all(k.passed for k in checks) and i.data_status == "ok" and i.technical == "confirmed" and i.validation is VALID
             assert trade is None and c["levels"] is not None
@@ -176,6 +184,8 @@ def test_instrument_call_prefers_exit_then_enter_then_the_most_concrete_wait():
     b = {"decision": WAIT, "wait_kind": "unvalidated", "score": 61}
     c = {"decision": NO_TRADE, "wait_kind": None, "score": 99}
     assert rank([a, b, c]) is b and rank([c, {"decision": EXIT, "score": 0}])["decision"] == EXIT and rank([]) is None
+    held = {"decision": WAIT, "wait_kind": "trade_open", "score": None}  # a tracked paper trade to manage comes before any new WAIT
+    assert rank([a, b, held, c]) is held and rank([held, {"decision": ENTER, "score": 70}])["decision"] == ENTER
 
 
 def test_opportunity_and_prediction_adapters_follow_the_same_rules():
@@ -191,3 +201,13 @@ def test_opportunity_and_prediction_adapters_follow_the_same_rules():
     assert prediction_call(p)["label"] == "WAIT — UNVALIDATED SETUP" and prediction_call(p)["levels"] is None
     w = prediction_call({**p, "decision": "WAIT"}, wait_reasons=["confluence -0.17 is below the +/-0.35 threshold"])
     assert w["decision"] == NO_TRADE and "confluence" in w["headline"]
+
+
+def test_stored_explanations_never_leak_levels_without_enter_or_experimental_mode():
+    text = "BUY setup on X 1H (analytical confluence +0.55).\nPlan: entry 103.5-104.5, stop 101, targets 110, R:R 2.00.\nAnalysis only."
+    p = {"symbol": "X", "timeframe": "1H", "decision": "BUY", "entry_low": 103.5, "entry_high": 104.5, "stop_loss": 101.0,
+         "take_profit": [110.0], "risk_reward": 2.0, "invalidation_level": 101.5, "data_quality_score": 1.0, "warnings": []}
+    hidden = redact_explanation(text, prediction_call(p))
+    assert "101" not in hidden and "withheld" in hidden and "WAIT — UNVALIDATED SETUP" in hidden and hidden.startswith("BUY setup")
+    assert redact_explanation(text, prediction_call(p, experimental=True)) == text  # hypothetical levels are shown, so is the plan line
+    assert redact_explanation(None, prediction_call(p)) is None

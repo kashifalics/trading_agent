@@ -4,6 +4,7 @@ import { AlertTriangle, ChevronDown } from "lucide-react";
 import { useMemo } from "react";
 import { CandleChart } from "@/components/charts/candle-chart";
 import { COLORS, type ChartLine, type ChartMarker, type ChartZone } from "@/components/charts/overlays";
+import { CallBadge, CallCard } from "@/components/domain/call";
 import { DecisionBadge, EmptyState, ErrorState } from "@/components/domain/common";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -104,7 +105,7 @@ export function SummaryBar({ s }: { s: OppSummary }) {
 // ------------------------------------------------------------------------------------------------ style cards
 export function StyleCard({ item, onSelect, precision }: { item: OppStyleBest; onSelect: (id: number) => void; precision: (s: string) => number }) {
   const o = item.best ?? item.fallback_wait;
-  const live = !!item.best && item.best.direction !== "WAIT";
+  const lv = o?.call?.levels ?? o?.call?.hypothetical ?? null;
   return (
     <Card data-testid={`style-${item.style}`} className="flex flex-col">
       <CardHeader>
@@ -117,24 +118,25 @@ export function StyleCard({ item, onSelect, precision }: { item: OppStyleBest; o
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-2">
-              <DecisionBadge decision={o.direction} />
+              {o.call ? <CallBadge call={o.call} className="text-[10px]" /> : <DecisionBadge decision={o.direction} />}
               <span className="font-medium">{o.symbol}</span>
               {o.setup_timeframe && <span className="num text-muted-foreground">{o.setup_timeframe}</span>}
               <StatusBadge status={o.status} />
               {o.status !== "none" && <ValidationBadge status={o.validation_status} />}
             </div>
-            {live ? (
+            {lv ? (
               <div className="num grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
-                <span className="text-muted-foreground">Entry</span><span>{fmtPrice(o.entry_low, precision(o.symbol))} – {fmtPrice(o.entry_high, precision(o.symbol))}</span>
-                <span className="text-muted-foreground">Stop</span><span className="text-bear">{fmtPrice(o.stop_loss, precision(o.symbol))}</span>
-                <span className="text-muted-foreground">TP1</span><span className="text-bull">{fmtPrice(o.take_profit_1, precision(o.symbol))}</span>
-                <span className="text-muted-foreground">R/R</span><span>{fmtNum(o.risk_reward, 2)}R</span>
+                {o.call?.hypothetical && <span className="col-span-2 font-sans font-semibold text-warn">HYPOTHETICAL — UNVALIDATED</span>}
+                <span className="text-muted-foreground">Entry</span><span>{lv.entry_zone ? `${fmtPrice(lv.entry_zone[0], precision(o.symbol))} – ${fmtPrice(lv.entry_zone[1], precision(o.symbol))}` : fmtPrice(lv.entry, precision(o.symbol))}</span>
+                <span className="text-muted-foreground">Stop</span><span className="text-bear">{fmtPrice(lv.stop_loss, precision(o.symbol))}</span>
+                <span className="text-muted-foreground">TP1</span><span className="text-bull">{fmtPrice(lv.targets[0]?.price, precision(o.symbol))}</span>
+                <span className="text-muted-foreground">R/R</span><span>{lv.risk_reward == null ? "—" : `${fmtNum(lv.risk_reward, 2)}R`}</span>
                 <span className="text-muted-foreground">Holding</span><span>{holding(o.expected_holding_seconds)}</span>
               </div>
             ) : (
               <div className="space-y-1 text-xs text-muted-foreground">
-                <p className="font-medium text-foreground">WAIT{o.side ? ` — leaning ${o.side}, not actionable` : ""}</p>
-                {o.wait_reasons.slice(0, 2).map((r, i) => <p key={i}>• {r}</p>)}
+                <p className="text-foreground">{o.call?.headline ?? (o.side ? `Leaning ${o.side}, not actionable` : "No actionable setup")}</p>
+                {o.call?.next_condition ? <p>Next: {o.call.next_condition}</p> : o.wait_reasons.slice(0, 2).map((r, i) => <p key={i}>• {r}</p>)}
               </div>
             )}
             {o.evidence_score !== null && (
@@ -235,7 +237,7 @@ export function OpportunityTable({ rows, selected, onSelect, precision }: { rows
     <Table data-testid="opp-table">
       <THead>
         <TR>
-          <TH>Rank</TH><TH>Instrument</TH><TH>Style</TH><TH>Direction</TH><TH className="text-right">Entry</TH><TH className="text-right">Stop Loss</TH>
+          <TH>Rank</TH><TH>Instrument</TH><TH>Style</TH><TH>Decision</TH><TH className="text-right">Entry</TH><TH className="text-right">Stop Loss</TH>
           <TH className="text-right">TP1</TH><TH className="text-right">TP2</TH><TH className="text-right">TP3</TH><TH className="text-right">R/R</TH>
           <TH className="text-right" title={SCORE_LABEL}>Evidence Score</TH><TH>Setup status</TH><TH>Last updated</TH>
         </TR>
@@ -243,19 +245,21 @@ export function OpportunityTable({ rows, selected, onSelect, precision }: { rows
       <TBody>
         {rows.map((o) => {
           const p = precision(o.symbol);
-          const ref = o.direction === "WAIT"; // watchlist rows show reference levels only
+          const lv = o.call?.levels ?? o.call?.hypothetical ?? null; // ENTER levels, or hypothetical ones in experimental mode
+          const ref = !o.call?.levels; // hypothetical levels are greyed
           return (
             <TR key={o.id} className={cn("cursor-pointer", selected === o.id && "bg-muted/60", o.rank === null && "opacity-70")} onClick={() => onSelect(o.id)} data-testid={`opp-row-${o.id}`}>
               <TD className="num">{o.rank ?? "—"}{o.correlated_with_rank ? <span className="ml-1 text-xs text-muted-foreground" title="Same instrument and direction as a higher-ranked setup: one exposure, not an independent idea">≈#{o.correlated_with_rank}</span> : null}</TD>
               <TD className="font-medium">{o.symbol}</TD>
               <TD>{STYLE_LABEL[o.style]}{o.setup_timeframe ? <span className="num ml-1 text-xs text-muted-foreground">{o.setup_timeframe}</span> : null}</TD>
-              <TD><DecisionBadge decision={o.direction} />{ref && o.side ? <span className="ml-1 text-xs text-muted-foreground">lean {o.side}</span> : null}</TD>
-              <TD className={cn("num text-right", ref && "text-muted-foreground")}>{o.entry_low == null ? "—" : `${fmtPrice(o.entry_low, p)} – ${fmtPrice(o.entry_high, p)}`}</TD>
-              <TD className={cn("num text-right", ref ? "text-muted-foreground" : "text-bear")}>{fmtPrice(o.stop_loss, p)}</TD>
-              <TD className={cn("num text-right", ref ? "text-muted-foreground" : "text-bull")}>{fmtPrice(o.take_profit_1, p)}</TD>
-              <TD className={cn("num text-right", ref ? "text-muted-foreground" : "text-bull")}>{fmtPrice(o.take_profit_2, p)}</TD>
-              <TD className={cn("num text-right", ref ? "text-muted-foreground" : "text-bull")}>{fmtPrice(o.take_profit_3, p)}</TD>
-              <TD className="num text-right">{o.risk_reward == null ? "—" : `${fmtNum(o.risk_reward, 2)}R`}</TD>
+              <TD>
+                {o.call ? <CallBadge call={o.call} className="text-[10px]" /> : <DecisionBadge decision={o.direction} />}
+                {o.side ? <span className="ml-1 text-xs text-muted-foreground">{o.side}</span> : null}
+              </TD>
+              <TD className={cn("num text-right", ref && "text-muted-foreground")}>{!lv ? "—" : lv.entry_zone ? `${fmtPrice(lv.entry_zone[0], p)} – ${fmtPrice(lv.entry_zone[1], p)}` : fmtPrice(lv.entry, p)}</TD>
+              <TD className={cn("num text-right", ref ? "text-muted-foreground" : "text-bear")}>{lv ? fmtPrice(lv.stop_loss, p) : "—"}</TD>
+              {[0, 1, 2].map((k) => <TD key={k} className={cn("num text-right", ref ? "text-muted-foreground" : "text-bull")}>{lv?.targets[k] ? fmtPrice(lv.targets[k].price, p) : "—"}</TD>)}
+              <TD className="num text-right">{lv?.risk_reward == null ? "—" : `${fmtNum(lv.risk_reward, 2)}R`}</TD>
               <TD className="num text-right">{o.evidence_score == null ? "—" : fmtNum(o.evidence_score, 0)} {o.status !== "none" && <ValidationBadge status={o.validation_status} />}</TD>
               <TD><StatusBadge status={o.status} /></TD>
               <TD className="whitespace-nowrap text-xs text-muted-foreground">{timeAgo(o.last_seen_at)}</TD>
@@ -342,14 +346,14 @@ export function AnalogueTable({ a }: { a: AnalogueEvidence }) {
   );
 }
 
-function OpportunityChart({ d }: { d: OpportunityDetail }) {
+function OpportunityChart({ d, showLevels }: { d: OpportunityDetail; showLevels: boolean }) {
   const tf = d.setup_timeframe ?? d.evidence.chart?.timeframe ?? "1H";
   const q = useCandles(d.symbol, tf, 400, !!d.setup_timeframe);
   const p = usePrecision(d.symbol);
   const { lines, zones, markers } = useMemo(() => {
     const ch = d.evidence.chart;
     const lines: ChartLine[] = [];
-    const setup = d.evidence.setup;
+    const setup = showLevels ? d.evidence.setup : null;
     if (setup) {
       lines.push({ price: setup.entry_ref, color: COLORS.primary, title: `${setup.direction} entry`, dashed: true });
       lines.push({ price: setup.stop_loss, color: COLORS.bear, title: "SL" });
@@ -366,7 +370,7 @@ function OpportunityChart({ d }: { d: OpportunityDetail }) {
     for (const m of ch?.analogue_markers ?? []) if (times.has(m.ts)) markers.push({ time: m.ts, position: "inBar", shape: "circle", color: m.outcome === "tp_first" ? COLORS.bull : m.outcome === "sl_first" ? COLORS.bear : COLORS.neutral, text: "" });
     markers.sort((a, b) => a.time - b.time);
     return { lines, zones, markers };
-  }, [d, q.data]);
+  }, [d, q.data, showLevels]);
   if (!d.setup_timeframe) return null;
   if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   if (q.isLoading || !q.data) return <Skeleton className="h-[420px] w-full" />;
@@ -374,7 +378,7 @@ function OpportunityChart({ d }: { d: OpportunityDetail }) {
   return (
     <div data-testid="opp-chart">
       <CandleChart candles={q.data.candles} precision={p} lines={lines} zones={zones} markers={markers} height={420} resetKey={`${d.id}-${tf}`} />
-      <p className="mt-1 text-xs text-muted-foreground">{d.symbol} {tf} · green/red circles = historical analogues that hit target/stop first · blue band = entry zone · grey bands = support/resistance</p>
+      <p className="mt-1 text-xs text-muted-foreground">{d.symbol} {tf} · green/red circles = historical analogues that hit target/stop first{showLevels ? " · blue band = entry zone" : ""} · grey bands = support/resistance</p>
     </div>
   );
 }
@@ -385,25 +389,28 @@ export function OpportunityDetailView({ id }: { id: number }) {
   if (q.isLoading) return <Skeleton className="h-64 w-full" />;
   if (q.isError || !q.data) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
   const d = q.data, ev = d.evidence, s = ev.setup;
-  const live = d.direction !== "WAIT";
+  const hypo = !d.call?.levels && !!d.call?.hypothetical;
+  const showLevels = !!s && !!(d.call?.levels || d.call?.hypothetical);
   return (
     <Card data-testid="opp-detail">
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-2">
-          <DecisionBadge decision={d.direction} /> {d.symbol} · {STYLE_LABEL[d.style]}{d.setup_timeframe ? ` · ${d.setup_timeframe}` : ""} <StatusBadge status={d.status} /> <ValidationBadge status={d.validation_status} />
+          {d.call ? <CallBadge call={d.call} /> : <DecisionBadge decision={d.direction} />} {d.symbol} · {STYLE_LABEL[d.style]}{d.setup_timeframe ? ` · ${d.setup_timeframe}` : ""} <StatusBadge status={d.status} /> <ValidationBadge status={d.validation_status} />
         </CardTitle>
         <span className="text-xs text-muted-foreground">{d.provider} · {ev.scope}</span>
       </CardHeader>
       <CardContent className="space-y-3">
+        {d.call && <CallCard call={d.call} symbol={d.symbol} precision={p} title={`Decision · ${STYLE_LABEL[d.style]}`} />}
         {ev.note && <p className="rounded border border-warn/30 bg-warn/5 p-2 text-xs text-warn" role="note">{ev.note}</p>}
         {ev.validation.status !== "validated" && (
           <p className="flex items-start gap-2 rounded border border-warn/30 bg-warn/5 p-2 text-xs text-warn" role="note">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden /> {ev.validation.summary}
           </p>
         )}
-        {s && (
+        {s && showLevels && (
           <div className="num grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 lg:grid-cols-8" data-testid="levels">
-            <Stat label={live ? "Entry zone" : "Entry zone (reference)"} value={`${fmtPrice(s.entry_low, p)} – ${fmtPrice(s.entry_high, p)}`} />
+            {hypo && <p className="col-span-full font-sans text-xs font-semibold text-warn">HYPOTHETICAL — UNVALIDATED levels (experimental analysis mode)</p>}
+            <Stat label="Entry zone" value={`${fmtPrice(s.entry_low, p)} – ${fmtPrice(s.entry_high, p)}`} />
             <Stat label="Stop loss" value={<span className="text-bear">{fmtPrice(s.stop_loss, p)}</span>} />
             {s.targets.map((t) => <Stat key={t.label} label={`${t.label} · ${fmtNum(t.rr, 2)}R`} value={<span className="text-bull">{fmtPrice(t.price, p)}</span>} />)}
             <Stat label="Invalidation" value={fmtPrice(s.invalidation, p)} />
@@ -411,9 +418,9 @@ export function OpportunityDetailView({ id }: { id: number }) {
             <Stat label="Costs" value={`${fmtNum(s.cost_r, 2)}R`} sub="round trip" />
           </div>
         )}
-        <OpportunityChart d={d} />
+        <OpportunityChart d={d} showLevels={showLevels} />
         {ev.score && <div className="rounded border p-3"><ScorePanel score={ev.score} /></div>}
-        {!live && ev.wait_reasons.length > 0 && (
+        {!d.call?.levels && ev.wait_reasons.length > 0 && (
           <Section title="Why WAIT / what confirmation is missing" open testId="sec-wait"><Bullets items={ev.wait_reasons} empty="" /></Section>
         )}
         <Section title="Trade thesis" open testId="sec-thesis"><p>{ev.thesis ?? "No timeframe for this style has enough usable data."}</p><p className="text-xs text-muted-foreground">Scope: {ev.scope}</p></Section>
@@ -448,7 +455,7 @@ export function OpportunityDetailView({ id }: { id: number }) {
           )) : <p className="text-muted-foreground">No directional candlestick pattern in the last 6 bars.</p>}
         </Section>
         <Section title="Historical pattern evidence" testId="sec-analogues"><AnalogueTable a={ev.analogues} /></Section>
-        {s && (
+        {s && showLevels && (
           <>
             <Section title="Entry reasoning" testId="sec-entry"><p>{s.reasoning.entry}</p>
               <p className="font-medium">Conditions required before entry</p><Bullets items={s.conditions} empty="All entry conditions are currently met." />
@@ -465,8 +472,8 @@ export function OpportunityDetailView({ id }: { id: number }) {
           <Bullets items={ev.risks?.warnings ?? []} empty="None." />
         </Section>
         <Section title="What would invalidate the setup?" testId="sec-invalid">
-          {s ? <Bullets items={[`A candle closing ${s.direction === "BUY" ? "below" : "above"} ${fmtPrice(s.invalidation, p)} on the ${d.setup_timeframe} chart.`,
-            `The first target ${fmtPrice(s.targets[0]?.price, p)} being reached before entry (the move has played out).`, `No valid trigger within ${d.style_profile.min_rr ? "the setup lifetime" : ""} (expires ${fmtDate(d.expires_at)}).`]} empty="" /> : <p className="text-muted-foreground">No setup to invalidate.</p>}
+          {s && showLevels ? <Bullets items={[`A candle closing ${s.direction === "BUY" ? "below" : "above"} ${fmtPrice(s.invalidation, p)} on the ${d.setup_timeframe} chart.`,
+            `The first target ${fmtPrice(s.targets[0]?.price, p)} being reached before entry (the move has played out).`, `No valid trigger within ${d.style_profile.min_rr ? "the setup lifetime" : ""} (expires ${fmtDate(d.expires_at)}).`]} empty="" /> : <p className="text-muted-foreground">{d.call?.invalidation ?? "No setup to invalidate."}</p>}
         </Section>
         <Section title="Status history" testId="sec-history"><Bullets items={d.status_history.map((h) => `${fmtDate(h.at)} → ${STATUS_LABEL[h.status as OppStatus] ?? h.status}${h.note && "reason" in h.note ? `: ${String(h.note.reason)}` : ""}`)} empty="" /></Section>
       </CardContent>

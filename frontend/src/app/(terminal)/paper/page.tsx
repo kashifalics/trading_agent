@@ -53,7 +53,7 @@ export default function PaperTradingPage() {
     <>
       <PageHeader
         title="Paper Trading"
-        description="Every EXECUTE NOW and PLACE LIMIT ORDER signal is recorded the moment the backend sees it, then traded on paper against the candles that follow. Simulated orders only: no broker, no real money."
+        description="A forward test of the unvalidated rules: every technically complete setup (immediate or limit entry) is recorded the moment the backend sees it, then traded on paper against the candles that follow, whatever the customer decision (usually WAIT — UNVALIDATED SETUP). Open and pending trades get a HOLD / EXIT / WAIT recommendation. Simulated orders only: no broker, no real money."
         actions={<Button onClick={() => run.mutate()} loading={run.isPending}><Play className="h-4 w-4" aria-hidden /> Run cycle now</Button>}
       />
       <div className="space-y-5">

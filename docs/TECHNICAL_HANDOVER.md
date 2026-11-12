@@ -6,7 +6,8 @@ For the engineer or operator who installs, runs and maintains AI Trading Intelli
 **What the product is:** an analysis and decision-support tool for XAUUSD, EURUSD, GBPUSD, BTCUSDT, US30 and USOIL. It reads
 candles, detects price-action structure on 14 timeframes and produces hypothetical trade plans (entry, stop, targets, confluence
 checklist). **It never places orders and has no broker connection.** No strategy or model in it has a verified out-of-sample edge,
-and every BUY/SELL is labelled **Not validated** (section 14).
+and every BUY/SELL is labelled **Not validated** (section 14): customers see `WAIT — UNVALIDATED SETUP`, never ENTER
+(docs/DECISION_ENGINE.md).
 
 ---
 
@@ -63,7 +64,8 @@ More detail: [ARCHITECTURE.md](ARCHITECTURE.md), [SIGNAL_ENGINE.md](SIGNAL_ENGIN
 * **Timeframes:** 1m, 3m, 5m, 15m, 30m, 1H, 2H, 4H, 1D, 1W, 1M, 3M, 6M, 12M (non-native ones are aggregated; if a provider's history
   is too short the timeframe reports "insufficient data" instead of guessing).
 * **Signals:** states `ENTRY_READY`, `WAITING_FOR_CONFIRMATION`, `SETUP_DEVELOPING`, `WATCHLIST`, `NO_SETUP`, `TRADE_INVALIDATED`,
-  `TRADE_EXPIRED`; instructions EXECUTE NOW / WAIT FOR CONFIRMATION / PLACE LIMIT ORDER / NO TRADE; structural stops and targets;
+  `TRADE_EXPIRED` (technical; customers see the ENTER / WAIT / EXIT / NO TRADE decision of docs/DECISION_ENGINE.md, and an
+  unvalidated complete setup is `WAIT — UNVALIDATED SETUP`); structural stops and targets;
   must-pass rules (structural stop, R:R ≥ 1:2, spread, fresh data); 100-point checklist (HTF 20, structure 20, liquidity 15, entry
   zone 15, LTF confirmation 15, R:R 10, session/volatility 5; signal at ≥ 60, limit orders at ≥ 70).
 * **Safety rules:** stale or insufficient data → no signal for that timeframe; delayed quotes flagged; a plan that cannot reach 2R

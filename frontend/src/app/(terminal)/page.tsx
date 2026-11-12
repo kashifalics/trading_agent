@@ -5,9 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/misc";
-import { DecisionBadge, EmptyState, ErrorState, JobBadge, NotValidatedBadge, PageHeader, QueryState } from "@/components/domain/common";
+import { CallBadge } from "@/components/domain/call";
+import { DecisionBadge, EmptyState, ErrorState, JobBadge, PageHeader, QueryState } from "@/components/domain/common";
 import { AnalysisOnlyNotice } from "@/components/domain/decision";
-import { useAnalyses, useCoverage, useInstruments, useModels, usePatterns, usePredictions, useQuotes } from "@/lib/hooks";
+import { useAnalyses, useCoverage, useInstruments, useModels, usePatterns, usePredictions, useQuotes, useSignalsSummary } from "@/lib/hooks";
 import type { Instrument, Quote } from "@/lib/types";
 import { fmtDate, fmtNum, fmtPrice, timeAgo } from "@/lib/utils";
 
@@ -71,6 +72,40 @@ function DirectionRow({ inst }: { inst: Instrument }) {
   );
 }
 
+/** One backend decision per instrument (ENTER / WAIT / EXIT / NO TRADE), the same call the Signals page shows. */
+function DecisionsNow() {
+  const q = useSignalsSummary();
+  return (
+    <Card data-testid="decisions-now">
+      <CardHeader>
+        <CardTitle>Decisions now</CardTitle>
+        <Link href="/signals" className="text-xs text-primary hover:underline">Signals</Link>
+      </CardHeader>
+      <CardContent className="p-0">
+        <QueryState query={q} isEmpty={(d) => d.items.length === 0} empty={<div className="p-4"><EmptyState title="No instruments" /></div>}>
+          {(d) => (
+            <Table>
+              <THead><TR><TH>Instrument</TH><TH>Decision</TH><TH>Next</TH></TR></THead>
+              <TBody>
+                {d.items.map((i) => (
+                  <TR key={i.symbol}>
+                    <TD className="font-medium">
+                      <Link href={`/signals?symbol=${i.symbol}`} className="hover:underline">{i.symbol}</Link>
+                      <span className="block text-[11px] text-muted-foreground">{i.call?.timeframe ?? ""}{i.call && i.call.direction !== "NONE" ? ` · ${i.call.direction}` : ""}</span>
+                    </TD>
+                    <TD><CallBadge call={i.call} className="text-[10px]" /></TD>
+                    <TD className="max-w-[22rem] text-xs text-muted-foreground">{i.call?.next_condition ?? i.call?.headline ?? i.reason ?? "—"}</TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          )}
+        </QueryState>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function DashboardPage() {
   const instruments = useInstruments();
   const quotes = useQuotes();
@@ -93,10 +128,12 @@ export default function DashboardPage() {
         )}
       </QueryState>
 
+      <div className="mt-4"><DecisionsNow /></div>
+
       <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">Recent predictions <NotValidatedBadge /></CardTitle>
+            <CardTitle>Recent predictions</CardTitle>
             <Link href="/predictions" className="text-xs text-primary hover:underline">View all</Link>
           </CardHeader>
           <CardContent className="p-0">
@@ -113,8 +150,8 @@ export default function DashboardPage() {
                       <TR key={p.id}>
                         <TD className="font-medium">{p.symbol}</TD>
                         <TD>{p.timeframe}</TD>
-                        <TD><DecisionBadge decision={p.decision} /></TD>
-                        <TD className="num">{p.risk_reward ? `1:${fmtNum(p.risk_reward, 1)}` : "—"}</TD>
+                        <TD>{p.call ? <CallBadge call={p.call} className="text-[10px]" /> : <DecisionBadge decision={p.decision} />}</TD>
+                        <TD className="num">{p.call?.levels?.risk_reward ? `1:${fmtNum(p.call.levels.risk_reward, 1)}` : "—"}</TD>
                         <TD className="num text-muted-foreground">{fmtDate(p.as_of_ts)}</TD>
                         <TD><Link href={`/predictions/${p.id}`} className="text-xs text-primary hover:underline">Details</Link></TD>
                       </TR>

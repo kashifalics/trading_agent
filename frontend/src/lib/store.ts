@@ -28,6 +28,8 @@ interface SettingsState {
   riskPct: number;
   contractSizes: Record<string, number>;
   liveSignals: boolean;
+  /** Experimental analysis mode: show the hypothetical levels of unvalidated setups (always marked UNVALIDATED). */
+  experimentalMode: boolean;
   set: (patch: Partial<Omit<SettingsState, "set" | "setOverlay">>) => void;
   setOverlay: (key: keyof OverlayToggles, value: boolean) => void;
 }
@@ -49,6 +51,7 @@ export const useSettings = create<SettingsState>()(
       riskPct: 0.5,
       contractSizes: {},
       liveSignals: true,
+      experimentalMode: false,
       set: (patch) => set(patch),
       setOverlay: (key, value) => set((s) => ({ overlays: { ...s.overlays, [key]: value } })),
     }),

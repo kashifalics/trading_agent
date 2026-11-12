@@ -6,7 +6,7 @@ import { InstrumentSelect, PageHeader, QueryState, TimeframeSelect } from "@/com
 import { SectionCard } from "@/components/domain/decision";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/form";
+import { Checkbox, Input, Label } from "@/components/ui/form";
 import { API_URL, ApiError, api } from "@/lib/api";
 import { useHealth } from "@/lib/hooks";
 import { useSettings } from "@/lib/store";
@@ -65,6 +65,23 @@ export default function SettingsPage() {
             <div><Label>Intermediate TF</Label><TimeframeSelect allowNone label="Default intermediate timeframe" value={s.mtfIntermediate} onChange={(v) => s.set({ mtfIntermediate: v })} /></div>
           </div>
         </SectionCard>
+
+        <div className="lg:col-span-2">
+          <SectionCard title="Trading decisions">
+            <div className="space-y-2 text-sm" data-testid="experimental-setting">
+              <Checkbox
+                label="Experimental analysis mode — show hypothetical entry, stop and targets for unvalidated setups"
+                checked={s.experimentalMode}
+                onChange={(e) => s.set({ experimentalMode: e.target.checked })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Off by default. Decisions stay the same (an unvalidated setup is always <strong>WAIT — UNVALIDATED SETUP</strong>, never ENTER);
+                this only reveals the technical levels, each marked <strong>HYPOTHETICAL — UNVALIDATED</strong>. These rules have no verified
+                out-of-sample edge, so the levels are for study, not for trading.
+              </p>
+            </div>
+          </SectionCard>
+        </div>
 
         <div className="lg:col-span-2">
           <SectionCard title="Backend capabilities">

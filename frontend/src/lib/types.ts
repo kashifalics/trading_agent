@@ -1,3 +1,4 @@
+import type { TradeCall } from "@/lib/decision-types";
 // Mirrors the backend OpenAPI schemas (backend/app/schemas). Keep in sync with /openapi.json.
 
 export type Decision = "BUY" | "SELL" | "WAIT";
@@ -263,6 +264,7 @@ export interface Analysis {
   created_at: string;
   completed_at: string | null;
   prediction_id: number | null;
+  call?: TradeCall | null;
 }
 
 export interface JobAccepted {
@@ -295,6 +297,7 @@ export interface Prediction {
   outcome_ts: string | null;
   outcome_meta: Record<string, unknown> | null;
   created_at: string;
+  call?: TradeCall | null;
 }
 
 export interface PredictionDetail extends Prediction {

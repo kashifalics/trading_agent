@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useSettings } from "@/lib/store";
+import { CALL_EMPTY, CALL_PRED_BUY_X, CALL_PRED_SELL, CALL_READY } from "@/test/calls";
 import { CANDLES, INSTRUMENTS, QUOTES, analysis } from "@/test/fixtures";
 import { mockApi, renderWithClient } from "@/test/utils";
 import ChartPage from "@/app/(terminal)/chart/page";
@@ -26,7 +27,7 @@ const base = {
   "GET /api/v1/market/timeframes": [],
 };
 
-beforeEach(() => useSettings.setState({ symbol: "BTCUSDT", timeframe: "1H" }));
+beforeEach(() => useSettings.setState({ symbol: "BTCUSDT", timeframe: "1H", experimentalMode: false }));
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Dashboard", () => {
@@ -41,6 +42,21 @@ describe("Dashboard", () => {
     expect(within(screen.getByTestId("quote-XAUUSD")).getByText("API key required")).toBeInTheDocument();
     expect(await screen.findByText("No predictions yet")).toBeInTheDocument();
     expect(screen.getByText(/No models trained/)).toBeInTheDocument();
+  });
+
+  it("shows the same backend decision per instrument as the Signals page, with what comes next", async () => {
+    mockApi({ ...base, "GET /api/v1/signals": { generated_at: "", config_version: "t", disclaimer: "", items: [
+      { symbol: "XAUUSD", status: "ok", call: CALL_READY },
+      { symbol: "BTCUSDT", status: "unavailable", reason: "no stored candles yet", call: { ...CALL_EMPTY, timeframe: null } },
+    ] } });
+    renderWithClient(<DashboardPage />);
+    const card = await screen.findByTestId("decisions-now");
+    await waitFor(() => expect(within(card).getByText("WAIT — UNVALIDATED SETUP")).toBeInTheDocument());
+    const gold = within(card).getByText("XAUUSD").closest("tr")!;
+    expect(gold).toHaveTextContent("1H · BUY");
+    expect(gold).toHaveTextContent("at least 100 out-of-sample trades");
+    expect(within(card).getByText("NO TRADE — DATA")).toBeInTheDocument();
+    expect(card).not.toHaveTextContent(/EXECUTE NOW|3,935\.25/);
   });
 
   it("labels a last-known price as delayed, never as live", async () => {
@@ -71,7 +87,7 @@ describe("Dashboard", () => {
 });
 
 describe("Chart analysis workflow", () => {
-  it("runs an analysis job, polls to completion and shows the plan", async () => {
+  it("runs an analysis job, polls to completion and shows the backend decision; unvalidated levels stay hidden", async () => {
     let polls = 0;
     const { calls } = mockApi({
       ...base,
@@ -84,14 +100,17 @@ describe("Chart analysis workflow", () => {
     await waitFor(() => expect(screen.getByTestId("candle-chart")).toHaveTextContent("3 candles"));
     await userEvent.click(screen.getByRole("button", { name: /run analysis/i }));
     const panel = screen.getByTestId("decision-panel");
-    await waitFor(() => expect(within(panel).getByText("BUY")).toBeInTheDocument(), { timeout: 6000 });
-    expect(within(panel).getByText("101.00")).toBeInTheDocument(); // stop loss from backend
-    expect(screen.getByTestId("candle-chart")).toHaveTextContent("BUY entry,SL,TP1,TP2");
+    await waitFor(() => expect(within(panel).getByTestId("call-decision")).toHaveTextContent("WAIT — UNVALIDATED SETUP"), { timeout: 6000 });
+    expect(within(panel).getByTestId("call-validation")).toHaveTextContent("Not validated");
+    expect(panel).not.toHaveTextContent("101.00"); // the technical stop is withheld without ENTER
+    expect(within(panel).queryByTestId("hypothetical-plan")).toBeNull();
+    expect(screen.getByTestId("candle-chart")).not.toHaveTextContent("BUY entry");
+    expect(screen.queryByText(/EXECUTE NOW/)).toBeNull();
     const run = calls.find((c) => c.key === "POST /api/v1/analysis/run");
     expect(run?.body).toMatchObject({ symbol: "BTCUSDT", timeframe: "1H", lookback_bars: 1500, auto_sync: true });
   }, 15000);
 
-  it("shows WAIT with reasons and no trade levels", async () => {
+  it("shows NO TRADE with reasons and no trade levels", async () => {
     mockApi({
       ...base,
       "GET /api/v1/market/candles": CANDLES,
@@ -100,8 +119,28 @@ describe("Chart analysis workflow", () => {
     });
     renderWithClient(<ChartPage />);
     const panel = await screen.findByTestId("decision-panel");
-    await waitFor(() => expect(within(panel).getByText(/below the \+\/-0.35 threshold/)).toBeInTheDocument());
+    await waitFor(() => expect(within(panel).getByTestId("call-decision")).toHaveTextContent(/^NO TRADE$/));
+    expect(within(panel).getByTestId("call-headline")).toHaveTextContent(/below the \+\/-0.35 threshold/);
     expect(within(panel).queryByText(/stop loss/i)).not.toBeInTheDocument();
+  });
+
+  it("experimental mode shows the hypothetical plan, clearly marked, without changing the decision", async () => {
+    useSettings.setState({ experimentalMode: true });
+    const api = mockApi({
+      ...base,
+      "GET /api/v1/market/candles": CANDLES,
+      "GET /api/v1/predictions": { items: [{ id: 9, analysis_id: 7, symbol: "BTCUSDT", timeframe: "1H", decision: "BUY", created_at: "2026-10-31T20:00:00Z", as_of_ts: "2026-10-31T20:00:00Z" }], total: 1, limit: 10, offset: 0 },
+      "GET /api/v1/analysis/7": (_i?: RequestInit, u?: URL) => analysis("BUY", "completed", u?.searchParams.get("experimental") === "true" ? CALL_PRED_BUY_X : undefined),
+    });
+    renderWithClient(<ChartPage />);
+    const panel = await screen.findByTestId("decision-panel");
+    const plan = await within(panel).findByTestId("hypothetical-plan");
+    expect(plan).toHaveTextContent("HYPOTHETICAL — UNVALIDATED plan");
+    expect(plan).toHaveTextContent("101.00");
+    expect(within(panel).getByTestId("call-hypothetical")).toHaveTextContent("HYPOTHETICAL — UNVALIDATED · BUY");
+    expect(within(panel).getByTestId("call-decision")).toHaveTextContent("WAIT — UNVALIDATED SETUP");
+    await waitFor(() => expect(screen.getByTestId("candle-chart")).toHaveTextContent("BUY entry,SL,TP1,TP2"));
+    expect(api.fn.mock.calls.some(([u]) => String(u).includes("experimental=true"))).toBe(true);
   });
 
   it("blocks analysis for an instrument with no data source", async () => {
@@ -129,12 +168,15 @@ describe("Predictions list", () => {
     const { calls } = mockApi({
       ...base,
       "GET /api/v1/predictions": {
-        items: [{ id: 1, analysis_id: 1, symbol: "BTCUSDT", timeframe: "1H", decision: "SELL", entry_low: 100, entry_high: 101, stop_loss: 103, take_profit: [95], risk_reward: 2.5, data_quality_score: 0.9, outcome: "open", as_of_ts: "2026-10-31T20:00:00Z" }],
+        items: [{ id: 1, analysis_id: 1, symbol: "BTCUSDT", timeframe: "1H", decision: "SELL", entry_low: 100, entry_high: 101, stop_loss: 103, take_profit: [95], risk_reward: 2.5, data_quality_score: 0.9, outcome: "open", as_of_ts: "2026-10-31T20:00:00Z", call: CALL_PRED_SELL }],
         total: 1, limit: 20, offset: 0,
       },
     });
     renderWithClient(<PredictionsPage />);
-    expect(await screen.findByText("SELL")).toBeInTheDocument();
+    expect(await screen.findByText("WAIT — UNVALIDATED SETUP")).toBeInTheDocument(); // the stored SELL is not validated: never shown as a trade
+    const row = screen.getByText("WAIT — UNVALIDATED SETUP").closest("tr")!;
+    expect(row).not.toHaveTextContent("103.00");
+    expect(row).not.toHaveTextContent("95.00");
     await userEvent.selectOptions(screen.getByLabelText("Filter decision"), "BUY");
     await waitFor(() => expect(calls.some((c) => c.key === "GET /api/v1/predictions")).toBe(true));
   });

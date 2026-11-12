@@ -1,5 +1,6 @@
 // Paper trading (docs/PAPER_TRADING.md): simulated orders on live candles, no broker.
 import type { PlanTarget, ScoreFactor } from "@/lib/signal-types";
+import type { TradeManagement } from "@/lib/decision-types";
 
 export type PaperStatus = "pending" | "open" | "closed" | "cancelled" | "missed" | "expired" | "skipped";
 export type PaperExitReason = "target" | "stop" | "invalidated" | "tp_before_fill" | "expired" | "chased" | "gapped";
@@ -48,6 +49,8 @@ export interface PaperTrade {
   unrealized_pnl: number | null;
   summary: string | null;
   config_version: string | null;
+  /** HOLD / EXIT / WAIT for open or pending trades (backend app/decision). */
+  management?: TradeManagement | null;
 }
 
 /** The plan exactly as the Signals page showed it when the signal was recorded. */

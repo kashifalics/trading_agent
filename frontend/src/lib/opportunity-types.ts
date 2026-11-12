@@ -1,3 +1,4 @@
+import type { TradeCall } from "@/lib/decision-types";
 // Types for the Trade Opportunities module (GET/POST /api/v1/opportunities/*). They mirror the backend payloads exactly.
 
 export type OppStyle = "scalping" | "intraday" | "swing" | "long_term";
@@ -42,6 +43,7 @@ export interface Opportunity {
   conditions: string[] | null;
   rank: number | null;
   correlated_with_rank: number | null;
+  call?: TradeCall;
 }
 
 export interface ScoreComponent {
