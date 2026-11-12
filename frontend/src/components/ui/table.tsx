@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="relative w-full overflow-x-auto">{/* relative: screen-reader-only text inside cells stays inside the scroll box */}
       <table className={cn("w-full text-sm", className)} {...props} />
     </div>
   );
