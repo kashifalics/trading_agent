@@ -112,12 +112,12 @@ export function CallCard({ call, symbol, precision = 2, title }: { call: TradeCa
           </Field>
         ) : null}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field label="Confirmation">{call.alignment?.confirmation ? `${call.alignment.confirmation.timeframe}: ${call.alignment.confirmation.status}` : call.technical_status ?? "—"}</Field>
+          {!call.trade && <Field label="Confirmation">{call.alignment?.confirmation ? `${call.alignment.confirmation.timeframe}: ${call.alignment.confirmation.status}` : call.technical_status ?? "—"}</Field>}
           <Field label="Data quality" testId="call-data">
             <span className={call.data_quality.status === "ok" ? "" : "text-bear"}>{call.data_quality.status}</span>
             {call.data_quality.detail && <span className="block text-xs text-muted-foreground">{call.data_quality.detail}</span>}
           </Field>
-          <Field label="Timeframes" testId="call-alignment">{call.alignment?.summary ?? "—"}</Field>
+          {!call.trade && <Field label="Timeframes" testId="call-alignment">{call.alignment?.summary ?? "—"}</Field>}
         </div>
         {(call.reasons_for?.length || against.length) ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

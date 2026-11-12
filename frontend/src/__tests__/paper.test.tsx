@@ -78,6 +78,8 @@ describe("Paper Trading page", () => {
     expect(screen.getByTestId("account-gate")).toHaveTextContent("1 of 5 trade slots in use");
     expect(screen.getByText("Open positions (1)")).toBeInTheDocument();
     expect(screen.getByText("+0.50R")).toBeInTheDocument();
+    expect(screen.getByTestId("tp1-r")).toHaveTextContent("68,000.00 (2.0R)"); // the target's size, so a distant TP1 is visible
+    expect(screen.getByTestId("hold-rule")).toHaveTextContent("no time limit, the same rule as the backtest");
     expect(screen.getByText("Pending orders (1)")).toBeInTheDocument();
     expect(screen.getByText("Limit 44,100.00")).toBeInTheDocument();
     expect(screen.getByText("skipped")).toHaveAttribute("title", "max open positions (1) reached");

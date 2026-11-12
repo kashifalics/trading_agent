@@ -14,6 +14,11 @@ It records the engine's **technical** states, not the customer decision (docs/DE
 unvalidated rules, so it records setups whose decision is `WAIT — UNVALIDATED SETUP`. Open and pending trades carry `management`
 (HOLD / EXIT / WAIT / NO TRADE with the reason, distances to stop and target and unrealised R), shown as **Recommendation**.
 
+**No time stop.** As in the backtest, an open trade ends only at its stop or TP1. TP1 is the first chart level at least 2R away, so
+on short timeframes it can be a distant daily or weekly level (10-27R has been seen on 3m/5m trades) and the trade can stay open for
+days. The Paper page shows each open trade's TP1 in R and how long it has been held. Adding a time stop or a target cap is a strategy
+change: it must be applied to the backtest and the forward test together (and the replay re-run), not to paper trading alone.
+
 | Plan on the Signals page | Paper order |
 |---|---|
 | `ENTRY_READY` / `EXECUTE NOW` | market order |

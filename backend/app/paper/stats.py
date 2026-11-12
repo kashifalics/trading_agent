@@ -36,6 +36,8 @@ METHOD = [
     "more than 0.3R beyond the planned entry.",
     "Limit orders rest until the plan expires; cancelled on a setup-candle close beyond the invalidation level, missed if TP1 trades first.",
     "Exit at the stop or TP1 on 1-minute candles; a candle touching both counts as a loss; a gap through the stop exits at the open.",
+    "There is no time stop, as in the backtest: a trade stays open until its stop or TP1. TP1 is the first chart level at least 2R "
+    "away, so on short timeframes it can be far (10R or more) and the trade can stay open for days.",
     "The configured round-trip spread is charged on every trade (R net = R gross - spread / risk).",
     "One trade per instrument x timeframe at a time, as in the backtest. The account applies its own risk limits on top.",
 ]

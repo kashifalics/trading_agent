@@ -305,9 +305,17 @@ function TradeDetail({ id }: { id: number }) {
   );
 }
 
+/** "3d 4h", "5h 12m", "14m": how long an open trade has been held (there is no time stop, see the note above the table). */
+function heldFor(iso: string | null): string {
+  if (!iso) return "—";
+  const m = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+  const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
+  return d ? `${d}d ${h}h` : h ? `${h}h ${mm}m` : `${mm}m`;
+}
+
 type TableKind = "open" | "pending" | "history";
 const HEADERS: Record<TableKind, string[]> = {
-  open: ["Instrument", "Side", "Recommendation", "Fill", "Stop", "TP1", "Last", "Open P&L", "Opened", "Score", "Account"],
+  open: ["Instrument", "Side", "Recommendation", "Fill", "Stop", "TP1 (target R)", "Last", "Open P&L", "Open for", "Score", "Account"],
   pending: ["Instrument", "Side", "Recommendation", "Order", "Stop", "TP1", "Expires", "Score", "Account"],
   history: ["Closed", "Instrument", "Side", "Result", "Entry → exit", "R net", "P&L", "Score", "Setup"],
 };
@@ -326,10 +334,11 @@ function Cells({ t, kind }: { t: PaperTrade; kind: TableKind }) {
   );
   const account = <TD className="text-xs">{t.account_taken ? fmtMoney(t.risk_amount) : <span className="text-muted-foreground" title={t.account_note ?? undefined}>skipped</span>}</TD>;
   if (kind === "open") {
-    return (<>{inst}{side}{rec}<TD className="num">{px(t.fill_price)}</TD><TD className="num">{px(t.stop_loss)}</TD><TD className="num">{px(t.take_profit)}</TD>
+    return (<>{inst}{side}{rec}<TD className="num">{px(t.fill_price)}</TD><TD className="num">{px(t.stop_loss)}</TD>
+      <TD className="num whitespace-nowrap" data-testid="tp1-r">{px(t.take_profit)}{t.planned_rr != null && <span className="text-xs text-muted-foreground"> ({fmtNum(t.planned_rr, 1)}R)</span>}</TD>
       <TD className="num">{px(t.last_price)}</TD>
       <TD className={cn("num whitespace-nowrap", signClass(t.unrealized_r))}>{fmtR(t.unrealized_r)}{t.unrealized_pnl !== null && <span className="text-xs"> {fmtMoney(t.unrealized_pnl, true)}</span>}</TD>
-      <TD className="whitespace-nowrap text-xs">{timeAgo(t.filled_at)}</TD>{score}{account}</>);
+      <TD className="whitespace-nowrap text-xs" title={t.filled_at ? `opened ${fmtDate(t.filled_at)}` : undefined}>{heldFor(t.filled_at)}</TD>{score}{account}</>);
   }
   if (kind === "pending") {
     return (<>{inst}{side}{rec}<TD className="whitespace-nowrap">{t.order_type === "limit" ? `Limit ${px(t.entry_price)}` : "Market · next open"}</TD>

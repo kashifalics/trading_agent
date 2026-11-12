@@ -72,7 +72,9 @@ and remember that spread and slippage are not included.
 While the server runs, every technically complete setup (immediate or limit entry) is recorded the moment it appears and simulated
 on the following candles: stop or first target, your spread charged, no real money. This is the forward test of the unvalidated
 rules, so it records setups even while their decision is WAIT — UNVALIDATED SETUP. Open and pending trades show a
-**Recommendation**: HOLD, EXIT or WAIT, with the reason. The page shows open and pending trades, history, win
+**Recommendation**: HOLD, EXIT or WAIT, with the reason. A trade is held until its stop or first target, with no time limit (the
+same rule as the backtest); on short timeframes the first target can be far away (its size is shown in R), so a 3m or 5m trade can
+stay open for days. The page shows open and pending trades, history, win
 rate and expectancy. It gives **no verdict before 100 closed trades**, because fewer cannot separate skill from luck. You can change
 risk per trade, maximum open trades and the daily loss limit, or start a new account.
 

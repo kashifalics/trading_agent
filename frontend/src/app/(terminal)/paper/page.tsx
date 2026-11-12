@@ -83,6 +83,11 @@ export default function PaperTradingPage() {
               </div>
               <Card>
                 <CardHeader><CardTitle>Open positions ({s.open.length})</CardTitle></CardHeader>
+                <p className="px-4 pb-2 text-xs text-muted-foreground" data-testid="hold-rule">
+                  A trade is held until its stop or its first target (TP1), with no time limit, the same rule as the backtest. TP1 is the
+                  first chart level at least 2R away, so on short timeframes it can be a distant level (shown in R) and a 3m or 5m trade can
+                  stay open for days.
+                </p>
                 <CardContent className="p-0">
                   {s.open.length ? <TradesTable trades={s.open} kind="open" /> : <div className="p-4"><EmptyState title="No open positions" hint="A market signal fills at the next candle's open; a limit order opens when its price trades." /></div>}
                 </CardContent>
