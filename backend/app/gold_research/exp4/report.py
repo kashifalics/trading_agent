@@ -26,8 +26,9 @@ def write(symbol: str, log=print) -> str:
          f"* Controls: {pre['main_setting']['controls']}.",
          "* The pasted levels (stop 1.5 ATR beyond the peak, targets 2 and 4 ATR) were not tested: on 2019 M15 their first target was "
          "below 1:1 reward:risk on every signal (median 1:0.47) and the second never reached 1:2.",
-         f"* Pre-registration: `docs/research/{symbol}_exp4_preregistration.json` (SHA-256 `{pre['sha256'][:16]}`, code commit "
-         f"`{(pre.get('code_commit') or '-')[:7]}`).", "",
+         f"* Pre-registration: `docs/research/{symbol}_exp4_preregistration.json` (SHA-256 `{pre['sha256'][:16]}`), written on top "
+         f"of commit `{(pre.get('code_commit') or '-')[:7]}` and committed together with the experiment code before any outcome was "
+         "computed (see the git history of that file).", "",
          "Pass criteria (all must hold): " + "; ".join(pre["criteria"]) + ".", "", f"_{pre['interpretation']}_", "",
          "## Signal counts (counts only, fixed the test list)", "",
          "| TF | Pattern | Signals in training | Test |", "|---|---|---|---|"]
