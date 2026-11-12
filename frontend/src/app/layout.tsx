@@ -6,7 +6,7 @@ import { Providers } from "./providers";
 const sans = Poppins({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-sans", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "AI Trading Intelligence",
+  title: { default: "AI Trading Intelligence", template: "%s · AI Trading Intel" }, // each route's layout names its page
   description: "Analysis-only market intelligence terminal: BUY / SELL / WAIT with evidence. No order execution.",
 };
 

@@ -88,7 +88,7 @@ function Section({ title, tag, children }: { title: string; tag?: string; childr
   return (
     <div className="space-y-2 rounded-md border bg-surface/60 p-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h4>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
         {tag && <Badge>{tag}</Badge>}
       </div>
       {children}

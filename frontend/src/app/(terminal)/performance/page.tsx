@@ -43,8 +43,8 @@ export default function PerformancePage() {
                 </div>
                 {d.resolved < 30 && d.resolved > 0 && <p className="text-xs text-warn">Only {d.resolved} resolved — the interval above is very wide.</p>}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div><h4 className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">By decision</h4><Bars data={d.by_decision} /></div>
-                  <div><h4 className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">By outcome</h4><Bars data={d.by_outcome} /></div>
+                  <div><h3 className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">By decision</h3><Bars data={d.by_decision} /></div>
+                  <div><h3 className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">By outcome</h3><Bars data={d.by_outcome} /></div>
                 </div>
                 <Table>
                   <THead><TR><TH>Instrument</TH><TH className="text-right">Total</TH><TH className="text-right">BUY</TH><TH className="text-right">SELL</TH><TH className="text-right">WAIT</TH><TH className="text-right">TP/SL</TH><TH className="text-right">Avg R</TH></TR></THead>

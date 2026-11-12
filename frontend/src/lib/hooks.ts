@@ -49,10 +49,10 @@ export const useCoverage = (symbol?: string) =>
   useQuery({ queryKey: ["coverage", symbol ?? "all"], queryFn: () => api.get<Coverage[]>("/market/coverage", { symbol }) });
 export const useProviders = () => useQuery({ queryKey: ["providers"], queryFn: () => api.get<ProviderInfo[]>("/market/providers") });
 
-export const useCandles = (symbol: string, timeframe: string, limit = 600, enabled = true) =>
+export const useCandles = (symbol: string, timeframe: string, limit = 600, enabled = true, provider?: string) =>
   useQuery({
-    queryKey: ["candles", symbol, timeframe, limit],
-    queryFn: () => api.get<CandlesResponse>("/market/candles", { symbol, timeframe, limit }),
+    queryKey: ["candles", symbol, timeframe, limit, provider ?? "default"],
+    queryFn: () => api.get<CandlesResponse>("/market/candles", { symbol, timeframe, limit, provider }),
     enabled,
     placeholderData: keepPreviousData,
     retry: retryPolicy,
@@ -134,6 +134,8 @@ export interface AnalysisRequest {
   mtf: { higher?: string; intermediate?: string; entry?: string };
   lookback_bars: number;
   auto_sync: boolean;
+  /** Data source; Chart Analysis sends the one the Signals page uses for the instrument. */
+  provider?: string;
 }
 
 export function useRunAnalysis() {

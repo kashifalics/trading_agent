@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox, FieldError, Input, Label } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/misc";
-import { useAnalysis, useCandles, useInstruments, usePredictions, useRunAnalysis, useSync, useUploadChart } from "@/lib/hooks";
+import { useAnalysis, useCandles, useInstruments, usePredictions, useRunAnalysis, useSignalsSummary, useSync, useUploadChart } from "@/lib/hooks";
 import { analysisSchema, uploadSchema, type AnalysisForm, type UploadForm } from "@/lib/schemas";
 import { useSettings, type OverlayToggles } from "@/lib/store";
 import type { ChartAnalyzeResult } from "@/lib/types";
@@ -93,7 +93,10 @@ export default function ChartPage() {
   const [jobId, setJobId] = useState<number | null>(null);
   const [useMtf, setUseMtf] = useState(true);
   const inst = instruments.data?.find((i) => i.canonical_symbol === s.symbol);
-  const candles = useCandles(s.symbol, s.timeframe, 700, inst?.supported ?? true);
+  // the same data source as the Signals page for this instrument (e.g. Binance for BTCUSDT, with its long history)
+  const summary = useSignalsSummary();
+  const provider = summary.data?.items.find((i) => i.symbol === s.symbol)?.provider;
+  const candles = useCandles(s.symbol, s.timeframe, 700, (inst?.supported ?? true) && (summary.isFetched || summary.isError), provider);
   const latest = usePredictions({ symbol: s.symbol, limit: 10 });
   const latestMatch = latest.data?.items.find((p) => p.timeframe === s.timeframe);
   const analysisId = jobId ?? latestMatch?.analysis_id ?? null;
@@ -123,7 +126,7 @@ export default function ChartPage() {
 
   const onRun = form.handleSubmit((v) => {
     run.mutate(
-      { symbol: v.symbol, timeframe: v.timeframe, mtf: useMtf ? { higher: v.higher || undefined, intermediate: v.intermediate || undefined, entry: v.entry || undefined } : {}, lookback_bars: v.lookback_bars, auto_sync: v.auto_sync },
+      { symbol: v.symbol, timeframe: v.timeframe, mtf: useMtf ? { higher: v.higher || undefined, intermediate: v.intermediate || undefined, entry: v.entry || undefined } : {}, lookback_bars: v.lookback_bars, auto_sync: v.auto_sync, provider },
       { onSuccess: (j) => setJobId(j.id) },
     );
   });

@@ -248,7 +248,7 @@ export function OpportunityTable({ rows, selected, onSelect, precision }: { rows
           const lv = o.call?.levels ?? o.call?.hypothetical ?? null; // ENTER levels, or hypothetical ones in experimental mode
           const ref = !o.call?.levels; // hypothetical levels are greyed
           return (
-            <TR key={o.id} className={cn("cursor-pointer", selected === o.id && "bg-muted/60", o.rank === null && "opacity-70")} onClick={() => onSelect(o.id)} data-testid={`opp-row-${o.id}`}>
+            <TR key={o.id} className={cn("cursor-pointer", selected === o.id && "bg-muted/60", o.rank === null && "bg-muted/30")} onClick={() => onSelect(o.id)} data-testid={`opp-row-${o.id}`}>
               <TD className="num">{o.rank ?? "—"}{o.correlated_with_rank ? <span className="ml-1 text-xs text-muted-foreground" title="Same instrument and direction as a higher-ranked setup: one exposure, not an independent idea">≈#{o.correlated_with_rank}</span> : null}</TD>
               <TD className="font-medium">{o.symbol}</TD>
               <TD>{STYLE_LABEL[o.style]}{o.setup_timeframe ? <span className="num ml-1 text-xs text-muted-foreground">{o.setup_timeframe}</span> : null}</TD>

@@ -119,6 +119,10 @@ def test_analysis_flow_end_to_end(synced):
     assert "not a probability" in an["note"].lower() or "rank resemblance" in an["note"]
     assert an["summary"]["n_obs"] > 0
     assert c.get("/api/v1/predictions/stats").json()["total"] == 1
+    jobs = c.get("/api/v1/analysis", params={"compact": "true"})  # the Overview's light job list
+    assert jobs.status_code == 200, jobs.text
+    assert jobs.json()["items"][0]["id"] == a["id"] and set(jobs.json()["items"][0]) <= {"id", "symbol", "timeframe", "status", "created_at", "finished_at"}
+    assert c.get("/api/v1/analysis").json()["items"][0]["result"]  # without compact: the full analyses, as before
 
 
 def test_analysis_without_data_or_credentials_fails_clearly(client):

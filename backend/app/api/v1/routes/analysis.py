@@ -66,8 +66,11 @@ def list_analyses(limit: int = Query(25, ge=1, le=100), offset: int = Query(0, g
     total = session.scalar(select(func.count()).select_from(q.subquery()))
     rows = session.scalars(q.order_by(Analysis.id.desc()).limit(limit).offset(offset)).all()
     if compact:
-        return Page(items=[{"id": a.id, "symbol": a.symbol, "timeframe": a.timeframe, "status": a.status, "created_at": a.created_at,
-                            "finished_at": getattr(a, "finished_at", None)} for a in rows], total=total, limit=limit, offset=offset)
+        syms = {i.id: i.canonical_symbol for i in session.scalars(select(Instrument).where(
+            Instrument.id.in_({a.instrument_id for a in rows}))).all()} if rows else {}
+        return Page(items=[{"id": a.id, "symbol": syms.get(a.instrument_id), "timeframe": a.timeframe, "status": a.status,
+                            "created_at": a.created_at, "finished_at": getattr(a, "finished_at", None)} for a in rows],
+                    total=total, limit=limit, offset=offset)
     return Page(items=[analysis_out(session, a) for a in rows], total=total, limit=limit, offset=offset)
 
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
-import { useEffect } from "react";
 import Link from "next/link";
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
@@ -14,9 +13,6 @@ import type { Decision, JobStatus } from "@/lib/types";
 import { TIMEFRAME_CODES, cn } from "@/lib/utils";
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: React.ReactNode }) {
-  useEffect(() => {
-    document.title = `${title} · AI Trading Intel`; // each page has its own tab title (history, bookmarks, screen readers)
-  }, [title]);
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>
@@ -69,7 +65,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
     );
   }
   return (
-    <div role="alert" className="flex flex-col items-start gap-2 rounded-md border border-bear/30 bg-bear/5 p-4 text-sm">
+    <div role="alert" className="flex min-w-0 max-w-full flex-col items-start gap-2 rounded-md border border-bear/30 bg-bear/5 p-4 text-sm [overflow-wrap:anywhere]">
       <div className="flex items-center gap-2 font-medium text-bear">
         <AlertTriangle className="h-4 w-4" aria-hidden />
         {e?.code === "network_error" ? "Backend unreachable" : "Request failed"}
