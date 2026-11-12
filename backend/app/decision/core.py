@@ -147,9 +147,17 @@ def decide(i: DecisionInput) -> dict:
 
     # 1. tracked open trade with an exit condition
     t = out["trade"]
+    if t is not None:
+        # a decision about a tracked trade describes THAT trade: its direction, setup and invalidation, not the current chart setup's
+        # (which may point the other way and stays visible in the timeframe detail)
+        tr, inv = i.open_trade or {}, (i.open_trade or {}).get("invalidation")
+        trade_view = {"direction": t.get("direction") or "NONE", "setup": (tr.get("setup_type") or "").replace("_", " ") or None,
+                      "invalidation": f"Price beyond the trade's invalidation level {_fmt(inv)}" if inv is not None else None,
+                      "watch": None, "score": None, "reasons_for": [], "reasons_against": [], "checks": [], "failed_checks": [],
+                      "alignment": None}
     if t and t.get("action") == EXIT:
-        return done(EXIT, EXIT_LABEL.get(t.get("exit_kind"), "EXIT"), t["reason"], "Close the tracked trade; look for a new setup afterwards.",
-                    exit_price=t.get("current_price"), exit_reason=t.get("exit_kind"))
+        return {**done(EXIT, EXIT_LABEL.get(t.get("exit_kind"), "EXIT"), t["reason"], "Close the tracked trade; look for a new setup afterwards.",
+                       exit_price=t.get("current_price"), exit_reason=t.get("exit_kind")), **trade_view}
     # 2. data
     if i.data_status != "ok":
         what = {"stale": "Market data is stale", "insufficient": "Not enough market data", "unavailable": "Market data is unavailable"}
@@ -157,12 +165,12 @@ def decide(i: DecisionInput) -> dict:
                     "Fresh, complete candles for this timeframe (sync the data first).")
     # 3. a tracked trade is already running here: manage it (HOLD / WAIT), never a second entry
     if t is not None and t["action"] == NO_TRADE:  # a pending order whose cancel condition is met
-        return done(NO_TRADE, "NO TRADE — CANCEL PENDING ORDER", t["reason"], "A new setup forms.")
+        return {**done(NO_TRADE, "NO TRADE — CANCEL PENDING ORDER", t["reason"], "A new setup forms."), **trade_view}
     if t is not None:
         kind = "trade_open" if t["status"] == "open" else "order_pending"
-        return done(WAIT, "WAIT — TRADE OPEN" if kind == "trade_open" else "WAIT — ORDER PENDING",
-                    f"A tracked paper trade is already {t['status']} on {i.symbol} {i.timeframe}: manage it ({t['action']}), no new entry.",
-                    t["reason"], kind, watch={"zone": i.entry_zone, "invalidation": i.invalidation})
+        return {**done(WAIT, "WAIT — TRADE OPEN" if kind == "trade_open" else "WAIT — ORDER PENDING",
+                       f"A tracked paper {t.get('direction', '')} trade is already {t['status']} on {i.symbol} {i.timeframe}: manage it "
+                       f"({t['action']}), no new entry.".replace("paper  trade", "paper trade"), t["reason"], kind), **trade_view}
     # 4. no live setup
     if i.technical in ("invalidated", "expired"):
         return done(NO_TRADE, f"NO TRADE — SETUP {i.technical.upper()}", i.technical_detail or f"The setup was {i.technical}.",

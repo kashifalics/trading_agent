@@ -211,3 +211,19 @@ def test_stored_explanations_never_leak_levels_without_enter_or_experimental_mod
     assert "101" not in hidden and "withheld" in hidden and "WAIT — UNVALIDATED SETUP" in hidden and hidden.startswith("BUY setup")
     assert redact_explanation(text, prediction_call(p, experimental=True)) == text  # hypothetical levels are shown, so is the plan line
     assert redact_explanation(None, prediction_call(p)) is None
+
+
+def test_a_tracked_trade_decision_describes_the_trade_not_the_current_chart_setup():
+    held = {"id": 81, "status": "open", "direction": "BUY", "entry_price": 100.0, "fill_price": 100.0, "stop_loss": 98.0,
+            "take_profit": 106.0, "invalidation": 98.5, "last_price": 101.0, "last_close": 101.0, "setup_type": "trend_pullback"}
+    # the chart now shows a SELL setup on the same timeframe; the card must still describe the tracked BUY
+    i = DecisionInput(symbol="US30", timeframe="5m", data_status="ok", technical="confirmed", direction=-1, entry_mode="market",
+                      entry=101.0, stop=103.0, targets=[{"label": "TP1", "price": 96.0, "rr": 2.5}], setup_name="bos retest",
+                      reasons_for=["5m bearish"], reasons_against=["x"], score=70, validation=UNVALID, open_trade=held)
+    c = decide(i)
+    assert c["label"] == "WAIT — TRADE OPEN" and c["direction"] == "BUY" and c["setup"] == "trend pullback"
+    assert "BUY trade" in c["headline"] and c["score"] is None and c["reasons_for"] == [] and c["watch"] is None
+    assert c["invalidation"].startswith("Price beyond the trade's invalidation level 98.5") and c["levels"] is None
+    for none_plan in (dict(technical="none", direction=0), dict(technical="none", direction=0, open_trade={**held, "last_price": 97.0})):
+        c = decide(DecisionInput(symbol="X", timeframe="3m", data_status="ok", validation=UNVALID, **{"open_trade": held, **none_plan}))
+        assert c["direction"] == "BUY"  # never "no direction" while a tracked trade is managed (HOLD or EXIT)
