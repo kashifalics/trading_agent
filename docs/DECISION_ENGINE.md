@@ -23,7 +23,7 @@ research-validated rules. No rule set has passed out-of-sample validation (docs/
 |---|---|---|
 | 1 | A tracked paper trade hit its stop, its target, or closed beyond its invalidation level | `EXIT — STOP-LOSS HIT` / `EXIT — TARGET REACHED` / `EXIT — SETUP INVALIDATED` |
 | 2 | Data missing, stale or insufficient for this timeframe | `NO TRADE — DATA` |
-| 3 | A tracked paper trade is open or pending here | `WAIT — TRADE OPEN` / `WAIT — ORDER PENDING` (manage it, no new entry); a pending order whose setup failed → `NO TRADE — CANCEL PENDING ORDER` |
+| 3 | A tracked paper trade is open or pending here | `HOLD — PAPER TRADE OPEN` (keep it until its stop or first target, no new entry) / `WAIT — PAPER ORDER PENDING` (wait for the fill); a pending order whose setup failed → `NO TRADE — CANCEL PENDING ORDER` |
 | 4 | The setup was invalidated or expired / no setup | `NO TRADE — SETUP INVALIDATED` / `— EXPIRED` / `NO TRADE` |
 | 5 | Any mandatory check fails (structural stop distance, reward:risk to a structural target, opposing obstacle, spread cost, required timeframes have data, no higher timeframe against the trade) | `NO TRADE — CONDITION FAILED` (the failed check and what would fix it) |
 | 6 | The live price is beyond the stop, already at the first target, more than 0.3R past a market entry (never chase), or outside stop–target | `NO TRADE — PRICE BEYOND STOP` / `— TARGET ALREADY REACHED` / `— ENTRY MISSED` / `— PRICE OUTSIDE PLAN` |

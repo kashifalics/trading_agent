@@ -92,7 +92,7 @@ export default function SignalsPage() {
     <>
       <PageHeader
         title="Signals"
-        description="Top-down multi-timeframe price-action analysis: one decision per instrument and timeframe (ENTER, WAIT, EXIT or NO TRADE) with its reasons, what must happen next and a 100-point confluence checklist. Entry, stop and targets appear only with ENTER. Analysis only: no orders are placed."
+        description="Top-down multi-timeframe price-action analysis: one decision per instrument and timeframe (ENTER, HOLD, WAIT, EXIT or NO TRADE) with its reasons, what must happen next and a 100-point confluence checklist. Entry, stop and targets appear only with ENTER. Analysis only: no orders are placed."
         actions={
           <>
             <Checkbox label="Live refresh (fetch new candles every 60 s)" checked={liveSignals} onChange={(e) => set({ liveSignals: e.target.checked })} />
@@ -105,8 +105,9 @@ export default function SignalsPage() {
       />
       <div className="mb-4 space-y-2">
         <Notice tone="warn">
-          Every instrument and timeframe gets one decision: <strong>ENTER</strong>, <strong>WAIT</strong>, <strong>EXIT</strong> or{" "}
-          <strong>NO TRADE</strong>. ENTER requires every mandatory condition <em>and</em> research-validated rules; none has passed
+          Every instrument and timeframe gets one decision: <strong>ENTER</strong>, <strong>HOLD</strong>, <strong>WAIT</strong>,{" "}
+          <strong>EXIT</strong> or <strong>NO TRADE</strong>. <strong>HOLD — PAPER TRADE OPEN</strong> means the paper-trading test already
+          holds a trade there (its entry, stop, target and open profit are shown): keep it until its stop or target, no new entry. ENTER requires every mandatory condition <em>and</em> research-validated rules; none has passed
           out-of-sample validation, so a technically complete setup is shown as <strong>WAIT — UNVALIDATED SETUP</strong>. The score measures
           setup quality, not the chance of winning, and no win probability is shown. High-impact news is not filtered.
           {experimentalMode && <> Experimental mode is on: hypothetical levels of unvalidated setups are shown, clearly marked.</>}

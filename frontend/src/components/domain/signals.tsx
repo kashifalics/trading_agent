@@ -4,7 +4,7 @@ import { CheckCircle2, CircleSlash, Info, XCircle } from "lucide-react";
 import { useMemo } from "react";
 import { CandleChart } from "@/components/charts/candle-chart";
 import { COLORS, type ChartLine, type ChartZone } from "@/components/charts/overlays";
-import { CallBadge, CallCard } from "@/components/domain/call";
+import { CallBadge, CallCard, TradeBrief } from "@/components/domain/call";
 import { EmptyState, ErrorState } from "@/components/domain/common";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,10 +65,13 @@ export function ScoreMeter({ score, grade }: { score: number | null; grade?: "A"
 export function AllSignalsTable({ items, value, onPick }: { items: SignalsSummaryItem[]; value: string | null; onPick: (symbol: string, tf?: string) => void }) {
   return (
     <Table data-testid="all-signals">
-      <THead><TR><TH>Instrument</TH><TH>Decision now</TH><TH>Bias</TH><TH>Setups by timeframe</TH><TH>What must happen next</TH></TR></THead>
+      <THead><TR><TH>Instrument</TH><TH>Decision now</TH><TH>Bias</TH><TH>Setups and paper trades by timeframe</TH><TH>What must happen next</TH></TR></THead>
       <TBody>
         {items.map((i) => {
-          const active = i.active ?? [];
+          // timeframes where a paper trade is held come first, then the other live setups
+          const held = i.trades ?? [];
+          const active = [...held, ...(i.active ?? []).filter((p) => !held.some((h) => h.timeframe === p.timeframe))];
+          const px = i.price_precision ?? 2;
           const where = [i.call?.timeframe, i.call && i.call.direction !== "NONE" ? i.call.direction : null].filter(Boolean).join(" · ");
           return (
             <TR key={i.symbol} data-testid={`all-${i.symbol}`} className={cn(value === i.symbol && "bg-primary/5")}>
@@ -79,6 +82,7 @@ export function AllSignalsTable({ items, value, onPick }: { items: SignalsSummar
               <TD className="whitespace-nowrap">
                 <CallBadge call={i.call} className="text-[10px]" />
                 <span className="block text-[11px] text-muted-foreground">{where || (i.status !== "ok" ? "no data" : "")}</span>
+                {i.call?.trade && <TradeBrief m={i.call.trade} p={px} />}
               </TD>
               <TD className={cn("whitespace-nowrap text-xs", biasTone(i.overall?.label))}>{i.overall?.label ?? "—"}</TD>
               <TD>
@@ -86,15 +90,25 @@ export function AllSignalsTable({ items, value, onPick }: { items: SignalsSummar
                   <span className="text-xs text-muted-foreground">{i.status === "ok" ? "no live setup" : "—"}</span>
                 ) : (
                   <div className="flex flex-col items-start gap-1">
-                    {active.map((p) => (
-                      <button key={p.timeframe} onClick={() => onPick(i.symbol, p.timeframe)} data-testid={`setup-${i.symbol}-${p.timeframe}`}
-                        className="flex items-center gap-2 whitespace-nowrap rounded-md px-1 py-0.5 text-left text-xs hover:bg-muted/60">
-                        <span className="num w-8 font-medium">{p.timeframe}</span>
-                        <span className={p.direction === "BUY" ? "text-bull" : p.direction === "SELL" ? "text-bear" : "text-muted-foreground"}>{p.direction ?? "—"}</span>
-                        <span className="num text-muted-foreground">{p.score ?? "—"}/100</span>
-                        {p.call && <CallBadge call={p.call} className="text-[10px]" />}
-                      </button>
-                    ))}
+                    {active.map((p) => {
+                      const tr = p.call?.trade;
+                      const side = tr ? tr.direction : p.direction;
+                      return (
+                        <button key={p.timeframe} onClick={() => onPick(i.symbol, p.timeframe)} data-testid={`setup-${i.symbol}-${p.timeframe}`}
+                          className="flex items-center gap-2 whitespace-nowrap rounded-md px-1 py-0.5 text-left text-xs hover:bg-muted/60">
+                          <span className="num w-8 font-medium">{p.timeframe}</span>
+                          <span className={side === "BUY" ? "text-bull" : side === "SELL" ? "text-bear" : "text-muted-foreground"}>{side ?? "—"}</span>
+                          {tr ? (
+                            <span className={cn("num", tr.unrealized_r == null ? "text-muted-foreground" : tr.unrealized_r >= 0 ? "text-bull" : "text-bear")}>
+                              {tr.unrealized_r == null ? (tr.status === "pending" ? "order" : "open") : `${tr.unrealized_r >= 0 ? "+" : ""}${fmtNum(tr.unrealized_r, 1)}R`}
+                            </span>
+                          ) : (
+                            <span className="num text-muted-foreground">{p.score ?? "—"}/100</span>
+                          )}
+                          {p.call && <CallBadge call={p.call} className="text-[10px]" />}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </TD>

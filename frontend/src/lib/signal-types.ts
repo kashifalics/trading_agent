@@ -231,6 +231,8 @@ export interface SignalsSummaryItem {
   active?: CompactPlan[];
   last_candle?: string | null;
   call?: TradeCall | null;
+  /** Timeframes where the paper-trading test holds a trade or a pending order (their call carries `trade`). */
+  trades?: CompactPlan[];
   /** When this instrument's analysis ran (the backend reuses it for up to `refresh_s`). */
   as_of?: string | null;
 }

@@ -64,7 +64,7 @@ More detail: [ARCHITECTURE.md](ARCHITECTURE.md), [SIGNAL_ENGINE.md](SIGNAL_ENGIN
 * **Timeframes:** 1m, 3m, 5m, 15m, 30m, 1H, 2H, 4H, 1D, 1W, 1M, 3M, 6M, 12M (non-native ones are aggregated; if a provider's history
   is too short the timeframe reports "insufficient data" instead of guessing).
 * **Signals:** states `ENTRY_READY`, `WAITING_FOR_CONFIRMATION`, `SETUP_DEVELOPING`, `WATCHLIST`, `NO_SETUP`, `TRADE_INVALIDATED`,
-  `TRADE_EXPIRED` (technical; customers see the ENTER / WAIT / EXIT / NO TRADE decision of docs/DECISION_ENGINE.md, and an
+  `TRADE_EXPIRED` (technical; customers see the ENTER / HOLD / WAIT / EXIT / NO TRADE decision of docs/DECISION_ENGINE.md, and an
   unvalidated complete setup is `WAIT — UNVALIDATED SETUP`); structural stops and targets;
   must-pass rules (structural stop, R:R ≥ 1:2, spread, fresh data); 100-point checklist (HTF 20, structure 20, liquidity 15, entry
   zone 15, LTF confirmation 15, R:R 10, session/volatility 5; signal at ≥ 60, limit orders at ≥ 70).

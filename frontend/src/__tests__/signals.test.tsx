@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SignalsPage from "@/app/(terminal)/signals/page";
 import { DEFAULT_CONTRACT_SIZE, positionSize } from "@/lib/position-size";
+import type { TradeCall } from "@/lib/decision-types";
 import type { SignalAnalysis, SignalsSummary, TimeframePlan } from "@/lib/signal-types";
 import { useSettings } from "@/lib/store";
 import { CALL_EMPTY, CALL_ENTER, CALL_READY, CALL_READY_X, CALL_WATCH } from "@/test/calls";
@@ -190,6 +191,12 @@ describe("Signals page", () => {
         { timeframe: "1H", state: "ENTRY_READY", instruction: "EXECUTE NOW", decision: "BUY", direction: "BUY", score: 72, grade: "A", tp1: 3990, call: CALL_READY },
         { timeframe: "4H", state: "WATCHLIST", instruction: "NO TRADE", decision: "WAIT", direction: "SELL", score: 66, grade: null, tp1: 3900, call: CALL_WATCH }] },
       { ...SUMMARY.items[1], as_of: new Date().toISOString() }] };
+    const holdCall: TradeCall = { ...CALL_READY, timeframe: "3m", direction: "SELL", decision: "HOLD", label: "HOLD — PAPER TRADE OPEN", wait_kind: "trade_open",
+      next_condition: "Between the stop 4,076.42 and the first target 3,891.04; no exit condition is met.",
+      trade: { trade_id: 5, status: "open", direction: "SELL", action: "HOLD", reason: "Between the stop and the first target", entry_price: 4061.73,
+        current_price: 3990, stop_loss: 4076.42, take_profit: 3891.04, stop_distance: 86.42, target_distance: 98.96, unrealized_r: 8.53, unrealized_pnl: null } };
+    withSetups.items[0] = { ...withSetups.items[0], call: holdCall, trades: [{ timeframe: "3m", state: "SETUP_DEVELOPING", instruction: "NO TRADE",
+      decision: "WAIT", direction: "BUY", score: 55, grade: null, tp1: null, call: holdCall }] };
     routes({ "GET /api/v1/signals": withSetups });
     useSettings.setState({ liveSignals: false });
     const user = userEvent.setup();
@@ -197,7 +204,11 @@ describe("Signals page", () => {
     const all = await screen.findByTestId("all-signals");
     expect(within(all).getAllByRole("row")).toHaveLength(3); // header + every instrument
     const gold = within(all).getByTestId("all-XAUUSD");
-    expect(gold).toHaveTextContent("WAIT — UNVALIDATED SETUP");
+    // a held paper trade is HOLD, with its own side, entry, stop, target and open result (not the current setup's)
+    expect(gold).toHaveTextContent("HOLD — PAPER TRADE OPEN");
+    expect(within(gold).getAllByTestId("trade-brief")[0]).toHaveTextContent("SELL from 4,061.73 · SL 4,076.42 · TP1 3,891.04 · +8.5R open");
+    expect(within(gold).getByTestId("setup-XAUUSD-3m")).toHaveTextContent("3mSELL+8.5RHOLD — PAPER TRADE OPEN");
+    expect(within(gold).getByTestId("setup-XAUUSD-1H")).toHaveTextContent("WAIT — UNVALIDATED SETUP");
     expect(gold).toHaveTextContent("Bullish");
     expect(within(gold).getByTestId("setup-XAUUSD-1H")).toHaveTextContent("1HBUY72/100");
     expect(within(gold).getByTestId("setup-XAUUSD-4H")).toHaveTextContent("NO TRADE — CONDITION FAILED");

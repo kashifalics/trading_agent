@@ -18,7 +18,7 @@ Experimental = Query(False, description="Experimental analysis mode: attach the 
 @router.get("")
 def signals_summary(experimental: bool = Experimental, session: Session = Depends(get_session),
                     user: User = Depends(get_current_user)) -> dict:
-    """The call (ENTER / WAIT / EXIT / NO TRADE), best plan, active plans and overall bias for every configured instrument."""
+    """The call (ENTER / HOLD / WAIT / EXIT / NO TRADE), best plan, active plans and overall bias for every configured instrument."""
     return service.summary(session, experimental=experimental)
 
 

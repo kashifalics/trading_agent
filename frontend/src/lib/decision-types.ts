@@ -1,6 +1,7 @@
 // The central trading decision, computed by the backend (app/decision). The frontend only displays it: it never re-decides.
 
-export type CallDecision = "ENTER" | "WAIT" | "EXIT" | "NO TRADE";
+/** HOLD: the paper-trading test already holds a trade on this instrument and timeframe (keep it until its stop or target). */
+export type CallDecision = "ENTER" | "HOLD" | "WAIT" | "EXIT" | "NO TRADE";
 
 export interface CallTarget {
   label: string;

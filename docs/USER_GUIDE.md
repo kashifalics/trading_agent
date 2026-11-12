@@ -38,7 +38,7 @@ shown as **WAIT — UNVALIDATED SETUP**.
    60 seconds, and at once when you come back to the tab), and the table says how long ago the analysis ran. **Refresh now** loads
    the latest candles at once; with **Live refresh** on, the open instrument also fetches new candles every 60 seconds.
 2. The **Decision now** card at the top tells you, in this order:
-   * **The decision:** ENTER, WAIT, EXIT or NO TRADE, with the reason in capitals (for example WAIT — CONFIRMATION PENDING).
+   * **The decision:** ENTER, HOLD, WAIT, EXIT or NO TRADE, with the reason in capitals (for example WAIT — CONFIRMATION PENDING).
    * The instrument, direction, timeframe and setup, and **Research: Not validated / Validated**.
    * One sentence on why, and **Next:** what must happen before anything changes.
    * The price condition (zone and invalidation level), confirmation, data quality, how the timeframes line up, and the reasons for
@@ -51,7 +51,8 @@ shown as **WAIT — UNVALIDATED SETUP**.
    | **ENTER** | Every mandatory condition passes **and** the rules passed out-of-sample validation. Shown with entry, stop and targets |
    | **WAIT — UNVALIDATED SETUP** | The setup is technically complete, but the rules have not proven a profitable edge, so the system does not recommend entering |
    | **WAIT — CONFIRMATION PENDING / PRICE NOT AT ENTRY ZONE / SETUP DEVELOPING / MARKET CONDITIONS** | A possible setup that is not complete yet; **Next** says what is missing |
-   | **WAIT — TRADE OPEN / ORDER PENDING** | A paper trade is already tracked here: manage it (HOLD), no new entry |
+   | **HOLD — PAPER TRADE OPEN** | The paper-trading test already holds a trade here: keep it until its stop or first target (shown with its entry, stop, target and open profit in R); no new entry |
+   | **WAIT — PAPER ORDER PENDING** | The paper-trading test has a limit order waiting here: wait for the fill; no new entry |
    | **EXIT** | A tracked paper trade reached its stop, its target or its invalidation level |
    | **NO TRADE — …** | No valid setup, bad or missing data, a failed mandatory condition, or price already past the plan |
 
@@ -86,7 +87,7 @@ risk per trade, maximum open trades and the daily loss limit, or start a new acc
 
 | Label | Meaning |
 |---|---|
-| ENTER / WAIT / EXIT / NO TRADE | The decision; the text after the dash is the reason (section 3) |
+| ENTER / HOLD / WAIT / EXIT / NO TRADE | The decision; the text after the dash is the reason (section 3) |
 | Not validated | The rules behind this setup have not passed an out-of-sample test. No strategy in the product has |
 | HYPOTHETICAL — UNVALIDATED | Technical levels shown only in experimental mode; not a recommendation |
 | Score / Evidence score | Setup quality on a checklist. Not a chance of winning |

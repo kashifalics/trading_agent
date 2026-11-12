@@ -104,6 +104,20 @@ def test_summary_reuses_each_instruments_latest_analysis_until_it_is_too_old(cli
     assert "XAUUSD" in calls  # experimental decisions are kept separately
 
 
+def test_summary_lists_the_timeframes_where_a_paper_trade_is_held_with_its_levels():
+    trade = {"trade_id": 5, "status": "open", "direction": "SELL", "entry_price": 4061.7, "current_price": 3990.0, "stop_loss": 4076.4,
+             "take_profit": 3891.0, "unrealized_r": 4.9, "action": "HOLD", "reason": "Between the stop and the first target"}
+    held = {"timeframe": "3m", "state": "SETUP_DEVELOPING", "targets": [], "call": {"decision": "HOLD", "label": "HOLD — PAPER TRADE OPEN",
+                                                                                   "trade": trade}}
+    free = {"timeframe": "1H", "state": "WATCHLIST", "targets": [], "call": {"decision": "NO TRADE", "label": "NO TRADE", "trade": None}}
+    r = {"symbol": "XAUUSD", "status": "ok", "plans": [held, free], "active": ["1H"], "timeframes": [], "best": None, "call": held["call"],
+         "generated_at": "2026-11-12T10:00:00+00:00"}
+    item = service.summary_item(r)
+    assert [p["timeframe"] for p in item["trades"]] == ["3m"] and item["trades"][0]["call"]["trade"] == trade
+    assert item["call"]["label"] == "HOLD — PAPER TRADE OPEN" and item["call"]["trade"]["entry_price"] == 4061.7
+    assert [p["timeframe"] for p in item["active"]] == ["1H"]
+
+
 def test_config_track_record_and_validation_errors(client):
     cfg = client.get("/api/v1/signals/config").json()
     assert sum(cfg["factors"].values()) == 100 and cfg["thresholds"]["signal"] == 60

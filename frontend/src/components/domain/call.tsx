@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import type { CallDecision, CallLevels, TradeCall, TradeManagement } from "@/lib/decision-types";
 import { cn, fmtNum, fmtPrice } from "@/lib/utils";
 
-const TONE: Record<CallDecision, { box: string; text: string; badge: "buy" | "wait" | "sell" | "neutral" }> = {
+const TONE: Record<CallDecision, { box: string; text: string; badge: "buy" | "wait" | "sell" | "neutral" | "info" }> = {
   ENTER: { box: "border-bull/40 bg-bull/10", text: "text-bull", badge: "buy" },
+  HOLD: { box: "border-primary/40 bg-primary/5", text: "text-primary", badge: "info" },
   WAIT: { box: "border-warn/40 bg-cta/10", text: "text-warn", badge: "wait" },
   EXIT: { box: "border-bear/40 bg-bear/10", text: "text-bear", badge: "sell" },
   "NO TRADE": { box: "border-border bg-muted/60", text: "text-muted-foreground", badge: "neutral" },
@@ -49,6 +50,19 @@ function LevelsGrid({ lv, p }: { lv: CallLevels; p: number }) {
       </Field>
       <Field label="Reward:risk"><span className="num font-semibold">{lv.risk_reward != null ? `1:${fmtNum(lv.risk_reward, 2)}` : "—"}</span></Field>
     </div>
+  );
+}
+
+const signedR = (r: number) => `${r >= 0 ? "+" : ""}${fmtNum(r, 1)}R`;
+
+/** One line for tables: the held paper trade's side, entry, stop, first target and open result in R. */
+export function TradeBrief({ m, p, className }: { m: TradeManagement; p: number; className?: string }) {
+  return (
+    <span className={cn("num block text-[11px] text-muted-foreground", className)} data-testid="trade-brief">
+      {m.status === "pending" ? "limit " : ""}{m.direction} {m.status === "pending" ? "at" : "from"} {fmtPrice(m.entry_price, p)} · SL {fmtPrice(m.stop_loss, p)} · TP1{" "}
+      {fmtPrice(m.take_profit, p)}
+      {m.unrealized_r != null && <> · <span className={m.unrealized_r >= 0 ? "text-bull" : "text-bear"}>{signedR(m.unrealized_r)} open</span></>}
+    </span>
   );
 }
 

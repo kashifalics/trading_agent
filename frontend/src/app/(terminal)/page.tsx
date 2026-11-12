@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/misc";
-import { CallBadge } from "@/components/domain/call";
+import { CallBadge, TradeBrief } from "@/components/domain/call";
 import { DecisionBadge, EmptyState, ErrorState, JobBadge, PageHeader, QueryState } from "@/components/domain/common";
 import { AnalysisOnlyNotice } from "@/components/domain/decision";
 import { useAnalyses, useCoverage, useInstruments, useModels, usePatterns, usePredictions, useQuotes, useSignalsSummary } from "@/lib/hooks";
@@ -72,7 +72,7 @@ function DirectionRow({ inst }: { inst: Instrument }) {
   );
 }
 
-/** One backend decision per instrument (ENTER / WAIT / EXIT / NO TRADE), the same call the Signals page shows. */
+/** One backend decision per instrument (ENTER / HOLD / WAIT / EXIT / NO TRADE), the same call the Signals page shows. */
 function DecisionsNow() {
   const q = useSignalsSummary();
   return (
@@ -99,7 +99,7 @@ function DecisionsNow() {
                       <Link href={`/signals?symbol=${i.symbol}`} className="hover:underline">{i.symbol}</Link>
                       <span className="block text-[11px] text-muted-foreground">{i.call?.timeframe ?? ""}{i.call && i.call.direction !== "NONE" ? ` · ${i.call.direction}` : ""}</span>
                     </TD>
-                    <TD><CallBadge call={i.call} className="text-[10px]" /></TD>
+                    <TD><CallBadge call={i.call} className="text-[10px]" />{i.call?.trade && <TradeBrief m={i.call.trade} p={i.price_precision ?? 2} className="mt-1" />}</TD>
                     <TD className="max-w-[22rem] text-xs text-muted-foreground">{i.call?.next_condition ?? i.call?.headline ?? i.reason ?? "—"}</TD>
                   </TR>
                 ))}

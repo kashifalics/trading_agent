@@ -2,7 +2,8 @@
 
  1. a tracked open trade whose exit condition is met                    -> EXIT (stop-loss, target, invalidation)
  2. data for the timeframe unavailable, insufficient or stale            -> NO TRADE
- 3. a tracked trade is already open (or pending) on this timeframe       -> WAIT (manage the open trade: HOLD; no second entry)
+ 3. a tracked paper trade is open on this timeframe                      -> HOLD (keep it until its stop or target; no second entry)
+    a tracked paper limit order is pending                                -> WAIT (for the fill; no second entry)
  4. the technical setup was invalidated or expired, or there is none     -> NO TRADE
  5. any mandatory condition failed (stop, targets / reward:risk, costs,
     required timeframes, higher-timeframe conflict, ...)                 -> NO TRADE   (a high score never overrides this)
@@ -23,8 +24,8 @@ from dataclasses import dataclass, field
 from app.paper.simulator import CHASE_R
 from app.signals.execution import market_entry_ok
 
-ENTER, WAIT, EXIT, NO_TRADE = "ENTER", "WAIT", "EXIT", "NO TRADE"
-ORDER = {EXIT: 0, ENTER: 1, WAIT: 2, NO_TRADE: 3}
+ENTER, HOLD, WAIT, EXIT, NO_TRADE = "ENTER", "HOLD", "WAIT", "EXIT", "NO TRADE"
+ORDER = {EXIT: 0, ENTER: 1, HOLD: 2, WAIT: 3, NO_TRADE: 4}
 # an open or pending tracked trade is the first thing to manage, then the most concrete new setup
 WAIT_ORDER = {"trade_open": 0, "order_pending": 1, "unvalidated": 2, "confirmation": 3, "market": 4, "price": 5, "developing": 6}
 SCORE_NOTE = "setup quality checklist, not a probability of winning"
@@ -166,11 +167,16 @@ def decide(i: DecisionInput) -> dict:
     # 3. a tracked trade is already running here: manage it (HOLD / WAIT), never a second entry
     if t is not None and t["action"] == NO_TRADE:  # a pending order whose cancel condition is met
         return {**done(NO_TRADE, "NO TRADE — CANCEL PENDING ORDER", t["reason"], "A new setup forms."), **trade_view}
+    if t is not None and t["status"] == "open":
+        side = t.get("direction") or ""
+        return {**done(HOLD, "HOLD — PAPER TRADE OPEN",
+                       f"The paper-trading test already holds a {side} trade on {i.symbol} {i.timeframe} (entered at {_fmt(t.get('entry_price'))}): "
+                       f"keep it until its stop {_fmt(t.get('stop_loss'))} or first target {_fmt(t.get('take_profit'))}; no new entry.",
+                       t["reason"], "trade_open"), **trade_view}
     if t is not None:
-        kind = "trade_open" if t["status"] == "open" else "order_pending"
-        return {**done(WAIT, "WAIT — TRADE OPEN" if kind == "trade_open" else "WAIT — ORDER PENDING",
-                       f"A tracked paper {t.get('direction', '')} trade is already {t['status']} on {i.symbol} {i.timeframe}: manage it "
-                       f"({t['action']}), no new entry.".replace("paper  trade", "paper trade"), t["reason"], kind), **trade_view}
+        return {**done(WAIT, "WAIT — PAPER ORDER PENDING",
+                       f"The paper-trading test has a {t.get('direction') or ''} limit order waiting on {i.symbol} {i.timeframe} at "
+                       f"{_fmt(t.get('entry_price'))}: wait for the fill; no new entry.", t["reason"], "order_pending"), **trade_view}
     # 4. no live setup
     if i.technical in ("invalidated", "expired"):
         return done(NO_TRADE, f"NO TRADE — SETUP {i.technical.upper()}", i.technical_detail or f"The setup was {i.technical}.",
@@ -238,8 +244,8 @@ def _hypo(i: DecisionInput) -> dict:
 
 
 def rank(calls: list[dict]) -> dict | None:
-    """The instrument-level call: EXIT > ENTER > WAIT (trade open, order pending, unvalidated, confirmation, market, price, developing)
-    > NO TRADE; ties by score."""
+    """The instrument-level call: EXIT > ENTER > HOLD (an open paper trade) > WAIT (order pending, unvalidated, confirmation, market,
+    price, developing) > NO TRADE; ties by score."""
     if not calls:
         return None
     return min(calls, key=lambda c: (ORDER[c["decision"]], WAIT_ORDER.get(c.get("wait_kind") or "", 9), -(c.get("score") or 0)))

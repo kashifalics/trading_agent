@@ -168,7 +168,7 @@ def open_trades(session: Session, symbol: str) -> dict[str, dict]:
 
 
 def attach_calls(session: Session, sym: str, res: dict, quote: dict | None, experimental: bool) -> None:
-    """The customer call (ENTER / WAIT / EXIT / NO TRADE) for every timeframe and for the instrument, from app.decision."""
+    """The customer call (ENTER / HOLD / WAIT / EXIT / NO TRADE) for every timeframe and for the instrument, from app.decision."""
     from app.decision.adapters import signal_call
     from app.decision.core import rank
     closes = {r["timeframe"]: r.get("last_close") for r in res.get("timeframes", [])}
@@ -217,7 +217,7 @@ def compact_call(c: dict | None) -> dict | None:
     if not c:
         return None
     return {k: c.get(k) for k in ("decision", "label", "headline", "timeframe", "direction", "setup", "next_condition", "wait_kind",
-                                  "validation", "data_quality", "levels", "hypothetical", "experimental")}
+                                  "validation", "data_quality", "levels", "hypothetical", "experimental", "trade")}
 
 
 def summary_item(r: dict) -> dict:
@@ -229,6 +229,8 @@ def summary_item(r: dict) -> dict:
                                    "session")}
             | {"best": _compact_plan(r.get("best")), "call": compact_call(r.get("call")),
                "active": [_compact_plan(p) for p in r.get("plans") or [] if p["timeframe"] in (r.get("active") or [])],
+               # timeframes where the paper-trading test holds a trade or a pending order (shown with their levels and open R)
+               "trades": [_compact_plan(p) for p in r.get("plans") or [] if (p.get("call") or {}).get("trade")],
                "last_candle": max((t.get("close_time") or "" for t in r.get("timeframes") or []), default=None) or None,
                "as_of": r.get("generated_at")})
 

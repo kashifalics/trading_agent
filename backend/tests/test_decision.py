@@ -12,6 +12,7 @@ from app.decision.adapters import (
 from app.decision.core import (
     ENTER,
     EXIT,
+    HOLD,
     NO_TRADE,
     WAIT,
     Check,
@@ -94,11 +95,14 @@ def test_stale_or_missing_data_is_no_trade_without_levels():
         assert c["levels"] is None and c["hypothetical"] is None
 
 
-def test_already_triggered_entry_with_a_tracked_trade_is_wait_not_a_second_entry():
+def test_already_triggered_entry_with_a_tracked_trade_is_hold_not_a_second_entry():
     tr = {"id": 7, "status": "open", "direction": "BUY", "entry_price": 100.0, "fill_price": 100.1, "stop_loss": 98.0, "take_profit": 106.0,
           "invalidation": 98.5, "last_price": 101.0, "last_close": 100.9}
     c = call(plan(validation=VALID), price_now=101.0, open_trade=tr)
-    assert c["decision"] == WAIT and c["label"] == "WAIT — TRADE OPEN" and c["trade"]["action"] == "HOLD"
+    assert c["decision"] == HOLD and c["label"] == "HOLD — PAPER TRADE OPEN" and c["trade"]["action"] == "HOLD"
+    assert "100.1" in c["headline"] and "98" in c["headline"] and "106" in c["headline"]  # the trade's own entry, stop and target
+    p = call(plan(validation=VALID), price_now=101.0, open_trade={**tr, "status": "pending", "fill_price": None})
+    assert p["decision"] == WAIT and p["label"] == "WAIT — PAPER ORDER PENDING" and p["wait_kind"] == "order_pending"
 
 
 def test_missed_entry_zone_is_no_trade_never_chase():
@@ -166,7 +170,7 @@ def test_no_failed_mandatory_condition_can_ever_produce_enter():
                           targets=[{"label": "TP1", "price": 106.0, "rr": 3.0}], checks=checks, price_now=rng.choice([None, rng.uniform(96, 108)]),
                           validation=rng.choice([VALID, UNVALID]), open_trade=trade, experimental=rng.random() < 0.5)
         c = decide(i)
-        assert c["decision"] in (ENTER, WAIT, EXIT, NO_TRADE)
+        assert c["decision"] in (ENTER, HOLD, WAIT, EXIT, NO_TRADE)
         assert c["label"].startswith(c["decision"]) and c["headline"] and c["next_condition"]  # always says what comes next
         if c["decision"] == ENTER:
             assert all(k.passed for k in checks) and i.data_status == "ok" and i.technical == "confirmed" and i.validation is VALID
@@ -184,7 +188,7 @@ def test_instrument_call_prefers_exit_then_enter_then_the_most_concrete_wait():
     b = {"decision": WAIT, "wait_kind": "unvalidated", "score": 61}
     c = {"decision": NO_TRADE, "wait_kind": None, "score": 99}
     assert rank([a, b, c]) is b and rank([c, {"decision": EXIT, "score": 0}])["decision"] == EXIT and rank([]) is None
-    held = {"decision": WAIT, "wait_kind": "trade_open", "score": None}  # a tracked paper trade to manage comes before any new WAIT
+    held = {"decision": HOLD, "wait_kind": "trade_open", "score": None}  # a tracked paper trade to manage comes before any new WAIT
     assert rank([a, b, held, c]) is held and rank([held, {"decision": ENTER, "score": 70}])["decision"] == ENTER
 
 
@@ -221,7 +225,7 @@ def test_a_tracked_trade_decision_describes_the_trade_not_the_current_chart_setu
                       entry=101.0, stop=103.0, targets=[{"label": "TP1", "price": 96.0, "rr": 2.5}], setup_name="bos retest",
                       reasons_for=["5m bearish"], reasons_against=["x"], score=70, validation=UNVALID, open_trade=held)
     c = decide(i)
-    assert c["label"] == "WAIT — TRADE OPEN" and c["direction"] == "BUY" and c["setup"] == "trend pullback"
+    assert c["label"] == "HOLD — PAPER TRADE OPEN" and c["direction"] == "BUY" and c["setup"] == "trend pullback"
     assert "BUY trade" in c["headline"] and c["score"] is None and c["reasons_for"] == [] and c["watch"] is None
     assert c["invalidation"].startswith("Price beyond the trade's invalidation level 98.5") and c["levels"] is None
     for none_plan in (dict(technical="none", direction=0), dict(technical="none", direction=0, open_trade={**held, "last_price": 97.0})):
