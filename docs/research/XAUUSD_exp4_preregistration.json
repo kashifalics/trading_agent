@@ -1,0 +1,123 @@
+{
+ "symbol": "XAUUSD",
+ "experiment": 4,
+ "requested": "2026-11-12, user's pasted detect_flexible_double_top",
+ "created": "2026-11-12T04:45:04+00:00",
+ "code_commit": "e29d9e3d77cf712d58dacc30b66110443288337a",
+ "split_sha256": "c2e8d3f85d7d3879b4a94257834bd9045757b07d09540279483a882b434b5e29",
+ "segment": "train (2003-05-05 to 2020-02-08), already examined by experiments 1-3",
+ "counts_note": "signals with room for the time stop; no outcome read",
+ "tests": [
+  {
+   "tf": "M5",
+   "direction": "short",
+   "pattern": "double top (short)",
+   "signals": 6867,
+   "status": "run"
+  },
+  {
+   "tf": "M5",
+   "direction": "long",
+   "pattern": "double bottom (long)",
+   "signals": 7013,
+   "status": "run"
+  },
+  {
+   "tf": "M15",
+   "direction": "short",
+   "pattern": "double top (short)",
+   "signals": 1375,
+   "status": "run"
+  },
+  {
+   "tf": "M15",
+   "direction": "long",
+   "pattern": "double bottom (long)",
+   "signals": 1421,
+   "status": "run"
+  },
+  {
+   "tf": "M30",
+   "direction": "short",
+   "pattern": "double top (short)",
+   "signals": 445,
+   "status": "run"
+  },
+  {
+   "tf": "M30",
+   "direction": "long",
+   "pattern": "double bottom (long)",
+   "signals": 456,
+   "status": "run"
+  },
+  {
+   "tf": "H1",
+   "direction": "short",
+   "pattern": "double top (short)",
+   "signals": 136,
+   "status": "run"
+  },
+  {
+   "tf": "H1",
+   "direction": "long",
+   "pattern": "double bottom (long)",
+   "signals": 122,
+   "status": "run"
+  },
+  {
+   "tf": "H4",
+   "direction": "short",
+   "pattern": "double top (short)",
+   "signals": 12,
+   "status": "not testable (fewer than 100 signals)"
+  },
+  {
+   "tf": "H4",
+   "direction": "long",
+   "pattern": "double bottom (long)",
+   "signals": 16,
+   "status": "not testable (fewer than 100 signals)"
+  },
+  {
+   "tf": "D1",
+   "direction": "short",
+   "pattern": "double top (short)",
+   "signals": 1,
+   "status": "not testable (fewer than 100 signals)"
+  },
+  {
+   "tf": "D1",
+   "direction": "long",
+   "pattern": "double bottom (long)",
+   "signals": 2,
+   "status": "not testable (fewer than 100 signals)"
+  }
+ ],
+ "detector": {
+  "lookback": 20,
+  "tolerance_pct": 0.0005,
+  "min_tail": 5,
+  "series": "bid OHLC",
+  "dedupe": "one signal per pair of peaks (first close through the neckline)",
+  "mirror": "double bottom"
+ },
+ "main_setting": {
+  "entry": "market, next candle's open (ask to buy, bid to sell)",
+  "stop": "structural extreme + 0.1 ATR(14)",
+  "target_r": 2.0,
+  "hold_candles": 48,
+  "costs": "Dukascopy bid/ask; 1-minute path decides stop/target order, stop first inside a minute",
+  "controls": "study control pools (random market entries, same stop-size bucket, direction, NY session, volatility, year)"
+ },
+ "criteria": [
+  ">= 100 trades",
+  "Benjamini-Hochberg q < 0.10 over the tests run, edge > 0",
+  "mean R > 0 with p < 0.05 at the Dukascopy spread",
+  "mean R > 0 at the user's $0.30 round-trip spread",
+  "edge > 0 when entered one candle later",
+  "deflated Sharpe > 0.95 counting every trial of experiments 1-4",
+  "mean R > 0 in both halves (2003-2011, 2012-2020)"
+ ],
+ "interpretation": "Training data has been examined before (experiments 1-3), so passing every criterion makes a TRAINING CANDIDATE only. Confirmation needs unused data: the sealed final test (separate approval) or forward paper trading. Failing means no evidence of an edge in 17 years of training data.",
+ "sha256": "86e139ce862fe0191af79b6d51e00309cce066bd7c10c95c8fef847cea4c1fa5"
+}
