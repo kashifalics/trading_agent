@@ -49,7 +49,8 @@ Otherwise VSA, VWAP, relative volume, OBV and MFI are UNAVAILABLE, with the reas
 
 **Relative volume (RVOL)** = the candle's volume / its baseline:
 - **Timeframes up to 4H:** the median volume of candles at the same hour of the week over the last 20 weeks, so a London open is
-  compared with London opens.
+  compared with London opens. The hour of the week is taken in New York time for FX-calendar instruments, so daylight-saving
+  changes do not mix sessions, and in UTC for BTCUSDT.
 - **Fallback:** fewer than 4 such samples → the same hour of the day over the last 20 weekdays.
 - **8H and above:** the median of the last 20 candles.
 
@@ -96,7 +97,7 @@ that needs it reports UNAVAILABLE.
 | Climactic volume | prior move ≥ 2 ATR in the bar's direction | ultra RVOL, wide spread | none; reported as a possible exhaustion |
 | Stopping volume (bullish; bearish mirrors) | prior move ≤ −2 ATR | down bar, high or ultra RVOL, close not in the bottom third | no close below the bar's low within 3 candles |
 | No demand (no supply mirrors) | close above the close 5 candles ago | up bar, narrow spread, RVOL ≤ 1.0 and below each of the 2 previous candles | none |
-| Upthrust (spring mirrors) | trades above a meaningful level: a swing high of the last 50 candles, a range high or the previous day's high | closes back below the level, in the bottom third, RVOL ≥ 1.0 | no close above the bar's high within 3 candles |
+| Upthrust (spring mirrors) | trades above a meaningful level: the highest high of the previous 50 candles (the window holds the recent swing highs and, on 1H and above, the previous day's high) | closes back below the level, in the bottom third, RVOL ≥ 1.0 | no close above the bar's high within 3 candles |
 | Test bar | within 10 candles after a spring or bullish stopping volume | trades within 0.3 ATR of that event's low, low RVOL, close in the top half | none |
 | Effort without result | any | high RVOL, narrow spread | none |
 | Result without effort | any | low RVOL, wide spread | none |

@@ -65,8 +65,10 @@ is PASS. NEUTRAL, FAIL and UNAVAILABLE are dropped.
 That makes 6 strategies × 5 arms × 2 instruments = 60 registered arms. Trades are pooled across the strategy's timeframes and
 both directions; results by timeframe and by direction are reported, not tested.
 
-**Count rule, decided from counts only.** An arm enters the test family only if it keeps ≥ 300 development trades and drops
-≥ 10% of them. Counts are known before outcomes, so the family is fixed in the pre-registration.
+**Count rule, decided from counts only.** An arm enters the test family only if it keeps ≥ 300 development signals and drops
+≥ 10% of them. Signals are counted rather than filled trades, because whether a limit order fills depends on the price path.
+Counts are known before outcomes, so the family is fixed in the pre-registration. The ≥ 300 kept-trades criterion (section 6)
+is checked after simulation.
 
 ## 5. Measures
 
