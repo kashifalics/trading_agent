@@ -8,7 +8,7 @@ const badgeVariants = cva("inline-flex items-center rounded-full border px-2.5 p
       neutral: "border-border bg-muted text-muted-foreground",
       buy: "border-bull/30 bg-bull/10 text-bull",
       sell: "border-bear/30 bg-bear/10 text-bear",
-      wait: "border-warn/30 bg-cta/20 text-warn",
+      wait: "border-warn/30 bg-warn/20 text-warn",
       info: "border-primary/25 bg-primary/10 text-primary",
     },
   },

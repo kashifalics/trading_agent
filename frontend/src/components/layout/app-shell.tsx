@@ -58,8 +58,8 @@ function Nav({ onNavigate }: { onNavigate?: () => void }) {
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex items-center gap-3 px-6 py-2.5 text-sm transition-colors",
-              active ? "bg-nav font-semibold text-nav-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              "mx-3 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+              active ? "bg-nav font-semibold text-nav-foreground shadow-soft" : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
             <Icon className="h-4 w-4 shrink-0" aria-hidden />
@@ -82,7 +82,7 @@ function ApiKeyBanner() {
   }, []);
   if (!hydrated || !data?.auth_required || apiKey) return null;
   return (
-    <div role="alert" data-testid="api-key-banner" className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-warn/40 bg-cta/10 px-4 py-3 text-sm">
+    <div role="alert" data-testid="api-key-banner" className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-warn/40 bg-warn/10 px-4 py-3 text-sm">
       <KeyRound className="h-4 w-4 text-warn" aria-hidden />
       <span>This server requires a platform API key.</span>
       <Link href="/settings" className="font-medium text-primary hover:underline">Enter it in Settings</Link>
@@ -107,7 +107,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen">
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border/60 bg-surface shadow-card lg:flex">
         <div className="flex h-16 items-center gap-2.5 px-6">
-          <Activity className="h-6 w-6 text-bull" aria-hidden />
+          <Activity className="h-6 w-6 text-primary" aria-hidden />
           <span className="text-base font-bold tracking-tight">AI Trading Intel</span>
         </div>
         <div className="flex-1 overflow-y-auto">

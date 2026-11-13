@@ -1,4 +1,4 @@
-"""python -m app.gold_research.exp5 events|gate|develop|validate --symbol XAUUSD [--tfs M5,M15] [--log FILE]"""
+"""python -m app.gold_research.exp5 events|gate|develop|validate|report --symbol XAUUSD [--tfs M5,M15] [--log FILE]"""
 import argparse
 from datetime import datetime
 from pathlib import Path
@@ -8,7 +8,7 @@ from app.gold_research.exp5 import run
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=("events", "gate", "develop", "validate"))
+    ap.add_argument("command", choices=("events", "gate", "develop", "validate", "report"))
     ap.add_argument("--symbol", default="XAUUSD")
     ap.add_argument("--tfs", default=",".join(run.TFS))
     ap.add_argument("--log", type=Path)
@@ -36,8 +36,11 @@ def main() -> None:
         run.gate(a.symbol, log)
     elif a.command == "develop":
         run.develop(a.symbol, log)
-    else:
+    elif a.command == "validate":
         run.validate(a.symbol, log)
+    else:
+        from app.gold_research.exp5 import report
+        log(f"report written: {report.write(a.symbol)}")
 
 
 if __name__ == "__main__":

@@ -17,12 +17,12 @@ shown as **WAIT — UNVALIDATED SETUP**.
 
 | Page | What it is for |
 |---|---|
-| **Overview** | Latest prices, **Decisions now** (one decision per instrument, the same as on Signals), data health, recent analyses. A **delayed** badge means the market is closed or the price is old: it is the last known price, not a live one |
+| **Overview** | Four tiles (gold price, signals now, the paper forward test, open paper trades), the forward-test equity chart, signals by action, **Decisions now** (the same action as on Signals, with entry · SL · TP1), live prices, recent signals, the six strategies' research status and system health. A **delayed** badge means the market is closed or the price is old: it is the last known price, not a live one |
 | **Signals** | The main analysis screen (section 3) |
 | **Paper Trading** | A simulated account that records every technically complete setup automatically and follows it on later candles, with a HOLD / EXIT / WAIT recommendation for open trades (section 5) |
-| **Trade Opportunities** | Setups ranked across instruments and timeframes by an evidence score (not a win probability) |
-| **Chart Analysis** | Analyse one instrument and timeframe in depth, or upload a chart screenshot |
-| **Market Scanner** | The live decision for every instrument and timeframe on one grid (updated every minute; click a cell for its checklist), plus on-demand deep analyses |
+| **Trade Opportunities** | The older opportunity scanner: setups ranked by an evidence score (not a win probability). A strip at the top shows the strategy engine's current action for comparison |
+| **Chart Analysis** | Analyse one instrument and timeframe in depth, or upload a chart screenshot. The strategy engine's current action for that timeframe is shown above the result |
+| **Market Scanner** | The strategy engine's action for every instrument and timeframe on one grid (updated every minute), plus on-demand deep analyses |
 | **Historical Patterns** | Which patterns and structures are present now on every timeframe, each with its measured history |
 | **Predictions** | Every analysis you ran, with its evidence and what happened afterwards |
 | **Gold Research** | Results of the 20-year gold study (no validated strategy was found) |

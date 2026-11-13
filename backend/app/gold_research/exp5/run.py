@@ -307,11 +307,13 @@ def r_of(tr: pl.DataFrame, h: int = HOLD, optimistic: bool = False) -> np.ndarra
 
 
 def with_controls(tr: pl.DataFrame, pool: pl.DataFrame, h: int = HOLD) -> pl.DataFrame:
-    """Each trade against random entries of its stratum, both scored at the trade's own TP1 (k) and horizon h."""
+    """Each trade against random entries of its stratum, both scored at the trade's own TP1 (k) and horizon h. One control
+    computation per distinct k for all the given trades (call it once per timeframe, then slice by cell)."""
     parts = []
+    keep = [c for c in ("strategy", "compatible", "entry_ts", "risk_px", "spread_entry", "signal_ts", "regime", "context") if c in tr.columns]
     for kv in sorted(set(tr["k"].to_list())):
         t = tr.filter(pl.col("k") == kv)
-        tt = t.select(*study.KEYS, "entry_ts", "risk_px", "spread_entry", "signal_ts", "regime", "context").with_columns(r=pl.Series(r_of(t, h)))
+        tt = t.select(*study.KEYS, *keep).with_columns(r=pl.Series(r_of(t, h)))
         p = pool.select(*study.KEYS).with_columns(r=pl.Series(study._r(pool, kv, h)))
         parts.append(C.expectation(tt, p, "r"))
     return pl.concat(parts) if parts else tr.head(0)
@@ -377,16 +379,19 @@ def develop(symbol: str, log=print) -> dict:
             continue
         tr = simulate(symbol, tf, "train", ev.filter(pl.col("signal_ts") < train_end), log)
         pool = pl.read_parquet(study.out_dir(symbol) / f"pool_{tf}_train.parquet")
+        tested = {(x["strategy"], 1 if x["direction"] == "long" else -1) for x in pre["tests"] if x["tf"] == tf and x["status"] == "run"}
+        mask = pl.Series([(s_, int(d_)) in tested for s_, d_ in zip(tr["strategy"].to_list(), tr["direction"].to_list())])
+        g_all = with_controls(tr.filter(pl.col("compatible") & mask), pool)  # controls once per timeframe, sliced by cell below
+        log(f"{symbol} {tf}: controls matched for {g_all.height:,} trades")
         for t in [x for x in pre["tests"] if x["tf"] == tf]:
             d = 1 if t["direction"] == "long" else -1
             sub = tr.filter((pl.col("strategy") == t["strategy"]) & (pl.col("direction") == d))
             comp, incomp = sub.filter(pl.col("compatible")), sub.filter(~pl.col("compatible"))
             row = {"tf": tf, "strategy": t["strategy"], "direction": t["direction"], "status_gate": t["status"]}
             if t["status"] == "run" and comp.height:
-                g = with_controls(comp, pool)
+                g = g_all.filter((pl.col("strategy") == t["strategy"]) & (pl.col("direction") == d))
                 row.update(_cell_stats(g, tf, HOLD))
-                g48 = with_controls(comp, pool, HOLD_SENS)
-                row["hold_48"] = {"expectancy_r": float(np.nanmean(g48["r"].to_numpy()))}
+                row["hold_48"] = {"expectancy_r": float(np.nanmean(r_of(comp, HOLD_SENS)))}
                 row["optimistic_expectancy_r"] = float(np.nanmean(r_of(comp, HOLD, optimistic=True)))
                 row["open_at_horizon_share"] = float(np.mean((comp["mfe_96"].to_numpy() < comp["k"].to_numpy()) & ~comp["stopped_96"].to_numpy()))
                 lr = np.where(comp["late_mfe"].to_numpy() >= comp["k"].to_numpy(), comp["k"].to_numpy(),

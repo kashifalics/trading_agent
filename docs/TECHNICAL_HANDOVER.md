@@ -5,9 +5,18 @@ For the engineer or operator who installs, runs and maintains AI Trading Intelli
 
 **What the product is:** an analysis and decision-support tool for XAUUSD, EURUSD, GBPUSD, BTCUSDT, US30 and USOIL. It reads
 candles, detects price-action structure on 14 timeframes and produces hypothetical trade plans (entry, stop, targets, confluence
-checklist). **It never places orders and has no broker connection.** No strategy or model in it has a verified out-of-sample edge,
-and every BUY/SELL is labelled **Not validated** (section 14): customers see `WAIT — UNVALIDATED SETUP`, never ENTER
-(docs/DECISION_ENGINE.md).
+checklist). **It never places orders and has no broker connection.**
+
+**Since release v2 (2026-11-13):**
+- **One action per instrument:** the strategy engine (`backend/app/strategy_engine`, docs/engine_v2/DESIGN.md) gives each
+  instrument one primary action: BUY, SELL, WAIT FOR BUY, WAIT FOR SELL, EXIT (a tracked paper trade to close) or NO TRADE.
+- **How the action is produced:** a market-regime classifier, six independent strategies, a selector, and plans with entry,
+  stop-loss and TP1-TP3.
+- **Research status:** no strategy or model has a verified out-of-sample edge (Experiment 5:
+  docs/reports/XAUUSD_EXPERIMENT5.md). Every plan is labelled **UNVALIDATED — HYPOTHETICAL TRADE PLAN** with its research status.
+  The older decision layer (docs/DECISION_ENGINE.md) still serves the Predictions, Chart Analysis and Trade Opportunities pages.
+
+The document index for the handover is [handover/README.md](handover/README.md).
 
 ---
 
@@ -141,7 +150,7 @@ Reserved and unused: `S3_*`, `LLM_PROVIDER`, `LLM_MODEL`, `OPENAI_API_KEY`.
 
 * **Engines:** PostgreSQL 16 (docker compose) or SQLite (local, single-instance hosting). 28 tables; schema in
   [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md).
-* **Migrations:** Alembic revisions `0001`–`0005`, applied automatically at startup (`AUTO_MIGRATE=true`) and by the Docker
+* **Migrations:** Alembic revisions `0001`–`0006`, applied automatically at startup (`AUTO_MIGRATE=true`) and by the Docker
   image's start command. Reference data (instruments, providers, mappings) is seeded at every start, additively: new instruments
   or mappings are added, existing rows are never changed.
 * **Verified on 2026-11-10** on SQLite and PostgreSQL 16: upgrade to head → schema identical to the models (0 differences) →
@@ -151,7 +160,10 @@ Reserved and unused: `S3_*`, `LLM_PROVIDER`, `LLM_MODEL`, `OPENAI_API_KEY`.
   `python -c "from app.database.init_db import run_migrations; run_migrations()"` if the local `alembic/` folder shadows the package.
 * **New migration:** change the models, then `alembic revision --autogenerate -m "message"`, review the file, test upgrade and
   downgrade on a copy of the data.
-* **This release adds migration `0005`:** it widens `timeframe_analyses.status` from 16 to 24 characters on PostgreSQL (a
+* **Release v2 adds migration `0006`:** it creates one new table, `signal_records`, which holds the strategy engine's signal
+  lifecycle. It is purely additive: no existing table, column or row is touched. Rollback: `alembic downgrade 0005` drops only that
+  table. Older code ignores the table, so a code rollback works without it.
+* **Earlier, migration `0005`:** it widens `timeframe_analyses.status` from 16 to 24 characters on PostgreSQL (a
   catalogue-only change; on PostgreSQL every opportunity scan failed without it). On SQLite it does nothing. At its first start the
   release also seeds the EURUSD instrument and BiQuote mappings for EURUSD and GBPUSD (new rows only).
 * **Tests and PostgreSQL:** the test suite runs on SQLite, which ignores column lengths; a test-wide check now enforces every
@@ -222,7 +234,8 @@ Logs go to standard output (`docker compose logs backend`, the hosting platform'
 
 **Recommended layout:** backend as one container (the `backend/Dockerfile`, health check `/api/v1/health`) on any Docker host;
 frontend on any Node host or static-capable platform (the `frontend/Dockerfile` produces a standalone server). The current
-deployment uses Railway (backend, SQLite on a persistent volume) and Vercel (frontend); this branch has **not** been deployed.
+deployment uses Railway (backend, SQLite on a persistent volume) and Vercel (frontend). Release v2 is deployed there (see
+docs/release/DELIVERY_REPORT.md for the release commit and verification).
 
 Release steps (each needs the owner's approval):
 1. Merge the release branch into `main` after review; CI (`.github/workflows/ci.yml`) runs lint, type checks, all tests, the build
@@ -239,8 +252,10 @@ Release steps (each needs the owner's approval):
 **Rollback:** redeploy the previous successful deployment (Railway: service → Deployments → previous deployment → Redeploy;
 Vercel: Deployments → previous production deployment → Promote / Instant Rollback), or check out the previous release commit and
 deploy it the same way. This release's only migration (`0005`) widens one column, which older code reads unchanged, so a code
-rollback needs no database change (the extra instrument rows it seeds are ignored by older code). If a future release adds a migration, restore the backup or run `alembic downgrade -1`
-**before** rolling the code back.
+rollback needs no database change (the extra instrument rows it seeds are ignored by older code). Release v2's migration `0006`
+only adds the `signal_records` table, which older code never reads, so rolling back the code needs no database change either
+(`alembic downgrade 0005` removes the table if wanted). If a future release changes existing tables, restore the backup or run
+`alembic downgrade -1` **before** rolling the code back.
 
 **Backups:** SQLite: stop the service or use `sqlite3 app.db ".backup backup.db"`, keep the copy off the server (on Railway, use
 the volume's backup feature if your plan includes it). PostgreSQL: `docker compose exec postgres pg_dump -U ati ati > backup.sql`;

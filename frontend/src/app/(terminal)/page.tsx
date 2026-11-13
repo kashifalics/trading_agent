@@ -1,5 +1,6 @@
 "use client";
 
+import { Briefcase, Coins, LineChart, Zap } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,12 +8,13 @@ import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/misc";
 import { CallBadge } from "@/components/domain/call";
 import { ActionBadge } from "@/components/domain/engine";
-import { DecisionBadge, EmptyState, ErrorState, JobBadge, PageHeader, QueryState } from "@/components/domain/common";
+import { DecisionBadge, EmptyState, PageHeader, QueryState } from "@/components/domain/common";
+import { AreaChart, Donut, KpiTile } from "@/components/domain/overview";
 import { AnalysisOnlyNotice } from "@/components/domain/decision";
-import { useAnalyses, useCoverage, useInstruments, useModels, usePatterns, usePredictions, useQuotes, useEngineSummary } from "@/lib/hooks";
+import { useCandles, useEngineSignals, useEngineSummary, useHealth, useInstruments, useModels, usePaperSummary, usePredictions, useQuotes } from "@/lib/hooks";
 import type { Instrument, Quote } from "@/lib/types";
 import { useSettings } from "@/lib/store";
-import { fmtDate, fmtNum, fmtPrice, timeAgo } from "@/lib/utils";
+import { cn, fmtDate, fmtNum, fmtPrice, fmtSignedR, timeAgo } from "@/lib/utils";
 
 const STATUS_TEXT: Record<Quote["status"], string> = {
   ok: "live",
@@ -49,28 +51,6 @@ function QuoteCard({ inst, quote }: { inst: Instrument; quote?: Quote }) {
         {map && <div className="text-[11px] text-muted-foreground">mapping: {map.provider} · {map.market_kind} · {map.status}</div>}
       </CardContent>
     </Card>
-  );
-}
-
-function DirectionRow({ inst }: { inst: Instrument }) {
-  const q = usePatterns(inst.canonical_symbol, "1H", inst.supported);
-  let text = "No data source";
-  let variant: "neutral" | "buy" | "sell" | "wait" = "neutral";
-  if (inst.supported) {
-    if (q.isLoading) text = "…";
-    else if (q.isError || !q.data || q.data.n_bars < 30) text = "No stored candles";
-    else if (q.data.structure_trend === 1) [text, variant] = ["Bullish structure", "buy"];
-    else if (q.data.structure_trend === -1) [text, variant] = ["Bearish structure", "sell"];
-    else [text, variant] = ["Undetermined", "wait"];
-  }
-  return (
-    <TR>
-      <TD className="font-medium">{inst.canonical_symbol}</TD>
-      <TD>
-        <Badge variant={variant}>{text}</Badge>
-      </TD>
-      <TD className="num text-right text-muted-foreground">{q.data?.atr ? `ATR ${fmtNum(q.data.atr, inst.price_precision)}` : ""}</TD>
-    </TR>
   );
 }
 
@@ -125,29 +105,159 @@ function DecisionsNow() {
   );
 }
 
+const greeting = () => {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+};
+
+const ACTION_COLORS = { buy: "#34d07f", sell: "#f87171", wait: "#f6b03e", none: "#4b4b63" };
+
+const STRATEGY_ROWS: [string, string][] = [["trend_pullback", "Trend-following pullback"], ["breakout_retest", "Breakout and retest"],
+  ["momentum_continuation", "Momentum continuation"], ["range_reversion", "Range mean reversion"], ["sweep_reversal", "Liquidity-sweep reversal"],
+  ["volatility_expansion", "Volatility expansion"]];
+
+function HealthRow({ label, ok, value }: { label: string; ok: boolean; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="flex items-center gap-2"><span className={cn("h-2 w-2 rounded-full", ok ? "bg-bull" : "bg-warn")} />{label}</span>
+      <span className="truncate text-right text-xs text-muted-foreground">{value}</span>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const instruments = useInstruments();
   const quotes = useQuotes();
   const preds = usePredictions({ limit: 6 });
-  const coverage = useCoverage();
   const models = useModels();
-  const analyses = useAnalyses(5);
+  const engine = useEngineSummary();
+  const paper = usePaperSummary();
+  const gold = useCandles("XAUUSD", "1H", 48);
+  const health = useHealth();
+  const recent = useEngineSignals();
+
+  const tfs = (engine.data?.items ?? []).flatMap((i) => i.tfs ?? []);
+  const count = (f: (a: string) => boolean) => tfs.filter((t) => f(t.action)).length;
+  const buy = count((a) => a === "BUY");
+  const sell = count((a) => a === "SELL");
+  const wait = count((a) => a.startsWith("WAIT"));
+  const none = count((a) => a === "NO TRADE");
+  const closes = (gold.data?.candles ?? []).map((c) => c.close);
+  const goldQuote = quotes.data?.find((q) => q.symbol === "XAUUSD");
+  const goldPx = goldQuote?.status === "ok" ? goldQuote.price : closes[closes.length - 1];
+  const goldDelta = closes.length > 24 && goldPx ? ((goldPx - closes[closes.length - 25]) / closes[closes.length - 25]) * 100 : null;
+  const fwd = paper.data?.forward;
+  const curve = (fwd?.equity_curve ?? []).map((x) => ({ t: x.t, v: x.r }));
+  const openTrades = paper.data?.open ?? [];
+  const openR = openTrades.reduce((s, t) => s + (t.unrealized_r ?? 0), 0);
+  const latestData = (engine.data?.items ?? []).map((i) => i.data_time).filter(Boolean).sort().pop() ?? null;
 
   return (
     <>
-      <PageHeader title="Overview" description="Live quotes, structure bias, recent predictions and data health for the tracked instruments. Every number comes from the backend; nothing is simulated." />
+      <PageHeader title="Overview" description={`${greeting()}. Here is what the strategy engine and the paper test show right now. Every number comes from the backend; nothing is simulated.`} />
 
-      <QueryState query={instruments} skeleton={<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-36" />)}</div>}>
-        {(list) => (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {list.map((i) => (
-              <QuoteCard key={i.id} inst={i} quote={quotes.data?.find((q) => q.symbol === i.canonical_symbol)} />
-            ))}
-          </div>
-        )}
-      </QueryState>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" data-testid="kpis">
+        <KpiTile icon={Coins} tone="violet" label="Gold (XAUUSD)" value={fmtPrice(goldPx, 2)} delta={goldDelta} sub=" over 24 h" spark={closes.slice(-48)} testId="kpi-gold" />
+        <KpiTile icon={Zap} tone="green" label="Signals now" value={engine.data ? `${buy + sell} BUY/SELL` : "…"}
+          sub={engine.data ? `${wait} waiting for entry · ${none} no trade` : "loading the engine"} testId="kpi-signals" />
+        <KpiTile icon={LineChart} tone="blue" label="Forward test (paper)" value={fwd ? fmtSignedR(fwd.total_r, 1) : "—"}
+          sub={fwd ? `${fwd.n_trades} closed · ${fmtSignedR(fwd.expectancy_r, 2)} per trade` : "loading"} spark={curve.slice(-60).map((x) => x.v)} testId="kpi-forward" />
+        <KpiTile icon={Briefcase} tone="orange" label="Open paper trades" value={String(openTrades.length)}
+          sub={openTrades.length ? `${fmtSignedR(openR, 1)} unrealised in total` : "none open"} testId="kpi-open" />
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <Card className="xl:col-span-2">
+          <CardHeader>
+            <CardTitle>Forward-test equity (cumulative R)</CardTitle>
+            <Link href="/paper" className="text-xs text-primary hover:underline">Paper Trading</Link>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-2 flex flex-wrap items-baseline gap-2">
+              <span className="num text-2xl font-bold">{fwd ? fmtSignedR(fwd.total_r, 2) : "—"}</span>
+              <span className="text-xs text-muted-foreground">{fwd ? `${fwd.n_trades} closed paper trades, net of the spread: the v1 rules, not a validated strategy` : ""}</span>
+            </div>
+            <QueryState query={paper} skeleton={<Skeleton className="h-52 w-full" />}>{() => <AreaChart values={curve} label="Forward-test equity" unit="R" />}</QueryState>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle>Signals by action</CardTitle><span className="text-xs text-muted-foreground">every instrument × timeframe</span></CardHeader>
+          <CardContent data-testid="signals-donut">
+            <QueryState query={engine} skeleton={<Skeleton className="h-40 w-full" />}>
+              {() => (
+                <Donut label="Signals by action" center={tfs.length ? `${Math.round(((buy + sell + wait) / tfs.length) * 100)}%` : "—"} sub="with a plan"
+                  segments={[{ label: "BUY", value: buy, color: ACTION_COLORS.buy }, { label: "SELL", value: sell, color: ACTION_COLORS.sell },
+                    { label: "WAIT FOR ENTRY", value: wait, color: ACTION_COLORS.wait }, { label: "NO TRADE", value: none, color: ACTION_COLORS.none }]} />
+              )}
+            </QueryState>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="mt-4"><DecisionsNow /></div>
+
+      <div className="mt-4">
+        <QueryState query={instruments} skeleton={<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-36" />)}</div>}>
+          {(list) => (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {list.map((i) => (
+                <QuoteCard key={i.id} inst={i} quote={quotes.data?.find((q) => q.symbol === i.canonical_symbol)} />
+              ))}
+            </div>
+          )}
+        </QueryState>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <Card>
+          <CardHeader><CardTitle>Recent signals</CardTitle><Link href="/signals" className="text-xs text-primary hover:underline">All signals</Link></CardHeader>
+          <CardContent className="space-y-2" data-testid="recent-signals">
+            {(recent.data?.items ?? []).slice(0, 5).map((r) => (
+              <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2 text-sm">
+                <span className="min-w-0">
+                  <span className="font-semibold">{r.symbol}</span> <span className="text-muted-foreground">{r.timeframe}</span>{" "}
+                  <span className={r.direction === "BUY" ? "text-bull" : "text-bear"}>{r.direction}</span>
+                  <span className="block truncate text-[11px] text-muted-foreground">{r.strategy_name ?? r.strategy} · {timeAgo(r.detected_at)}</span>
+                </span>
+                <Badge variant={r.status.includes("TP") ? "buy" : r.status.includes("STOP") || r.status === "INVALIDATED" ? "sell" : "info"} className="shrink-0 text-[10px]">{r.status}</Badge>
+              </div>
+            ))}
+            {recent.data && recent.data.items.length === 0 && <p className="text-sm text-muted-foreground">No signals recorded yet.</p>}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Strategies</CardTitle><span className="text-xs text-muted-foreground">research status</span></CardHeader>
+          <CardContent className="space-y-2" data-testid="strategy-list">
+            {STRATEGY_ROWS.map(([key, name]) => {
+              const live = (engine.data?.items ?? []).filter((i) => i.opportunity?.strategy === key).length;
+              return (
+                <div key={key} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="min-w-0 truncate">{name}</span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    {live > 0 && <span className="text-[11px] text-muted-foreground">{live} live</span>}
+                    <Badge variant="wait" className="text-[10px]">not validated</Badge>
+                  </span>
+                </div>
+              );
+            })}
+            <p className="pt-1 text-[11px] text-muted-foreground">No strategy has passed research validation: every plan is hypothetical.</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>System health</CardTitle><Link href="/data-sources" className="text-xs text-primary hover:underline">Data sources</Link></CardHeader>
+          <CardContent className="space-y-2 text-sm" data-testid="system-health">
+            <HealthRow label="Backend" ok={health.data?.status === "ok"} value={health.data ? health.data.status : "…"} />
+            <HealthRow label="Market data" ok={!!latestData} value={latestData ? `latest candle ${timeAgo(latestData)}` : "…"} />
+            <HealthRow label="Paper cycle" ok={!!paper.data?.worker.enabled && !paper.data?.worker.last_error}
+              value={paper.data ? (paper.data.worker.enabled ? `every ${paper.data.worker.interval_s}s, last ${timeAgo(paper.data.worker.last_cycle_at)}` : "off") : "…"} />
+            <HealthRow label="Instruments analysed" ok={(engine.data?.items ?? []).every((i) => i.status === "ok")}
+              value={engine.data ? `${engine.data.items.filter((i) => i.status === "ok").length} of ${engine.data.items.length}` : "…"} />
+            <HealthRow label="News filter" ok={false} value="not available (not filtered)" />
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card className="xl:col-span-2">
@@ -197,47 +307,6 @@ export default function DashboardPage() {
                 </>
               )}
             </QueryState>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card>
-          <CardHeader><CardTitle>Market direction (1H structure)</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            <QueryState query={instruments}>{(list) => <Table><TBody>{list.map((i) => <DirectionRow key={i.id} inst={i} />)}</TBody></Table>}</QueryState>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle>Data coverage</CardTitle><Link href="/data-sources" className="text-xs text-primary hover:underline">Details</Link></CardHeader>
-          <CardContent className="p-0">
-            <QueryState query={coverage} isEmpty={(d) => d.length === 0} empty={<div className="p-4"><EmptyState title="No candles stored" hint="Sync data from Data Sources or run an analysis with auto-sync enabled." /></div>}>
-              {(d) => (
-                <Table>
-                  <THead><TR><TH>Symbol</TH><TH>TF</TH><TH className="text-right">Candles</TH><TH className="text-right">Gaps</TH></TR></THead>
-                  <TBody>
-                    {d.slice(0, 8).map((c) => (
-                      <TR key={`${c.instrument}${c.timeframe}`}><TD>{c.instrument}</TD><TD>{c.timeframe}</TD><TD className="num text-right">{c.candle_count}</TD><TD className="num text-right">{c.gap_count}</TD></TR>
-                    ))}
-                  </TBody>
-                </Table>
-              )}
-            </QueryState>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle>Recent analysis jobs</CardTitle></CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {analyses.isError ? <ErrorState error={analyses.error} onRetry={() => void analyses.refetch()} /> : null}
-            {analyses.data?.items.length === 0 && <p className="text-muted-foreground">No analyses run yet.</p>}
-            {analyses.data?.items.map((a) => (
-              <div key={a.id} className="flex items-center justify-between gap-2">
-                <span>{a.symbol} · {a.timeframe}</span>
-                <span className="flex items-center gap-2"><JobBadge status={a.status} /><span className="text-xs text-muted-foreground">{timeAgo(a.created_at)}</span></span>
-              </div>
-            ))}
           </CardContent>
         </Card>
       </div>

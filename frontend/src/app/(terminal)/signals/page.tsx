@@ -3,7 +3,7 @@
 import { Info } from "lucide-react";
 import Link from "next/link";
 import { EmptyState, PageHeader, QueryState } from "@/components/domain/common";
-import { SignalCard, SignalHistory } from "@/components/domain/engine";
+import { CategoryLegend, SignalCard, SignalHistory } from "@/components/domain/engine";
 import { Checkbox } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/misc";
 import { useEngineSummary } from "@/lib/hooks";
@@ -34,6 +34,7 @@ export default function SignalsPage() {
           <strong>UNVALIDATED — HYPOTHETICAL TRADE PLAN</strong> with no proven edge and no win probability. High-impact news is not filtered.
         </span>
       </p>
+      <CategoryLegend />
       <QueryState query={q} skeleton={<div className="grid grid-cols-1 gap-4 xl:grid-cols-2">{[0, 1, 2, 3].map((k) => <Skeleton key={k} className="h-72" />)}</div>}
         isEmpty={(d) => d.items.length === 0} empty={<EmptyState title="No instruments configured" hint="Set SIGNAL_SYMBOLS in the backend .env." />}>
         {(d) => (

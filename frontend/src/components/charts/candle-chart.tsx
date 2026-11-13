@@ -132,8 +132,8 @@ export function CandleChart({ candles, precision, markers = [], zones = [], segm
     if (!el.current) return;
     const c = createChart(el.current, {
       autoSize: true,
-      layout: { background: { type: ColorType.Solid, color: "#ffffff" }, textColor: "#6f7d93", fontSize: 11, fontFamily: "Poppins, system-ui, sans-serif" },
-      grid: { vertLines: { color: "rgba(33,72,140,0.05)" }, horzLines: { color: "rgba(33,72,140,0.06)" } },
+      layout: { background: { type: ColorType.Solid, color: "#12121d" }, textColor: "#a6a6bd", fontSize: 11, fontFamily: "Poppins, system-ui, sans-serif" },
+      grid: { vertLines: { color: "rgba(255,255,255,0.04)" }, horzLines: { color: "rgba(255,255,255,0.05)" } },
       rightPriceScale: { borderColor: "#e5ecf5" },
       timeScale: { borderColor: "#e5ecf5", timeVisible: true, secondsVisible: false },
       crosshair: { mode: CrosshairMode.Normal },

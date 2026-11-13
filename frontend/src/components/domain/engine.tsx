@@ -11,15 +11,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/misc";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import type { EngineAction, EngineItem, EnginePlan, EngineTimeframe, EngineTradeRow, SignalRecord } from "@/lib/engine-types";
-import { useEngine, useEngineSignals } from "@/lib/hooks";
+import { useEngine, useEngineSignals, useEngineSummary } from "@/lib/hooks";
 import { useSettings } from "@/lib/store";
 import { cn, fmtDate, fmtNum, fmtPrice, fmtSignedR, timeAgo } from "@/lib/utils";
 
 const TONE: Record<EngineAction, { box: string; text: string; badge: "buy" | "sell" | "wait" | "neutral" }> = {
   BUY: { box: "border-bull/50 bg-bull/10", text: "text-bull", badge: "buy" },
   SELL: { box: "border-bear/50 bg-bear/10", text: "text-bear", badge: "sell" },
-  "WAIT FOR BUY": { box: "border-warn/40 bg-cta/10", text: "text-warn", badge: "wait" },
-  "WAIT FOR SELL": { box: "border-warn/40 bg-cta/10", text: "text-warn", badge: "wait" },
+  "WAIT FOR BUY": { box: "border-warn/40 bg-warn/10", text: "text-warn", badge: "wait" },
+  "WAIT FOR SELL": { box: "border-warn/40 bg-warn/10", text: "text-warn", badge: "wait" },
   EXIT: { box: "border-bear/60 bg-bear/10", text: "text-bear", badge: "sell" },
   "NO TRADE": { box: "border-border bg-muted/50", text: "text-muted-foreground", badge: "neutral" },
 };
@@ -293,5 +293,82 @@ export function SignalHistory({ precisions }: { precisions: Record<string, numbe
         </QueryState>
       </CardContent>
     </Card>
+  );
+}
+
+
+/** The strategy engine's current action for one instrument and timeframe: shown on pages that run other analyses, so every page agrees. */
+export function EngineNowStrip({ symbol, timeframe }: { symbol: string; timeframe: string }) {
+  const q = useEngine(symbol);
+  const experimental = useSettings((s) => s.experimentalMode);
+  const t = q.data?.timeframes.find((x) => x.timeframe === timeframe) ?? null;
+  const p = q.data?.price_precision ?? 2;
+  return (
+    <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm" data-testid="engine-now">
+      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Strategy engine now ({symbol} {timeframe})</div>
+      {q.isLoading ? <span className="text-xs text-muted-foreground">loading…</span> : q.isError ? (
+        <span className="text-xs text-muted-foreground">The strategy engine is not reachable right now.</span>
+      ) : !t ? (
+        <span className="text-xs text-muted-foreground">The strategy engine does not analyse {timeframe}; see the Signals page for its timeframes.</span>
+      ) : (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <ActionBadge action={t.action} />
+          <span className="text-xs">{t.strategy_name ?? t.headline.replace(/^NO TRADE: /, "")}</span>
+          {t.plan && (experimental || t.research_status === "VALIDATED") && (
+            <span className="num text-xs text-muted-foreground">entry {fmtPrice(t.plan.entry, p)} · SL {fmtPrice(t.plan.stop_loss, p)} · TP1 {fmtPrice(t.plan.targets[0].price, p)}</span>
+          )}
+          {t.plan && <Badge variant="wait" className="text-[10px]">unvalidated</Badge>}
+          <a href="/signals" className="text-xs font-medium text-primary hover:underline">Signals</a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Each instrument's primary action, one line: the shared decision shown above other analyses. */
+export function EngineSummaryStrip() {
+  const q = useEngineSummary();
+  if (!q.data) return null;
+  return (
+    <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-3" data-testid="engine-strip">
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Strategy engine now (the platform&apos;s decision; this page is the older opportunity scanner, shown for comparison)
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {q.data.items.map((i) => (
+          <a key={i.symbol} href="/signals" className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-card px-2 py-1 text-xs hover:border-primary/50">
+            <span className="font-semibold">{i.symbol}</span>
+            <ActionBadge action={i.primary.action === "EXIT" ? "EXIT" : i.opportunity?.action ?? i.primary.action} className="px-1.5 text-[10px]" />
+            {i.opportunity && <span className="text-muted-foreground">{i.opportunity.timeframe}</span>}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const CATEGORIES: [string, string, string][] = [
+  ["Technical setup", "Technical: QUALIFIED / DEVELOPING", "A strategy's chart conditions as measured now. Says nothing about profitability."],
+  ["Validated strategy", "Research: VALIDATED", "Passed the pre-registered historical test, the sealed final test and a paper forward test. None today."],
+  ["Hypothetical trade plan", "UNVALIDATED — HYPOTHETICAL TRADE PLAN", "Entry, stop-loss and targets of an unvalidated setup: analysis, not a recommendation."],
+  ["Paper trade", "Paper trades block", "A simulated order of the forward test (no money). Never a signal for you to copy."],
+  ["Broker trade", "none", "This platform never sends orders to a broker. Any real trade is your own decision."],
+];
+
+/** What each label means: the five categories a customer must never confuse. */
+export function CategoryLegend() {
+  return (
+    <details className="mb-4 rounded-xl border border-border/60 bg-card p-3 text-sm" data-testid="category-legend">
+      <summary className="cursor-pointer text-xs font-semibold text-muted-foreground">What the labels mean (setup, validated strategy, hypothetical plan, paper trade, broker trade)</summary>
+      <dl className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-5">
+        {CATEGORIES.map(([title, label, text]) => (
+          <div key={title} className="rounded-lg border border-border/60 p-2">
+            <dt className="text-xs font-semibold">{title}</dt>
+            <dd className="text-[11px] text-primary">{label}</dd>
+            <dd className="mt-1 text-[11px] text-muted-foreground">{text}</dd>
+          </div>
+        ))}
+      </dl>
+    </details>
   );
 }

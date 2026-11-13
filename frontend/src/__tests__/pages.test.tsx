@@ -59,6 +59,23 @@ describe("Dashboard", () => {
     expect(card).not.toHaveTextContent(/EXECUTE NOW/);
   });
 
+  it("summarises the engine, the paper test and system health in tiles and charts, all from backend data", async () => {
+    const paper = { forward: { n_trades: 3, total_r: -1.5, expectancy_r: -0.5, equity_curve: [{ t: "2026-11-02T10:00:00Z", r: 1 }, { t: "2026-11-03T10:00:00Z", r: -0.5 }, { t: "2026-11-04T10:00:00Z", r: -1.5 }] },
+      open: [{ id: 1, unrealized_r: 0.4 }, { id: 2, unrealized_r: -0.1 }], worker: { enabled: true, interval_s: 60, last_cycle_at: new Date().toISOString(), last_error: null } };
+    mockApi({ ...base, "GET /api/v1/engine": ENGINE_SUMMARY, "GET /api/v1/paper/summary": paper, "GET /api/v1/engine/signals": { items: [] },
+      "GET /api/v1/market/candles": { symbol: "XAUUSD", timeframe: "1H", provider: "biquote", count: 0, candles: [] } });
+    renderWithClient(<DashboardPage />);
+    await waitFor(() => expect(screen.getByTestId("kpi-signals")).toHaveTextContent("1 BUY/SELL"));
+    expect(screen.getByTestId("kpi-signals")).toHaveTextContent("1 waiting for entry · 42 no trade");
+    expect(screen.getByTestId("kpi-forward")).toHaveTextContent("-1.5R");
+    expect(screen.getByTestId("kpi-forward")).toHaveTextContent("3 closed");
+    expect(screen.getByTestId("kpi-open")).toHaveTextContent("2");
+    expect(screen.getByRole("img", { name: /Signals by action: BUY 1, SELL 0, WAIT FOR ENTRY 1, NO TRADE 42/ })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /Forward-test equity: 3 points, now -1.50R/ })).toBeInTheDocument();
+    expect(screen.getByTestId("system-health")).toHaveTextContent("not available (not filtered)");
+    expect(screen.getByTestId("strategy-list")).toHaveTextContent("No strategy has passed research validation");
+  });
+
   it("hides unvalidated prices on the Overview when hypothetical plans are off", async () => {
     useSettings.setState({ experimentalMode: false });
     mockApi({ ...base, "GET /api/v1/engine": ENGINE_SUMMARY });

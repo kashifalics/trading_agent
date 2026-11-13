@@ -36,11 +36,11 @@ export interface ChartLine {
 }
 
 export const COLORS = {
-  bull: "#4caf50",
-  bear: "#ef5350",
-  neutral: "#8a94a6",
-  warn: "#f59e0b",
-  primary: "#3b5bdb",
+  bull: "#34d07f",
+  bear: "#f87171",
+  neutral: "#8b8ba3",
+  warn: "#f6b03e",
+  primary: "#8b6cff",
 };
 
 export const dirColor = (d: string) => (d === "bullish" ? COLORS.bull : d === "bearish" ? COLORS.bear : COLORS.neutral);
