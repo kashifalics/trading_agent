@@ -75,9 +75,9 @@ export default function SettingsPage() {
                 onChange={(e) => s.set({ experimentalMode: e.target.checked })}
               />
               <p className="text-xs text-muted-foreground">
-                Off by default. Decisions stay the same (an unvalidated setup is always <strong>WAIT — UNVALIDATED SETUP</strong>, never ENTER);
-                this only reveals the technical levels, each marked <strong>HYPOTHETICAL — UNVALIDATED</strong>. These rules have no verified
-                out-of-sample edge, so the levels are for study, not for trading.
+                On by default. No strategy has passed research validation, so every plan&apos;s entry, stop-loss and targets are labelled
+                <strong> UNVALIDATED — HYPOTHETICAL TRADE PLAN</strong>. Turn this off to hide the prices of unvalidated plans; the action
+                (BUY, SELL, WAIT…) and its reasons stay visible. The levels are for study: they have no verified out-of-sample edge.
               </p>
             </div>
           </SectionCard>
@@ -98,7 +98,8 @@ export default function SettingsPage() {
                       <div key={k} className="flex justify-between border-b border-border/50 py-1"><dt className="text-muted-foreground">{k.replace(/_/g, " ")}</dt><dd className="num">{String(v)}</dd></div>
                     ))}
                   </dl>
-                  <p className="text-xs text-muted-foreground">OCR off ⇒ instrument/timeframe and price axis are not read from screenshots (manual calibration points still work). Twelve Data key off ⇒ XAUUSD has no data.</p>
+                  <p className="text-xs text-muted-foreground">OCR off ⇒ instrument/timeframe and price axis are not read from screenshots (manual calibration points still work). Twelve Data is an optional extra provider: without its key, prices come from the free
+                    sources listed on Data Sources.</p>
                 </div>
               )}
             </QueryState>

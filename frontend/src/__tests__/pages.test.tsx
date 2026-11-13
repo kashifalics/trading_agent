@@ -1,4 +1,6 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { screen, waitFor, within } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useSettings } from "@/lib/store";
@@ -109,6 +111,15 @@ describe("Dashboard", () => {
     renderWithClient(<DashboardPage />);
     expect((await screen.findAllByText("Backend unreachable")).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: /retry/i }).length).toBeGreaterThan(0);
+  });
+
+  it("renders no clock-dependent text on the server, so hydration matches (the local greeting appears after mount)", async () => {
+    mockApi(base);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, refetchInterval: false } } });
+    const html = renderToString(<QueryClientProvider client={client}><DashboardPage /></QueryClientProvider>);
+    expect(html).not.toMatch(/Good (morning|afternoon|evening)/);
+    renderWithClient(<DashboardPage />);
+    expect(await screen.findByText(/^Good (morning|afternoon|evening)\. Here is what/)).toBeInTheDocument();
   });
 });
 

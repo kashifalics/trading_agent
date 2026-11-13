@@ -3,7 +3,9 @@ import { cn } from "@/lib/utils";
 
 export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="relative w-full overflow-x-auto">{/* relative: screen-reader-only text inside cells stays inside the scroll box */}
+    // relative: screen-reader-only text inside cells stays inside the scroll box. tabIndex: a table wider than the screen can be
+    // scrolled with the keyboard (WCAG 2.1.1; axe "scrollable-region-focusable").
+    <div className="relative w-full overflow-x-auto rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" tabIndex={0}>
       <table className={cn("w-full text-sm", className)} {...props} />
     </div>
   );

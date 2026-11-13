@@ -2,6 +2,7 @@
 
 import { Briefcase, Coins, LineChart, Zap } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
@@ -105,10 +106,16 @@ function DecisionsNow() {
   );
 }
 
-const greeting = () => {
-  const h = new Date().getHours();
-  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-};
+/** The visitor's local greeting, set after mount: the page is pre-rendered at build time (UTC), so computing it during render
+ *  would differ between server and browser (a hydration mismatch). */
+function useGreeting() {
+  const [g, setG] = useState<string | null>(null);
+  useEffect(() => {
+    const h = new Date().getHours();
+    setG(h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening");
+  }, []);
+  return g;
+}
 
 const ACTION_COLORS = { buy: "#34d07f", sell: "#f87171", wait: "#f6b03e", none: "#4b4b63" };
 
@@ -150,11 +157,12 @@ export default function DashboardPage() {
   const curve = (fwd?.equity_curve ?? []).map((x) => ({ t: x.t, v: x.r }));
   const openTrades = paper.data?.open ?? [];
   const openR = openTrades.reduce((s, t) => s + (t.unrealized_r ?? 0), 0);
+  const greet = useGreeting();
   const latestData = (engine.data?.items ?? []).map((i) => i.data_time).filter(Boolean).sort().pop() ?? null;
 
   return (
     <>
-      <PageHeader title="Overview" description={`${greeting()}. Here is what the strategy engine and the paper test show right now. Every number comes from the backend; nothing is simulated.`} />
+      <PageHeader title="Overview" description={`${greet ? `${greet}. ` : ""}Here is what the strategy engine and the paper test show right now. Every number comes from the backend; nothing is simulated.`} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" data-testid="kpis">
         <KpiTile icon={Coins} tone="violet" label="Gold (XAUUSD)" value={fmtPrice(goldPx, 2)} delta={goldDelta} sub=" over 24 h" spark={closes.slice(-48)} testId="kpi-gold" />
