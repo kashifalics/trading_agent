@@ -239,6 +239,20 @@ def process_symbol(session: Session, symbol: str, now: datetime | None = None) -
             "updated": [{"id": t.id, "timeframe": t.timeframe, "status": t.status, "exit_reason": t.exit_reason} for t in changed]}
 
 
+def run_engine_v2(session: Session, symbol: str, now: datetime | None = None) -> None:
+    from app.services.data_service import load_bars
+    from app.strategy_engine import lifecycle
+    from app.strategy_engine import service as v2
+
+    inst, prov, _ = signals.resolve(session, symbol)
+    analysis = v2.analyze(session, symbol, now)
+    v2.remember(analysis)
+    if analysis.get("status") != "ok":
+        return
+    lifecycle.record(session, analysis, inst.id, prov.id, now)
+    lifecycle.step_symbol(session, inst.canonical_symbol, load_bars(session, inst, prov, "1m", 600))
+
+
 def run_cycle(sync: bool = True, symbols: list[str] | None = None, now: datetime | None = None) -> dict:
     """sync (keyless providers only) -> analyse -> simulate -> record, for every configured instrument. One cycle at a time."""
     if not _LOCK.acquire(blocking=False):
@@ -266,6 +280,11 @@ def run_cycle(sync: bool = True, symbols: list[str] | None = None, now: datetime
             if sync_note:
                 out["sync_note"] = sync_note[:300]
             results.append(out)
+            try:  # strategy engine v2 beside v1: analyse, store new signals once, step their lifecycle (never touches paper trades)
+                with session_scope() as s:
+                    run_engine_v2(s, sym, now)
+            except Exception:  # noqa: BLE001 - v2 must never stop the v1 forward test
+                log.exception("engine v2: %s failed", sym)
     finally:
         WORKER.update(running=False, cycles=WORKER["cycles"] + 1, last_cycle_at=datetime.now(timezone.utc).isoformat(),
                       last_duration_s=round(time.monotonic() - t0, 2), last_results=results)

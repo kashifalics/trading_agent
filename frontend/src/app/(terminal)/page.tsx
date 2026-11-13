@@ -5,12 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/misc";
-import { CallBadge, TradeBrief } from "@/components/domain/call";
+import { CallBadge } from "@/components/domain/call";
+import { ActionBadge } from "@/components/domain/engine";
 import { DecisionBadge, EmptyState, ErrorState, JobBadge, PageHeader, QueryState } from "@/components/domain/common";
 import { AnalysisOnlyNotice } from "@/components/domain/decision";
-import { useAnalyses, useCoverage, useInstruments, useModels, usePatterns, usePredictions, useQuotes, useSignalsSummary } from "@/lib/hooks";
+import { useAnalyses, useCoverage, useInstruments, useModels, usePatterns, usePredictions, useQuotes, useEngineSummary } from "@/lib/hooks";
 import type { Instrument, Quote } from "@/lib/types";
-import { fmtDate, fmtNum, fmtPrice, oldestTime, timeAgo } from "@/lib/utils";
+import { useSettings } from "@/lib/store";
+import { fmtDate, fmtNum, fmtPrice, timeAgo } from "@/lib/utils";
 
 const STATUS_TEXT: Record<Quote["status"], string> = {
   ok: "live",
@@ -72,16 +74,17 @@ function DirectionRow({ inst }: { inst: Instrument }) {
   );
 }
 
-/** One backend decision per instrument (ENTER / HOLD / WAIT / EXIT / NO TRADE), the same call the Signals page shows. */
+/** One action per instrument from the strategy engine (BUY / SELL / WAIT FOR BUY / WAIT FOR SELL / EXIT / NO TRADE), the same as Signals. */
 function DecisionsNow() {
-  const q = useSignalsSummary();
+  const q = useEngineSummary();
+  const experimental = useSettings((s) => s.experimentalMode);
   return (
     <Card data-testid="decisions-now">
       <CardHeader>
         <CardTitle>Decisions now</CardTitle>
         <span className="flex items-center gap-3 text-xs">
-          {q.data && oldestTime(q.data.items.map((i) => i.as_of)) && (
-            <span className="text-muted-foreground" data-testid="decisions-updated">analysed {timeAgo(oldestTime(q.data.items.map((i) => i.as_of))!)} · refreshes automatically</span>
+          {q.data && (
+            <span className="text-muted-foreground" data-testid="decisions-updated">analysed {timeAgo(q.data.generated_at)} · refreshes automatically</span>
           )}
           <Link href="/signals" className="text-primary hover:underline">All signals</Link>
         </span>
@@ -91,18 +94,28 @@ function DecisionsNow() {
           skeleton={<div className="space-y-2 p-4"><p className="text-xs text-muted-foreground">Loading the decision for every instrument…</p>{[0, 1, 2, 3].map((k) => <Skeleton key={k} className="h-8 w-full" />)}</div>}>
           {(d) => (
             <Table>
-              <THead><TR><TH>Instrument</TH><TH>Decision</TH><TH>Next</TH></TR></THead>
+              <THead><TR><TH>Instrument</TH><TH>Decision</TH><TH>Entry · SL · TP1</TH><TH>Next</TH></TR></THead>
               <TBody>
-                {d.items.map((i) => (
-                  <TR key={i.symbol}>
-                    <TD className="font-medium">
-                      <Link href={`/signals?symbol=${i.symbol}`} className="hover:underline">{i.symbol}</Link>
-                      <span className="block text-[11px] text-muted-foreground">{i.call?.timeframe ?? ""}{i.call && i.call.direction !== "NONE" ? ` · ${i.call.direction}` : ""}</span>
-                    </TD>
-                    <TD><CallBadge call={i.call} className="text-[10px]" />{i.call?.trade && <TradeBrief m={i.call.trade} p={i.price_precision ?? 2} className="mt-1" />}</TD>
-                    <TD className="max-w-[22rem] text-xs text-muted-foreground">{i.call?.next_condition ?? i.call?.headline ?? i.reason ?? "—"}</TD>
-                  </TR>
-                ))}
+                {d.items.map((i) => {
+                  const o = i.opportunity;
+                  const p = i.price_precision ?? 2;
+                  const action = i.primary.action === "EXIT" ? "EXIT" : o ? o.action : i.primary.action;
+                  return (
+                    <TR key={i.symbol}>
+                      <TD className="font-medium">
+                        <Link href="/signals" className="hover:underline">{i.symbol}</Link>
+                        <span className="block text-[11px] text-muted-foreground">{o ? `${o.timeframe} · ${o.strategy_name}` : ""}</span>
+                      </TD>
+                      <TD><ActionBadge action={action} className="text-[10px]" /></TD>
+                      <TD className="num whitespace-nowrap text-xs" data-testid={`levels-${i.symbol}`}>
+                        {o?.plan ? (experimental || o.research_status === "VALIDATED"
+                          ? `${fmtPrice(o.plan.entry, p)} · ${fmtPrice(o.plan.stop_loss, p)} · ${fmtPrice(o.plan.targets[0].price, p)}`
+                          : "hidden (unvalidated)") : "—"}
+                      </TD>
+                      <TD className="max-w-[22rem] text-xs text-muted-foreground">{i.primary.action === "EXIT" ? i.primary.headline : o?.next_action ?? i.primary.headline}</TD>
+                    </TR>
+                  );
+                })}
               </TBody>
             </Table>
           )}

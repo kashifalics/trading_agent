@@ -5,6 +5,7 @@ from app.api.v1.routes import (
     auth,
     backtesting,
     charts,
+    engine,
     health,
     market,
     models,
@@ -22,7 +23,8 @@ from app.core.security import get_current_user
 # applying it at router level means a new endpoint cannot be added without authentication by accident. With AUTH_REQUIRED=false (local
 # development) the dependency maps anonymous calls to the single local user, as before.
 PUBLIC = (health,)
-PROTECTED = (auth, market, analysis, charts, predictions, backtesting, patterns, signals, paper, opportunities, models, watchlists, research)
+PROTECTED = (auth, market, analysis, charts, predictions, backtesting, patterns, signals, paper, opportunities, models, watchlists, research,
+             engine)
 
 api_router = APIRouter()
 for module in PUBLIC:

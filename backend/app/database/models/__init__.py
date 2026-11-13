@@ -29,6 +29,7 @@ from app.database.models.paper import (  # noqa: F401
     PaperAccount,
     PaperTrade,
 )
+from app.database.models.strategy import SignalRecord  # noqa: F401
 from app.database.models.user import (  # noqa: F401
     AuditEvent,
     User,

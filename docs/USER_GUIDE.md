@@ -29,7 +29,30 @@ shown as **WAIT — UNVALIDATED SETUP**.
 | **Backtesting / Models / Performance** | Research tools for testing rules and models on history |
 | **Watchlists, Data Sources, Settings** | Your lists, data status and synchronisation, connection and defaults |
 
-## 3. Reading a decision (Signals page)
+## 3. Reading a signal (Signals page)
+
+Each instrument has one card, best opportunity first:
+- **The action, in large type:**
+  - **BUY / SELL:** a strategy's entry conditions are met now.
+  - **WAIT FOR BUY / WAIT FOR SELL:** a valid setup waiting for an exact entry price (limit or stop).
+  - **EXIT:** a tracked paper trade on that instrument must be closed; the reason is shown in a red alert.
+  - **NO TRADE:** nothing qualifies, with the reasons.
+- **Strategy, timeframe and market regime:** one of six strategies; Trending, Ranging, Consolidating, High volatility or Unknown.
+- **Entry, stop loss, TP1, TP2 and TP3:** each target with its reward:risk and what it is based on (a swing high, an order block, or a
+  "risk objective" when no structural level is near). Then the overall R:R, the spread cost, the entry status (READY, WAITING FOR
+  ENTRY) and when the signal expires.
+- **Why, what invalidates it, and the next action.**
+- **"UNVALIDATED — HYPOTHETICAL TRADE PLAN" and "Research: INSUFFICIENT EVIDENCE":** no strategy has passed research yet, so these
+  are analysis, not proven recommendations, and no win probability is ever shown. Untick **Show hypothetical trade plans** to hide
+  the prices of unvalidated plans.
+- **Paper trades on that instrument:** shown in their own block. They are the forward test of the older v1 rules and never hide a new
+  signal.
+- **All timeframes and strategies** opens every timeframe's action; click a timeframe to see each strategy's verdict. **Signal history**
+  lists each signal once and follows it to its outcome (TP1/TP2/TP3 hit, stop-loss hit, invalidated, expired or entry missed).
+
+The previous Signals page (the v1 100-point checklist) is still available at **Engine v1 checklist** (`/signals/classic`).
+
+## 3b. The v1 checklist (Engine v1 checklist page)
 
 1. The **All signals** table at the top lists every instrument (XAUUSD, EURUSD, GBPUSD, BTCUSDT, US30, USOIL) on one screen: its
    decision now, its bias, every timeframe with a live setup (side, score and that timeframe's decision) and what must happen next.

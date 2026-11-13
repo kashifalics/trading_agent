@@ -2,7 +2,8 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useSettings } from "@/lib/store";
-import { CALL_EMPTY, CALL_PRED_BUY_X, CALL_PRED_SELL, CALL_READY } from "@/test/calls";
+import { CALL_PRED_BUY_X, CALL_PRED_SELL } from "@/test/calls";
+import { ENGINE_SUMMARY } from "@/test/engine";
 import { CANDLES, INSTRUMENTS, QUOTES, analysis } from "@/test/fixtures";
 import { mockApi, renderWithClient } from "@/test/utils";
 import ChartPage from "@/app/(terminal)/chart/page";
@@ -44,19 +45,27 @@ describe("Dashboard", () => {
     expect(screen.getByText(/No models trained/)).toBeInTheDocument();
   });
 
-  it("shows the same backend decision per instrument as the Signals page, with what comes next", async () => {
-    mockApi({ ...base, "GET /api/v1/signals": { generated_at: "", config_version: "t", disclaimer: "", items: [
-      { symbol: "XAUUSD", status: "ok", call: CALL_READY },
-      { symbol: "BTCUSDT", status: "unavailable", reason: "no stored candles yet", call: { ...CALL_EMPTY, timeframe: null } },
-    ] } });
+  it("shows the same action per instrument as the Signals page, with prices and what comes next", async () => {
+    useSettings.setState({ experimentalMode: true });
+    mockApi({ ...base, "GET /api/v1/engine": ENGINE_SUMMARY });
     renderWithClient(<DashboardPage />);
     const card = await screen.findByTestId("decisions-now");
-    await waitFor(() => expect(within(card).getByText("WAIT — UNVALIDATED SETUP")).toBeInTheDocument());
-    const gold = within(card).getByText("XAUUSD").closest("tr")!;
-    expect(gold).toHaveTextContent("1H · BUY");
-    expect(gold).toHaveTextContent("at least 100 out-of-sample trades");
-    expect(within(card).getByText("NO TRADE — DATA")).toBeInTheDocument();
-    expect(card).not.toHaveTextContent(/EXECUTE NOW|3,935\.25/);
+    const gold = (await within(card).findByText("XAUUSD")).closest("tr")!;
+    expect(gold).toHaveTextContent("BUY");
+    expect(gold).toHaveTextContent("1H · Trend-following pullback");
+    expect(within(card).getByTestId("levels-XAUUSD")).toHaveTextContent("3,915.29 · 3,906.83 · 3,942.40");
+    expect(within(card).getByText("US30").closest("tr")!).toHaveTextContent("EXIT");
+    expect(within(card).getByText("GBPUSD").closest("tr")!).toHaveTextContent("NO TRADE");
+    expect(card).not.toHaveTextContent(/EXECUTE NOW/);
+  });
+
+  it("hides unvalidated prices on the Overview when hypothetical plans are off", async () => {
+    useSettings.setState({ experimentalMode: false });
+    mockApi({ ...base, "GET /api/v1/engine": ENGINE_SUMMARY });
+    renderWithClient(<DashboardPage />);
+    const card = await screen.findByTestId("decisions-now");
+    expect(await within(card).findByTestId("levels-XAUUSD")).toHaveTextContent("hidden (unvalidated)");
+    useSettings.setState({ experimentalMode: true });
   });
 
   it("labels a last-known price as delayed, never as live", async () => {

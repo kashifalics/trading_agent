@@ -50,6 +50,8 @@ async function mockBackend(page: Page) {
       "GET /watchlists": [],
       "POST /analysis/run": { id: 7, status: "queued", poll_url: "/api/v1/analysis/7" },
       "GET /signals": { items: [], generated_at: "2026-11-07T12:00:00Z", config_version: "test", disclaimer: "Analysis only." },
+      "GET /engine": { items: [], generated_at: "2026-11-07T12:00:00Z", engine_version: "test", research_note: "Not tested.", news: { available: false, note: "News is not filtered." } },
+      "GET /engine/signals": { items: [], open_statuses: [] },
       "GET /paper/summary": PAPER_EMPTY,
       "GET /paper/trades": { ...empty, limit: 200 },
     };
@@ -115,10 +117,11 @@ test("login journey: the server asks for a key, Settings verifies it, then the a
   await page.getByRole("button", { name: /save & verify/i }).click();
   await expect(page.getByTestId("key-check")).toHaveText("Key accepted by the server.");
   // A full page load must send the saved key on its very first requests (regression: they used to go out before rehydration).
-  const firstSignals = page.waitForRequest((r) => r.url().endsWith("/api/v1/signals"));
+  const firstSignals = page.waitForRequest((r) => r.url().endsWith("/api/v1/engine"));
   await page.goto("/signals");
   expect((await firstSignals).headers()["x-api-key"]).toBe("ati_e2e");
   await expect(page.locator("main h1")).toHaveText("Signals");
   await expect(page.getByTestId("api-key-banner")).toHaveCount(0);
-  await expect(page.getByText(/Every instrument and timeframe gets one decision/)).toContainText("WAIT — UNVALIDATED SETUP");
+  await expect(page.getByTestId("signals-note")).toContainText("No strategy has passed research validation yet");
+  await expect(page.getByTestId("signals-note")).toContainText("UNVALIDATED — HYPOTHETICAL TRADE PLAN");
 });
