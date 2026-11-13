@@ -12,7 +12,7 @@ from app.feature_engineering.indicators import (
     trailing_percentile,
 )
 from app.market_data.bars import Bars
-from app.strategy_engine.config import GROUPS
+from app.strategy_engine.config import GROUPS, RESEARCH_STATUS
 from app.strategy_engine.context import TFData
 from app.strategy_engine.plan import build_plan, round_to
 from app.strategy_engine.regime import Regime, classify
@@ -350,7 +350,7 @@ def test_selector_never_averages_conflicts_and_names_the_reason():
     r = evaluate_timeframe(t, "1H", UNKNOWN, None, precision=2, spread=0.0, price_now=float(t.bars.c[-1]))
     assert r["action"] in ("BUY", "WAIT FOR BUY", "NO TRADE")
     if r["action"] != "NO TRADE":
-        assert r["plan"] and r["plan_label"] == "UNVALIDATED — HYPOTHETICAL TRADE PLAN" and r["research_status"] == "INSUFFICIENT EVIDENCE"
+        assert r["plan"] and r["plan_label"] == "UNVALIDATED — HYPOTHETICAL TRADE PLAN" and r["research_status"] == RESEARCH_STATUS[r["strategy"]]
     insufficient = evaluate_timeframe(None, "1H", classify(None), None, precision=2, spread=0.0, price_now=None)
     assert insufficient["action"] == "NO TRADE" and insufficient["technical_status"] == "NO SETUP" and insufficient["plan"] is None
     wild = evaluate_timeframe(t, "1H", Regime("HIGH_VOLATILITY", reason="abnormal"), None, precision=2, spread=0.0, price_now=100.0)

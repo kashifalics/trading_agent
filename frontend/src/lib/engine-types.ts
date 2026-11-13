@@ -135,6 +135,8 @@ export interface EngineSummary {
   generated_at: string;
   engine_version: string;
   research_note: string;
+  /** Per strategy: VALIDATED, NOT VALIDATED or INSUFFICIENT EVIDENCE (Experiment 5). */
+  research_status?: Record<string, string>;
   news: { available: boolean; note: string };
 }
 

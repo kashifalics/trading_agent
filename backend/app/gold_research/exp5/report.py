@@ -38,6 +38,16 @@ def render(symbol: str) -> str:
         L.append(f"{n_cand} cell(s) passed development and were carried to validation; {len(passed)} passed validation. Passing validation "
                  "is not 'validated' in the product: the plan requires the sealed final test (separate approval) and a frozen paper "
                  "forward test first.\n")
+    tot = sum(r["trades"] for r in rows)
+    if tot:
+        wmean = sum(r["expectancy_r"] * r["trades"] for r in rows) / tot
+        pos = [r for r in rows if r["expectancy_r"] > 0]
+        longs = sum(1 for r in pos if r["direction"] == "long")
+        L.append(f"**In numbers:** {tot:,} simulated trades across the tested cells, a trade-weighted mean of {wmean:+.3f}R per trade after "
+                 f"the real spread. {len(pos)} of {len(rows)} cells had a positive mean, {longs} of them on the long side: gold rose "
+                 "strongly over the training years, which favours long trades of any rule. No cell kept a positive mean after every "
+                 f"pre-registered check; the highest deflated Sharpe probability was {max(r['deflated_sharpe'] for r in rows):.2f} "
+                 "(needed: 0.95).\n")
     L.append(f"Trials counted for the deflated Sharpe ratio: {dev['trials_counted_for_deflated_sharpe']} (experiments 1-5). "
              f"CSCV probability of backtest overfitting across the tested cells: {_f((dev.get('pbo') or {}).get('pbo'), 2, False)}.\n")
     L.append("## Development results per tested cell (training segment, after real bid/ask; TP1 full exit, 96-candle horizon)\n")

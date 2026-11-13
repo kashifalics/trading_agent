@@ -219,5 +219,5 @@ def summary(session: Session) -> dict:
     items.sort(key=lambda x: (order.get((x.get("primary") or {}).get("action"), 4),
                               -(((x.get("opportunity") or {}).get("plan") or {}).get("risk_reward") or 0)))
     return to_jsonable({"items": items, "generated_at": datetime.now(timezone.utc).isoformat(), "engine_version": ENGINE_VERSION,
-                        "research_note": RESEARCH_NOTE, "news": NEWS})
+                        "research_note": RESEARCH_NOTE, "research_status": RESEARCH_STATUS, "news": NEWS})
 

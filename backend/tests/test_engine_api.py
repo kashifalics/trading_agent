@@ -15,6 +15,7 @@ from app.market_data.bars import Bars
 from app.signals import service as v1
 from app.strategy_engine import lifecycle
 from app.strategy_engine import service as v2
+from app.strategy_engine.config import RESEARCH_STATUS
 from tests.test_signals_api import _seed
 
 ACTIONS = {"BUY", "SELL", "WAIT FOR BUY", "WAIT FOR SELL", "EXIT", "NO TRADE"}
@@ -66,7 +67,7 @@ def test_every_instrument_gets_one_clear_action_with_valid_levels(client):
         if t["action"] == "NO TRADE":
             assert t["plan"] is None and t["headline"].startswith("NO TRADE") and t["missing"]
         else:
-            assert t["research_status"] == "INSUFFICIENT EVIDENCE" and t["plan_label"] == "UNVALIDATED — HYPOTHETICAL TRADE PLAN"
+            assert t["research_status"] == RESEARCH_STATUS[t["strategy"]] and t["plan_label"] == "UNVALIDATED — HYPOTHETICAL TRADE PLAN"
             _check_plan(t["plan"], 1 if t["direction"] == "BUY" else -1, d["price_precision"])
         if t["n_bars"] >= 120 and "data stale" not in t["headline"]:  # every strategy is evaluated, both sides, and each says why
             checked.append(t["timeframe"])

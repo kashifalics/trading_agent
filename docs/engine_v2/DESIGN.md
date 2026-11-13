@@ -2,8 +2,8 @@
 
 Status: implemented as `backend/app/strategy_engine/` (see `IMPLEMENTATION_REPORT.md`). Every threshold below is an **initial,
 frozen hypothesis**: none was fitted to results. Whether each one is useful is a question for the experiment in
-`EXPERIMENT_PLAN.md`, which needs the owner's approval before it runs. Until a strategy passes, its research status is
-**INSUFFICIENT EVIDENCE** and its plans are marked **UNVALIDATED — HYPOTHETICAL TRADE PLAN**.
+`EXPERIMENT_PLAN.md`, which needs the owner's approval before it runs. Experiment 5 (2026-11-13, docs/reports/XAUUSD_EXPERIMENT5.md) tested them: none passed, so five strategies are **NOT VALIDATED**
+and range mean reversion is **INSUFFICIENT EVIDENCE**; every plan is marked **UNVALIDATED — HYPOTHETICAL TRADE PLAN**.
 
 ## 1. Architecture
 
@@ -199,8 +199,8 @@ because costs weigh more there.
 
 Each action carries:
 - **technical status:** QUALIFIED, DEVELOPING, INVALIDATED or NO SETUP;
-- **research status:** VALIDATED, NOT VALIDATED or INSUFFICIENT EVIDENCE. Every v2 strategy is INSUFFICIENT EVIDENCE until the
-  experiment; v1 rules are NOT VALIDATED;
+- **research status:** VALIDATED, NOT VALIDATED or INSUFFICIENT EVIDENCE. After Experiment 5 (no cell passed), five strategies are
+  NOT VALIDATED and range mean reversion is INSUFFICIENT EVIDENCE (never enough signals to test); v1 rules are NOT VALIDATED;
 - **the plan label:** "UNVALIDATED — HYPOTHETICAL TRADE PLAN" unless the strategy is validated.
 
 Paper-trade management (HOLD / EXIT with the reason, entry, current price, SL, TP, unrealised R) is a separate block.

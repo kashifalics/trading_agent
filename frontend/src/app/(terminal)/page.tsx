@@ -236,7 +236,9 @@ export default function DashboardPage() {
                   <span className="min-w-0 truncate">{name}</span>
                   <span className="flex shrink-0 items-center gap-2">
                     {live > 0 && <span className="text-[11px] text-muted-foreground">{live} live</span>}
-                    <Badge variant="wait" className="text-[10px]">not validated</Badge>
+                    <Badge variant={engine.data?.research_status?.[key] === "VALIDATED" ? "buy" : "wait"} className="text-[10px]">
+                      {(engine.data?.research_status?.[key] ?? "not validated").toLowerCase()}
+                    </Badge>
                   </span>
                 </div>
               );

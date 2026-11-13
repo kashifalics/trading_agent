@@ -76,10 +76,15 @@ COMPATIBLE = {
     "HIGH_VOLATILITY": (),
 }
 
-# Research status per strategy. None has been tested (docs/engine_v2/EXPERIMENT_PLAN.md is awaiting approval).
-RESEARCH_STATUS = {k: "INSUFFICIENT EVIDENCE" for k in STRATEGY_NAMES}
-RESEARCH_NOTE = ("Not tested yet: the experiment plan (docs/engine_v2/EXPERIMENT_PLAN.md) awaits approval. Until a strategy passes it, "
-                 "every plan is a hypothetical trade plan with no verified edge and no win probability.")
+# Research status per strategy, from Experiment 5 (docs/reports/XAUUSD_EXPERIMENT5.md, 2026-11-13): 51 pre-registered cells tested on
+# 17 years of gold, none passed. Tested and failed = NOT VALIDATED; never enough signals to test = INSUFFICIENT EVIDENCE.
+RESEARCH_STATUS = {
+    "trend_pullback": "NOT VALIDATED", "breakout_retest": "NOT VALIDATED", "momentum_continuation": "NOT VALIDATED",
+    "sweep_reversal": "NOT VALIDATED", "volatility_expansion": "NOT VALIDATED", "range_reversion": "INSUFFICIENT EVIDENCE",
+}
+RESEARCH_NOTE = ("Experiment 5 tested these strategies on 17 years of gold (pre-registered, real bid/ask costs, matched random "
+                 "controls, multiple-testing correction): none passed (docs/reports/XAUUSD_EXPERIMENT5.md). Every plan is a hypothetical "
+                 "trade plan with no verified edge and no win probability.")
 PLAN_LABEL_UNVALIDATED = "UNVALIDATED — HYPOTHETICAL TRADE PLAN"
 PLAN_LABEL_VALIDATED = "VALIDATED TRADE PLAN"
 
