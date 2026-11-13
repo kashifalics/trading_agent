@@ -53,7 +53,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
   const e = error instanceof ApiError ? error : null;
   if (e?.status === 401) {
     return (
-      <div role="alert" className="flex flex-col items-start gap-2 rounded-md border border-warn/40 bg-cta/10 p-4 text-sm">
+      <div role="alert" className="flex flex-col items-start gap-2 rounded-md border border-warn/40 bg-warn/10 p-4 text-sm">
         <div className="flex items-center gap-2 font-medium text-warn">
           <AlertTriangle className="h-4 w-4" aria-hidden /> {e.message === "Invalid API key" ? "Invalid API key" : "API key required"}
         </div>

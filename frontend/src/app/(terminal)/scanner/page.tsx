@@ -1,7 +1,8 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { CallBadge, ShortCall } from "@/components/domain/call";
+import { CallBadge } from "@/components/domain/call";
+import { ActionBadge } from "@/components/domain/engine";
 import { Play, Radar } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -12,10 +13,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/form";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/misc";
-import { useInstruments, usePredictions, useRunAnalysis, useSignalsSummary } from "@/lib/hooks";
-import type { SignalsSummaryItem } from "@/lib/signal-types";
+import type { EngineItem } from "@/lib/engine-types";
+import { useEngineSummary, useInstruments, usePredictions, useRunAnalysis } from "@/lib/hooks";
 import type { Instrument, Prediction } from "@/lib/types";
-import { TIMEFRAME_CODES, cn, fmtNum, fmtSignedR, oldestTime, timeAgo } from "@/lib/utils";
+import { TIMEFRAME_CODES, fmtNum, timeAgo } from "@/lib/utils";
 
 const SCAN_TFS = TIMEFRAME_CODES;
 
@@ -41,50 +42,47 @@ function Cell({ pred, inst, tf, onRun, busy }: { pred?: Prediction; inst: Instru
   );
 }
 
-/** Live: the Signals engine's decision for every instrument and timeframe (refreshed by the backend every minute). */
+const ENGINE_TFS = ["1m", "3m", "5m", "15m", "30m", "1H", "4H", "8H", "1D", "1W", "1M"];
+
+/** Live: the strategy engine's action for every instrument and timeframe (refreshed by the backend every minute). */
 function LiveMatrix() {
-  const q = useSignalsSummary();
-  const items: SignalsSummaryItem[] = q.data?.items ?? [];
-  const tfs = TIMEFRAME_CODES;
-  const at = oldestTime(items.map((i) => i.as_of));
-  const count = (d: string) => items.reduce((n, i) => n + (i.tfs ?? []).filter((t) => t.decision === d).length, 0);
+  const q = useEngineSummary();
+  const items: EngineItem[] = q.data?.items ?? [];
+  const count = (pred: (a: string) => boolean) => items.reduce((n, i) => n + (i.tfs ?? []).filter((t) => pred(t.action)).length, 0);
   return (
     <Card className="mb-5" data-testid="live-matrix">
       <CardHeader>
         <CardTitle>Live decisions: every instrument and timeframe</CardTitle>
         <span className="text-xs text-muted-foreground">
-          {at ? `analysed ${timeAgo(at)} · ` : ""}refreshes automatically · {count("HOLD")} held paper trades · {count("WAIT")} WAIT · {count("NO TRADE")} NO TRADE ·{" "}
-          {count("ENTER")} ENTER · click a cell for its checklist
+          {q.data ? `analysed ${timeAgo(q.data.generated_at)} · ` : ""}refreshes automatically · {count((a) => a === "BUY" || a === "SELL")} BUY/SELL ·{" "}
+          {count((a) => a.startsWith("WAIT"))} WAIT FOR ENTRY · {count((a) => a === "NO TRADE")} NO TRADE · click a cell for the full analysis
         </span>
       </CardHeader>
       <CardContent className="p-0">
         <QueryState query={q} skeleton={<div className="space-y-2 p-4">{[0, 1, 2, 3, 4, 5].map((k) => <Skeleton key={k} className="h-9 w-full" />)}</div>}>
           {() => (
             <Table>
-              <THead><TR><TH className="sticky left-0 z-10 bg-card">Instrument</TH>{tfs.map((tf) => <TH key={tf} className="text-center">{tf}</TH>)}</TR></THead>
+              <THead><TR><TH className="sticky left-0 z-10 bg-card">Instrument</TH>{ENGINE_TFS.map((tf) => <TH key={tf} className="text-center">{tf}</TH>)}</TR></THead>
               <TBody>
                 {items.map((i) => {
                   const by = Object.fromEntries((i.tfs ?? []).map((t) => [t.timeframe, t]));
                   return (
                     <TR key={i.symbol} data-testid={`matrix-${i.symbol}`}>
                       <TD className="sticky left-0 z-10 bg-card font-medium">
-                        <Link href={`/signals?symbol=${i.symbol}`} className="hover:underline">{i.symbol}</Link>
+                        <Link href="/signals" className="hover:underline">{i.symbol}</Link>
                         {i.status !== "ok" && <span className="block text-[11px] text-muted-foreground">{i.status === "failed" ? "analysis failed" : "no data yet"}</span>}
                       </TD>
-                      {tfs.map((tf) => {
+                      {ENGINE_TFS.map((tf) => {
                         const t = by[tf];
-                        const side = t?.direction && t.direction !== "NONE" ? t.direction : null;
                         return (
-                          <TD key={tf} className="px-1.5 text-center">
+                          <TD key={tf} className="px-1.5 text-center" data-testid={`cell-${i.symbol}-${tf}`} title={t ? `${t.headline} · regime ${t.regime_name}` : undefined}>
                             {t ? (
-                              <Link href={`/signals?symbol=${i.symbol}&tf=${tf}`} className="inline-flex flex-col items-center gap-0.5 rounded-md p-0.5 hover:bg-muted/60"
-                                data-testid={`cell-${i.symbol}-${tf}`}>
-                                <ShortCall label={t.label} decision={t.decision} headline={t.headline} />
-                                <span className={cn("num text-[10px]", side === "BUY" ? "text-bull" : side === "SELL" ? "text-bear" : "text-muted-foreground")}>
-                                  {side ?? ""}
-                                  {t.unrealized_r != null ? ` ${fmtSignedR(t.unrealized_r)}` : t.score != null ? ` ${t.score}` : ""}
+                              <span className="inline-flex flex-col items-center gap-0.5">
+                                <ActionBadge action={t.action} className="px-1.5 text-[9px]" />
+                                <span className="text-[10px] text-muted-foreground">
+                                  {t.strategy_name ? `${t.strategy_name.split(" ")[0]}${t.risk_reward != null ? ` · ${fmtNum(t.risk_reward, 1)}R` : ""}` : t.regime_name.split(" ")[0].toLowerCase()}
                                 </span>
-                              </Link>
+                              </span>
                             ) : (
                               <span className="text-xs text-muted-foreground">—</span>
                             )}
@@ -100,8 +98,8 @@ function LiveMatrix() {
         </QueryState>
       </CardContent>
       <p className="px-4 py-3 text-xs text-muted-foreground">
-        Under each decision: the side and the setup score (0-100, setup quality, not a chance of winning), or the open result in R of a held
-        paper trade. The same decisions as the Signals page; ENTER needs research-validated rules, so it does not appear today.
+        Under each action: the strategy and its TP1 reward:risk, or the market regime when nothing qualifies. Every plan is unvalidated (no
+        strategy has passed research yet); the Signals page shows the prices.
       </p>
     </Card>
   );
@@ -142,7 +140,7 @@ export default function ScannerPage() {
     <>
       <PageHeader
         title="Market Scanner"
-        description="Every instrument and timeframe on one screen: the live decision from the Signals engine (updated every minute), and below it the stored deep analyses (decision engine with historical analogues) that you can run on demand."
+        description="Every instrument and timeframe on one screen: the live action from the strategy engine (updated every minute), and below it the stored deep analyses (older decision engine with historical analogues) that you can run on demand."
         actions={<Button onClick={() => void scanAll()} loading={scanning}><Radar className="h-4 w-4" /> Run deep analysis</Button>}
       />
       <LiveMatrix />

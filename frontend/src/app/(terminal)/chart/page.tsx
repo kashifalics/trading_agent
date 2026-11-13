@@ -10,6 +10,7 @@ import { buildMarkers, buildPlanLines, buildStructure, buildZones } from "@/comp
 import { ChartLegend } from "@/components/charts/legend";
 import { EmptyState, ErrorState, InstrumentSelect, JobBadge, PageHeader, SourceNote, TimeframeSelect } from "@/components/domain/common";
 import { CallCard } from "@/components/domain/call";
+import { EngineNowStrip } from "@/components/domain/engine";
 import { AnalysisOnlyNotice, ConfidencePanelView, EvidenceList, PlanCard, SectionCard } from "@/components/domain/decision";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -197,6 +198,7 @@ export default function ChartPage() {
         </div>
 
         <aside className="space-y-4" aria-label="Analysis result">
+          <EngineNowStrip symbol={s.symbol} timeframe={s.timeframe} />
           <Card>
             <CardHeader>
               <CardTitle>Decision</CardTitle>

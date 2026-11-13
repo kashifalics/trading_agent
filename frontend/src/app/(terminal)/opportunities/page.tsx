@@ -1,6 +1,7 @@
 "use client";
 
 import { Info, RefreshCw, ScanSearch } from "lucide-react";
+import { EngineSummaryStrip } from "@/components/domain/engine";
 import { useState } from "react";
 import { EmptyState, ErrorState, PageHeader, QueryState } from "@/components/domain/common";
 import {
@@ -99,6 +100,7 @@ export default function OpportunitiesPage() {
           </>
         }
       />
+      <EngineSummaryStrip />
       {scan.isError && <div className="mb-4"><ErrorState error={scan.error} /></div>}
       {scan.data?.deduplicated && <div className="mb-4"><Notice>A scan is already running (#{scan.data.id}); showing its progress instead of starting another.</Notice></div>}
       <QueryState query={q} skeleton={<Skeleton className="h-64 w-full" />}>

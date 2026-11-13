@@ -2,27 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Theme: soft light analytics dashboard (white cards on a pale-blue canvas, navy type, green positives, amber call-to-action).
-   All colours are tokens; components never hard-code them (charts read the same values from components/charts/overlays.ts). */
+/* Theme: dark analytics terminal with a violet accent (near-black canvas, dark cards with hairline borders, violet for navigation,
+   primary actions and charts; green / red / amber only for buy, sell and caution). All colours are tokens; components never hard-code
+   them (charts read the same values from components/charts/overlays.ts). Contrast meets WCAG AA on the card colour. */
 :root {
-  --background: 210 62% 97%; /* pale blue canvas */
-  --surface: 0 0% 100%; /* sidebar / panels */
-  --card: 0 0% 100%;
-  --border: 214 32% 91%;
-  --muted: 210 38% 96%;
-  --muted-foreground: 217 18% 37%;
-  --foreground: 231 62% 20%; /* navy */
-  --primary: 226 62% 40%; /* navy-blue: links, info */
-  --primary-foreground: 0 0% 100%;
-  --cta: 33 100% 66%; /* amber call-to-action */
-  --cta-foreground: 231 62% 20%;
-  --nav: 122 38% 92%; /* active navigation: pale green */
-  --nav-foreground: 122 42% 32%;
-  --bull: 123 46% 28%;
-  --bear: 4 72% 42%;
-  --warn: 27 92% 30%;
-  --ring: 226 62% 40%;
-  color-scheme: light;
+  --background: 240 33% 5%; /* near-black canvas */
+  --surface: 240 28% 7%; /* sidebar, header */
+  --card: 240 24% 9%;
+  --border: 240 16% 18%;
+  --muted: 240 18% 14%;
+  --muted-foreground: 240 12% 70%;
+  --foreground: 240 25% 96%;
+  --primary: 252 95% 76%; /* violet: links, focus, highlights */
+  --primary-foreground: 240 33% 6%;
+  --cta: 252 72% 60%; /* filled violet: primary buttons */
+  --cta-foreground: 0 0% 100%;
+  --nav: 252 70% 58%; /* active navigation: filled violet */
+  --nav-foreground: 0 0% 100%;
+  --bull: 146 64% 52%;
+  --bear: 0 86% 70%;
+  --warn: 38 95% 62%;
+  --ring: 252 95% 76%;
+  color-scheme: dark;
 }
 
 * {
@@ -30,7 +31,7 @@
 }
 
 body {
-  background: linear-gradient(180deg, hsl(208 70% 92%) 0, hsl(var(--background)) 340px) no-repeat, hsl(var(--background));
+  background: radial-gradient(1100px 420px at 18% -8%, hsl(252 80% 32% / 0.35), transparent 70%) no-repeat, hsl(var(--background));
   color: hsl(var(--foreground));
   font-feature-settings: "tnum" 1;
   -webkit-font-smoothing: antialiased;
@@ -46,7 +47,7 @@ body {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(214 25% 82%);
+  background: hsl(240 14% 24%);
   border-radius: 6px;
 }
 ::-webkit-scrollbar-track {

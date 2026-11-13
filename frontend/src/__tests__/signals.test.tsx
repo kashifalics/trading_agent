@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import SignalsPage from "@/app/(terminal)/signals/page";
+import SignalsPage from "@/app/(terminal)/signals/classic/page";
 import { DEFAULT_CONTRACT_SIZE, positionSize } from "@/lib/position-size";
 import type { TradeCall } from "@/lib/decision-types";
 import type { SignalAnalysis, SignalsSummary, TimeframePlan } from "@/lib/signal-types";

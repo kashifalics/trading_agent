@@ -32,6 +32,7 @@ import type {
 import type { OppSummary, OppValidation, OpportunityDetail, ScanAccepted } from "@/lib/opportunity-types";
 import type { PaperAccount, PaperAccountChanges, PaperRunResult, PaperSummary, PaperTradeDetail, PaperTradesPage } from "@/lib/paper-types";
 import type { SignalAnalysis, SignalsSummary, SignalSync } from "@/lib/signal-types";
+import type { EngineDetail, EngineSummary, SignalRecord } from "@/lib/engine-types";
 
 export const retryPolicy = (failureCount: number, error: unknown) =>
   failureCount < 2 && (!(error instanceof ApiError) || error.retryable);
@@ -323,3 +324,25 @@ export function useResetPaperAccount() {
 // ---- Gold Research (historical study; refreshed when the research pipeline rebuilds its summary) ----
 export const useGoldResearch = () =>
   useQuery({ queryKey: ["gold-research"], queryFn: () => api.get<GoldResearch>("/research/gold"), staleTime: 300_000, refetchInterval: 300_000, retry: retryPolicy });
+
+// ---- Strategy engine v2 (regime -> six strategies -> one action with a trade plan) ----
+export const useEngineSummary = () =>
+  useQuery({ queryKey: ["engine"], queryFn: () => api.get<EngineSummary>("/engine"), refetchInterval: 30_000, retry: retryPolicy });
+
+export const useEngine = (symbol: string | null) =>
+  useQuery({
+    queryKey: ["engine", symbol],
+    queryFn: () => api.get<EngineDetail>(`/engine/${symbol}`),
+    enabled: !!symbol,
+    refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
+    retry: retryPolicy,
+  });
+
+export const useEngineSignals = (symbol?: string) =>
+  useQuery({
+    queryKey: ["engine-signals", symbol ?? "all"],
+    queryFn: () => api.get<{ items: SignalRecord[] }>("/engine/signals", { symbol, limit: 50 }),
+    refetchInterval: 60_000,
+    retry: retryPolicy,
+  });

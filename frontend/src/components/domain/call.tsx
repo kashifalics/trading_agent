@@ -11,7 +11,7 @@ import { cn, fmtNum, fmtPrice, fmtSignedR } from "@/lib/utils";
 const TONE: Record<CallDecision, { box: string; text: string; badge: "buy" | "wait" | "sell" | "neutral" | "info" }> = {
   ENTER: { box: "border-bull/40 bg-bull/10", text: "text-bull", badge: "buy" },
   HOLD: { box: "border-primary/40 bg-primary/5", text: "text-primary", badge: "info" },
-  WAIT: { box: "border-warn/40 bg-cta/10", text: "text-warn", badge: "wait" },
+  WAIT: { box: "border-warn/40 bg-warn/10", text: "text-warn", badge: "wait" },
   EXIT: { box: "border-bear/40 bg-bear/10", text: "text-bear", badge: "sell" },
   "NO TRADE": { box: "border-border bg-muted/60", text: "text-muted-foreground", badge: "neutral" },
 };

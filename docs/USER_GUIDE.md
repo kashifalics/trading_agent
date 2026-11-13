@@ -17,19 +17,42 @@ shown as **WAIT — UNVALIDATED SETUP**.
 
 | Page | What it is for |
 |---|---|
-| **Overview** | Latest prices, **Decisions now** (one decision per instrument, the same as on Signals), data health, recent analyses. A **delayed** badge means the market is closed or the price is old: it is the last known price, not a live one |
+| **Overview** | Four tiles (gold price, signals now, the paper forward test, open paper trades), the forward-test equity chart, signals by action, **Decisions now** (the same action as on Signals, with entry · SL · TP1), live prices, recent signals, the six strategies' research status and system health. A **delayed** badge means the market is closed or the price is old: it is the last known price, not a live one |
 | **Signals** | The main analysis screen (section 3) |
 | **Paper Trading** | A simulated account that records every technically complete setup automatically and follows it on later candles, with a HOLD / EXIT / WAIT recommendation for open trades (section 5) |
-| **Trade Opportunities** | Setups ranked across instruments and timeframes by an evidence score (not a win probability) |
-| **Chart Analysis** | Analyse one instrument and timeframe in depth, or upload a chart screenshot |
-| **Market Scanner** | The live decision for every instrument and timeframe on one grid (updated every minute; click a cell for its checklist), plus on-demand deep analyses |
+| **Trade Opportunities** | The older opportunity scanner: setups ranked by an evidence score (not a win probability). A strip at the top shows the strategy engine's current action for comparison |
+| **Chart Analysis** | Analyse one instrument and timeframe in depth, or upload a chart screenshot. The strategy engine's current action for that timeframe is shown above the result |
+| **Market Scanner** | The strategy engine's action for every instrument and timeframe on one grid (updated every minute), plus on-demand deep analyses |
 | **Historical Patterns** | Which patterns and structures are present now on every timeframe, each with its measured history |
 | **Predictions** | Every analysis you ran, with its evidence and what happened afterwards |
 | **Gold Research** | Results of the 20-year gold study (no validated strategy was found) |
 | **Backtesting / Models / Performance** | Research tools for testing rules and models on history |
 | **Watchlists, Data Sources, Settings** | Your lists, data status and synchronisation, connection and defaults |
 
-## 3. Reading a decision (Signals page)
+## 3. Reading a signal (Signals page)
+
+Each instrument has one card, best opportunity first:
+- **The action, in large type:**
+  - **BUY / SELL:** a strategy's entry conditions are met now.
+  - **WAIT FOR BUY / WAIT FOR SELL:** a valid setup waiting for an exact entry price (limit or stop).
+  - **EXIT:** a tracked paper trade on that instrument must be closed; the reason is shown in a red alert.
+  - **NO TRADE:** nothing qualifies, with the reasons.
+- **Strategy, timeframe and market regime:** one of six strategies; Trending, Ranging, Consolidating, High volatility or Unknown.
+- **Entry, stop loss, TP1, TP2 and TP3:** each target with its reward:risk and what it is based on (a swing high, an order block, or a
+  "risk objective" when no structural level is near). Then the overall R:R, the spread cost, the entry status (READY, WAITING FOR
+  ENTRY) and when the signal expires.
+- **Why, what invalidates it, and the next action.**
+- **"UNVALIDATED — HYPOTHETICAL TRADE PLAN" and "Research: INSUFFICIENT EVIDENCE":** no strategy has passed research yet, so these
+  are analysis, not proven recommendations, and no win probability is ever shown. Untick **Show hypothetical trade plans** to hide
+  the prices of unvalidated plans.
+- **Paper trades on that instrument:** shown in their own block. They are the forward test of the older v1 rules and never hide a new
+  signal.
+- **All timeframes and strategies** opens every timeframe's action; click a timeframe to see each strategy's verdict. **Signal history**
+  lists each signal once and follows it to its outcome (TP1/TP2/TP3 hit, stop-loss hit, invalidated, expired or entry missed).
+
+The previous Signals page (the v1 100-point checklist) is still available at **Engine v1 checklist** (`/signals/classic`).
+
+## 3b. The v1 checklist (Engine v1 checklist page)
 
 1. The **All signals** table at the top lists every instrument (XAUUSD, EURUSD, GBPUSD, BTCUSDT, US30, USOIL) on one screen: its
    decision now, its bias, every timeframe with a live setup (side, score and that timeframe's decision) and what must happen next.
