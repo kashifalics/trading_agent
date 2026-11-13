@@ -7,14 +7,13 @@ close above the high of the deepest pullback candle (market entry); until then a
 the pullback low."""
 import numpy as np
 
-from app.strategy_engine.context import TFData
+from app.strategy_engine.context import TFData, alive
 from app.strategy_engine.regime import Regime
 from app.strategy_engine.strategies.base import Candidate, Strategy, fmt, side
 
 WINDOW = 8
 NEAR_EMA_ATR = 0.3
 DEPTH_EMA50_ATR = 0.5
-DEAD = ("invalidated", "broken", "filled")
 MAX_ZONE_ATR = 2.0  # a zone wider than this (e.g. a gap over a market close) is not a precise pullback area
 
 
@@ -26,7 +25,7 @@ class TrendPullback(Strategy):
         i = t.last
         b = t.bars
         if regime.label != "TRENDING" or regime.direction != d:
-            return self.no(d, f"needs a {'rising' if d > 0 else 'falling'} TRENDING regime (now {regime.out()['name'].lower()})")
+            return self.no(d, f"needs a {'rising' if d > 0 else 'falling'} TRENDING regime (now {regime.name.lower()})")
         if int(t.pa.trend[i]) != d:
             return self.no(d, f"market structure is not {'bullish' if d > 0 else 'bearish'}")
         if context is not None and context.label == "TRENDING" and context.direction == -d:
@@ -34,7 +33,7 @@ class TrendPullback(Strategy):
         a = float(t.atr[i])
         lo, hi = i - WINDOW + 1, i
         zones = [z for z in (t.pa.order_blocks + t.pa.fvgs + t.pa.zones)
-                 if z.direction == ("bullish" if d > 0 else "bearish") and z.idx < lo and (z.status or "") not in DEAD
+                 if z.direction == ("bullish" if d > 0 else "bearish") and z.idx < lo and alive(z, i)
                  and z.low is not None and z.high is not None and (z.high - z.low) <= MAX_ZONE_ATR * a]  # no session-gap "zones"
         touched, where = None, ""
         for j in range(lo, hi + 1):

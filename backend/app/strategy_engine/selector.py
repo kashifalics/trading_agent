@@ -31,14 +31,21 @@ def _rank(x: dict, context: Regime | None) -> tuple:
             SPECIFICITY.index(x["strategy"]))
 
 
+MAX_STALE_BARS = 3  # more complete candles missing than this (closed-market time excluded): the data is stale, no plan
+
+
 def evaluate_timeframe(t: TFData | None, tf: str, regime: Regime, context: Regime | None, *, precision: int, spread: float,
-                       price_now: float | None, market_open: bool = True, spread_normal: bool = True) -> dict:
+                       price_now: float | None, market_open: bool = True, spread_normal: bool = True,
+                       stale_bars: float | None = None) -> dict:
     chain = CHAINS[tf]
     group = GROUPS[chain.group]
     base = {"timeframe": tf, "group": chain.group, "context_tf": chain.context, "trigger_tf": chain.trigger, "regime": regime.out(),
             "context_regime": context.out() if context is not None else None, "candidates": [], "agreeing": [], "conflict": None}
     if t is None or regime.subtype == "insufficient_data":
         return {**base, **_no_trade(f"NO TRADE: {regime.reason}", "NO SETUP", ["Enough complete candles on this timeframe"])}
+    if stale_bars is not None and stale_bars > MAX_STALE_BARS:
+        return {**base, **_no_trade(f"NO TRADE: data stale, the latest {tf} candle is {stale_bars:.0f} candles late (sync the data)",
+                                    "NO SETUP", ["Fresh, complete candles for this timeframe"])}
     if regime.label == "HIGH_VOLATILITY":
         return {**base, **_no_trade(f"NO TRADE: {regime.reason}", "NO SETUP", ["Volatility back to normal (ATR below its 95th percentile)"])}
     allowed = COMPATIBLE[regime.label]

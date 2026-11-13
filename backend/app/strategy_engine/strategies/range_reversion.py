@@ -28,7 +28,7 @@ class RangeReversion(Strategy):
     def evaluate(self, t: TFData, regime: Regime, context: Regime | None, d: int) -> Candidate:
         i, b = t.last, t.bars
         if regime.label != "RANGING":
-            return self.no(d, f"disabled outside a RANGING regime (now {regime.out()['name'].lower()})")
+            return self.no(d, f"disabled outside a RANGING regime (now {regime.name.lower()})")
         if t.adx[i] >= MAX_ADX:
             return self.no(d, f"disabled: ADX {float(t.adx[i]):.0f} >= {MAX_ADX:.0f} (trend developing)")
         a = float(t.atr[i])

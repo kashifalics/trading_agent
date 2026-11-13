@@ -20,9 +20,13 @@ class Regime:
     metrics: dict = field(default_factory=dict)
     criteria: list[dict] = field(default_factory=list)
 
+    @property
+    def name(self) -> str:
+        return LABELS[self.label] + (f" {'up' if self.direction > 0 else 'down'}" if self.label == "TRENDING" else "")
+
     def out(self) -> dict:
         d = asdict(self)
-        d["name"] = LABELS[self.label] + (f" {'up' if self.direction > 0 else 'down'}" if self.label == "TRENDING" else "")
+        d["name"] = self.name
         d["criteria_met"] = sum(1 for c in self.criteria if c["met"])
         return d
 

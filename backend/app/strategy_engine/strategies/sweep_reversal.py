@@ -5,6 +5,8 @@ of the 10 candles before them, the previous day's high, and equal-high clusters,
 candles a candle traded above a level and closed back below it. Then a market-structure shift is REQUIRED: a close below the last
 swing low formed before the sweep. A sweep alone is never a trade. Shift on the last candle: enter at market; earlier shift: limit
 entry at the broken swing level (retest), unless price has already closed back above it. Invalidation: the sweep extreme."""
+import numpy as np
+
 from app.strategy_engine.context import TFData
 from app.strategy_engine.regime import Regime
 from app.strategy_engine.strategies.base import Candidate, Strategy, fmt, side
@@ -17,32 +19,38 @@ class SweepReversal(Strategy):
     key = "sweep_reversal"
     regimes = ("TRENDING", "RANGING", "CONSOLIDATING", "UNKNOWN")
 
-    def _levels(self, t: TFData, before: int, d: int) -> list[tuple[float, str, int]]:
-        """Liquidity the reversal sweeps: highs for a SELL (d = -1), lows for a BUY (d = +1), each known before candle `before`."""
+    def _levels(self, t: TFData, i: int, d: int) -> list[tuple[float, str, int]]:
+        """Liquidity the reversal sweeps: lows for a BUY (d = +1), highs for a SELL (d = -1), known by candle i, each with the first
+        candle it is known on (a level may only be swept by a candle at or after that index: no look-ahead)."""
         b, out = t.bars, []
         kind = "low" if d > 0 else "high"
-        for s in t.swings_until(before - 1, kind):
-            seg = b.l[max(0, s.idx - SWING_EXTREME_BARS):s.idx + 1] if d > 0 else b.h[max(0, s.idx - SWING_EXTREME_BARS):s.idx + 1]
-            if (d > 0 and s.price <= seg.min()) or (d < 0 and s.price >= seg.max()):
-                out.append((float(s.price), f"swing {kind}", s.idx))
+        for s in t.swings_until(i - 1, kind):
+            ext = getattr(s, "_extreme10", None)  # a property of the swing alone: computed once
+            if ext is None:
+                lo = max(0, s.idx - SWING_EXTREME_BARS)
+                ext = bool(s.price <= b.l[lo:s.idx + 1].min()) if s.kind == "low" else bool(s.price >= b.h[lo:s.idx + 1].max())
+                s._extreme10 = ext
+            if ext:
+                out.append((float(s.price), f"swing {kind}", s.confirm_idx + 1))
         key = "pdl" if d > 0 else "pdh"
         # the previous day's level is known only once that day has closed: intraday timeframes, sweeps after the close (no look-ahead)
         pd_end = t.levels.get("pd_end")
-        if t.levels.get(key) is not None and pd_end is not None and t.tf not in ("1D", "1W", "1M") and int(b.t[before]) >= int(pd_end):
-            out.append((float(t.levels[key]), "previous day " + ("low" if d > 0 else "high"), -1))
+        if t.levels.get(key) is not None and pd_end is not None and t.tf not in ("1D", "1W", "1M"):
+            out.append((float(t.levels[key]), "previous day " + ("low" if d > 0 else "high"), int(np.searchsorted(b.t, int(pd_end), "left"))))
         eq = "equal_lows" if d > 0 else "equal_highs"
         for e in t.pa.equal_levels:
-            if e.kind == eq and e.idx < before and e.price is not None:
-                out.append((float(e.price), eq.replace("_", " "), e.idx))
+            if e.kind == eq and e.idx < i and e.price is not None:
+                out.append((float(e.price), eq.replace("_", " "), e.idx + 1))
         return out
 
     def evaluate(self, t: TFData, regime: Regime, context: Regime | None, d: int) -> Candidate:
         i, b = t.last, t.bars
         if regime.label == "HIGH_VOLATILITY":
             return self.no(d, "disabled in abnormal volatility")
+        levels = self._levels(t, i, d)
         for j in range(i, i - WINDOW, -1):  # most recent sweep first
-            swept = [(p, name, idx) for p, name, idx in self._levels(t, j, d)
-                     if ((b.l[j] < p and b.c[j] > p) if d > 0 else (b.h[j] > p and b.c[j] < p))]
+            swept = [(p, name, k) for p, name, k in levels if k <= j
+                     and ((b.l[j] < p and b.c[j] > p) if d > 0 else (b.h[j] > p and b.c[j] < p))]
             if not swept:
                 continue
             lvl, name, _ = (max(swept) if d > 0 else min(swept))  # the most significant level taken

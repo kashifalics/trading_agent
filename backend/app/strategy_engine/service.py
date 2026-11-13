@@ -66,6 +66,12 @@ def _tfdata(key: tuple, tf: str, bars: Bars, pa, levels: dict) -> TFData:
     return hit
 
 
+def _stale(frames: dict, tf: str) -> float | None:
+    """Complete candles missing since the latest stored one (closed-market time excluded); 8H follows its 4H source."""
+    f = frames.get("4H" if tf == "8H" else tf)
+    return None if f is None or f.stale_bars is None else float(f.stale_bars)
+
+
 def _iso(ts: int | None) -> str | None:
     return None if ts is None else datetime.fromtimestamp(int(ts), tz=timezone.utc).isoformat()
 
@@ -128,7 +134,7 @@ def analyze(session: Session, symbol: str, now: datetime | None = None) -> dict:
         ctx_tf = CHAINS[tf].context
         r = evaluate_timeframe(tfd[tf], tf, regimes[tf], regimes.get(ctx_tf) if ctx_tf else None, precision=inst.price_precision,
                                spread=spread, price_now=price_now, market_open=market_open and sess["entry_allowed"],
-                               spread_normal=spread_normal)
+                               spread_normal=spread_normal, stale_bars=_stale(frames, tf))
         t = tfd[tf]
         r["n_bars"] = 0 if t is None else t.n
         r["data_time"] = _iso(int(t.bars.t[-1]) + int(t.bars.step)) if t is not None else None

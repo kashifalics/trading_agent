@@ -11,10 +11,8 @@ from app.strategy_engine.config import (
     TARGETS,
     Group,
 )
-from app.strategy_engine.context import TFData
+from app.strategy_engine.context import TFData, alive
 from app.strategy_engine.strategies.base import Candidate, fmt
-
-DEAD = ("invalidated", "broken", "filled")
 
 
 def tick_of(precision: int) -> float:
@@ -44,7 +42,7 @@ def structural_levels(t: TFData, d: int, beyond: float) -> list[tuple[float, str
             out.append((float(t.levels[key]), name))
     opposite = "bearish" if d > 0 else "bullish"
     for z in t.pa.order_blocks + t.pa.zones:
-        if z.idx <= i and z.direction == opposite and (z.status or "") not in DEAD and z.low is not None and z.high is not None:
+        if z.idx <= i and z.direction == opposite and alive(z, i) and z.low is not None and z.high is not None:
             out.append((float(z.low if d > 0 else z.high), z.kind.replace("_", " ")))
     out = [(p, n) for p, n in out if (p - beyond) * d > 0]
     out.sort(key=lambda x: (x[0] - beyond) * d)

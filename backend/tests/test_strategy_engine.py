@@ -397,3 +397,27 @@ def test_h8_is_built_from_complete_4h_pairs_within_the_trading_day():
     b8 = derive_8h(b4, b1d)
     assert len(b8) == 4  # 3 buckets on day 1 + the complete first bucket of day 2; the forming bucket (1 candle) is left out
     assert b8.o[0] == 0.0 and b8.c[0] == 1.5 and b8.h[0] == 2.0 and b8.l[0] == -1.0 and b8.step == 28800
+
+
+def _prefix(b: Bars, i: int) -> Bars:
+    return Bars(t=b.t[:i + 1], o=b.o[:i + 1], h=b.h[:i + 1], l=b.l[:i + 1], c=b.c[:i + 1], v=b.v[:i + 1], step=b.step)
+
+
+@pytest.mark.parametrize("make", [lambda: from_closes(list(noise(420, seed=21, scale=0.6, drift=0.02)), wick=0.25),
+                                  lambda: _box_then_break(), lambda: _uptrend_pullback(trigger=True)])
+def test_replaying_history_gives_exactly_what_the_engine_saw_at_the_time(make):
+    """No look-ahead: the full-history view at candle i equals the engine run on candles 0..i only (regime, every strategy, every plan)."""
+    b = make()
+    full = TFData.build("1H", b)
+    for i in range(140, len(b), 7):
+        past = TFData.build("1H", _prefix(b, i))
+        view = full.at(i)
+        r_view, r_past = classify(view), classify(past)
+        assert (r_view.label, r_view.direction, r_view.subtype) == (r_past.label, r_past.direction, r_past.subtype), i
+        for key, s in STRATEGIES.items():
+            for d in (1, -1):
+                a_, p_ = s.evaluate(view, r_view, None, d), s.evaluate(past, r_past, None, d)
+                assert (a_.status, a_.entry_mode, a_.entry, a_.invalidation, a_.missing) == (p_.status, p_.entry_mode, p_.entry, p_.invalidation, p_.missing), (i, key, d)
+                if a_.status in ("ready", "pending"):
+                    pa_, pp_ = (build_plan(x, y, group=INTRADAY, precision=2, spread=0.05, price_now=None) for x, y in ((a_, view), (p_, past)))
+                    assert pa_ == pp_, (i, key, d)

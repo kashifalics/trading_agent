@@ -43,8 +43,15 @@ def _check_plan(p: dict, d: int, precision: int):
     assert p["signal_time"] and p["expires_at"] and p["cost_r"] >= 0
 
 
+def test_old_data_never_produces_a_plan(client):
+    _seed("XAUUSD")  # candles ending 3 days ago
+    d = client.get("/api/v1/engine/XAUUSD").json()
+    stale = [t for t in d["timeframes"] if t["n_bars"] >= 120 and t["timeframe"] in ("5m", "15m", "1H")]
+    assert stale and all(t["action"] == "NO TRADE" and "data stale" in t["headline"] and t["plan"] is None for t in stale)
+
+
 def test_every_instrument_gets_one_clear_action_with_valid_levels(client):
-    _seed("XAUUSD")
+    _seed("XAUUSD", end=datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0))  # fresh candles
     s = client.get("/api/v1/engine").json()
     items = {i["symbol"]: i for i in s["items"]}
     assert set(items) == set(get_settings().signal_list) and "NOT filtered" in s["news"]["note"]
@@ -53,6 +60,7 @@ def test_every_instrument_gets_one_clear_action_with_valid_levels(client):
     assert gold["status"] == "ok" and gold["primary"]["action"] in ACTIONS
     assert [t["timeframe"] for t in gold["tfs"]] == ["1m", "3m", "5m", "15m", "30m", "1H", "4H", "8H", "1D", "1W", "1M"]
     d = client.get("/api/v1/engine/XAUUSD").json()
+    checked = []
     for t in d["timeframes"]:
         assert t["action"] in ACTIONS - {"EXIT"}
         if t["action"] == "NO TRADE":
@@ -60,10 +68,12 @@ def test_every_instrument_gets_one_clear_action_with_valid_levels(client):
         else:
             assert t["research_status"] == "INSUFFICIENT EVIDENCE" and t["plan_label"] == "UNVALIDATED — HYPOTHETICAL TRADE PLAN"
             _check_plan(t["plan"], 1 if t["direction"] == "BUY" else -1, d["price_precision"])
-        if t["n_bars"] >= 120:  # every compatible strategy is evaluated, both sides, and each says why
+        if t["n_bars"] >= 120 and "data stale" not in t["headline"]:  # every strategy is evaluated, both sides, and each says why
+            checked.append(t["timeframe"])
             assert {c["strategy"] for c in t["candidates"]} == {"trend_pullback", "breakout_retest", "momentum_continuation", "range_reversion",
                                                                  "sweep_reversal", "volatility_expansion"}
             assert all(c["status"] in ("ready", "pending", "forming", "rejected", "not run") for c in t["candidates"])
+    assert checked  # at least one fresh timeframe had every strategy evaluated
     tf = {t["timeframe"]: t for t in d["timeframes"]}
     assert tf["1m"]["action"] == "NO TRADE" and "insufficient" in tf["1m"]["regime"]["subtype"]  # never seeded: not assumed
     assert tf["8H"]["n_bars"] > 0  # built from the stored 4H candles
