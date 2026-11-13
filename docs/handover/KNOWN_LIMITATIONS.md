@@ -28,7 +28,14 @@
     - The paper test holds trades until the stop or TP1, with no time limit.
     - Slippage and swap are scenarios, not measurements.
 11. **Single server, single database file.** The backend runs as one process with SQLite on a persistent volume. Horizontal
-    scaling would need PostgreSQL (supported) and moving the minute cycle to a single worker.
+    scaling would need PostgreSQL (supported) and moving the minute cycle to a single worker. Measured after the release
+    (2026-11-13):
+    - **The minute cycle takes 17-21 s.** It runs the v1 and v2 engines for six instruments. Requests share the process's
+      Python interpreter with it, so a response can take a few seconds longer while it runs. Server time is otherwise about
+      0.25 s; large responses are gzip-compressed (Gold Research: 843 KB sent as 174 KB).
+    - **Memory: 0.78 GB of the plan's 1 GB** 30 minutes after the start, and still rising. The previous release ran at about
+      0.9 GB for hours without a restart. Watch `railway metrics --service backend --memory`. If it nears 1 GB, analyse fewer
+      instruments (`SIGNAL_SYMBOLS`) or raise the limit; raising it is a paid plan change and the owner's decision.
 12. **Dependency advisories.** `zod` (client-side form validation) and `postcss` inside Next.js (build time) have advisories whose
     fixes are breaking major upgrades. Neither is reachable from outside, so they are scheduled for a later release.
 13. **The Railway config file format** (`railway.json`) is deprecated after 2026-12-01. Run `railway config migrate` before then.

@@ -7,10 +7,10 @@
 | Frontend | https://trading-agent-frontend-sigma.vercel.app (Vercel, production) |
 | Backend | https://backend-production-dd47.up.railway.app (Railway, service `backend`, SQLite on volume `/data`) |
 | Production branch | `main` |
-| Release commit | _filled at deploy_ |
-| Deployed at | _filled at deploy_ |
-| Database | Alembic `0006` applied at start (additive: new table `signal_records`); recovery point: API export of all customer data taken before the deploy (outside the repository) |
-| Status | _filled after verification_ |
+| Release commit | `496f49e` on `main` (merge of `feature/strategy-engine-v2`, no force push); post-deploy fixes `06b2fb2` (frontend only) |
+| Deployed at | 2026-11-13: backend 16:50 UTC (Railway deployment `923f0a27`, SUCCESS); frontend 16:51 UTC, redeployed with the fixes at 17:41 UTC (Vercel production) |
+| Database | Alembic `0005 -> 0006` applied at start at 16:51 UTC (additive: new table `signal_records`). Recovery point: API export of all customer data taken before the deploy (outside the repository). After the deploy: 438 paper trades and 11 predictions, the same as the export |
+| Status | **Live and verified** (see C) |
 
 ## B. Research (Experiment 5, owner-approved)
 
@@ -31,7 +31,35 @@
 
 ## C. Testing
 
-_filled after the final runs_
+**Before the release (on the merged code):**
+
+| Suite | Result |
+|---|---|
+| Backend (pytest) | 434 passed, 30 skipped (the skips need optional local data); engine tests re-run after the research-status change |
+| Frontend unit and page tests (vitest) | 80 passed, including a new check that the Overview's server render has no clock-dependent text |
+| End-to-end (Playwright, production build) | 8 of 8 passed |
+| Typecheck, lint, production build | clean |
+
+**Production checks (2026-11-13):**
+- **Backend:**
+  - Health responds; requests without the key get 401.
+  - `/engine` serves all six instruments with fresh data and the research statuses.
+  - `/engine/signals` works: migration 0006 is live, and lifecycle records were being created and stepped within minutes.
+  - Logs show no errors.
+- **Every page, desktop (1440 px) and phone (390 px), 30 checks:** 0 page errors, 0 console errors, 0 failed API calls, 0
+  horizontal overflow, no `NaN` / `undefined` text, and 0 accessibility violations (axe).
+- **The first sweep found three defects.** They were fixed, tested and redeployed (`06b2fb2`) before the second sweep above:
+  - a hydration error on the Overview (React #418);
+  - a table that could not be scrolled with the keyboard;
+  - outdated wording on Settings.
+- **Speed:**
+  - The server answers in about 0.25 s; pages show their heading in 0.2-0.9 s and finish loading in 3-10 s.
+  - During the checks, this machine's connection to Railway's Singapore edge was unreliable: TLS handshakes of 1-12 s and DNS
+    failures. These inflated some single measurements to tens of seconds; the server timings above exclude them.
+  - Details: `docs/handover/KNOWN_LIMITATIONS.md` item 11.
+
+**Minor items left:** small tap targets on some pages (most on Data Sources: 44 small links and badges), below the 24 px
+recommendation. They work, but are tight on a phone.
 
 ## D. Security
 
@@ -61,4 +89,24 @@ _filled after the final runs_
 
 ## F. Final assessment
 
-_filled after production verification_
+**Released as an analysis-only platform, as the brief allows when no strategy passes validation.**
+
+- **What works in production:**
+  - Every instrument gets one clear action (BUY, SELL, WAIT FOR BUY, WAIT FOR SELL, EXIT or NO TRADE) with an exact entry,
+    stop-loss and TP1-TP3.
+  - Every signal is recorded once and followed to its outcome.
+  - Paper trades are kept apart from new signals.
+  - Every page agrees with the strategy engine.
+  - The disclosures are on every signal page.
+- **What is not proven:**
+  - No strategy has an edge: Experiment 5 found none on 17 years of gold, after experiments 1-4 found none.
+  - The plans are labelled **UNVALIDATED — HYPOTHETICAL TRADE PLAN**, and no win probability is shown.
+  - The paper forward test of the older v1 rules stands at −53.2R over 305 closed trades (net of the spread). The product shows
+    this figure on its Overview.
+- **Not done in this release:**
+  - The EURUSD/GBPUSD research: the free download was refused. It continues by itself, and the experiment can run later.
+  - A forward test of the v2 strategies: it should start only if one passes research.
+- **Recommendation:**
+  - Use the platform for analysis and study, not to place money on its plans.
+  - Watch backend memory (item 11 of the known limitations).
+  - Run the FX part of Experiment 5 when the data is complete; no product change is needed for it.

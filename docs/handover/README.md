@@ -15,8 +15,22 @@
 | 11 | Maintenance | [TECHNICAL_HANDOVER.md §13](../TECHNICAL_HANDOVER.md) |
 | 12 | Deployment and rollback | [TECHNICAL_HANDOVER.md §12](../TECHNICAL_HANDOVER.md) |
 
-The release record is in [docs/release/](../release/): the checklist, the delivery report and screenshots of the deployed
-application.
+The release record is in [docs/release/](../release/): the checklist and the delivery report.
+
+## Screenshots of the deployed application (2026-11-13)
+
+Taken from the production site with real backend data. Prices and signals change every minute, so a screenshot shows one moment.
+
+| Page | Desktop | Phone |
+|---|---|---|
+| Overview | [desktop-overview.jpg](../release/screenshots/desktop-overview.jpg) | [mobile-overview.jpg](../release/screenshots/mobile-overview.jpg) |
+| Signals | [desktop-signals.jpg](../release/screenshots/desktop-signals.jpg) | [mobile-signals.jpg](../release/screenshots/mobile-signals.jpg) |
+| Chart Analysis | [desktop-chart.jpg](../release/screenshots/desktop-chart.jpg) | [mobile-chart.jpg](../release/screenshots/mobile-chart.jpg) |
+| Trade Opportunities | [desktop-opportunities.jpg](../release/screenshots/desktop-opportunities.jpg) | |
+| Paper Trading | [desktop-paper-trading.jpg](../release/screenshots/desktop-paper-trading.jpg) | |
+| Gold Research | [desktop-gold-research.jpg](../release/screenshots/desktop-gold-research.jpg) | |
+| Performance | [desktop-performance.jpg](../release/screenshots/desktop-performance.jpg) | |
+| Settings (first visit, no key yet) | [desktop-settings-first-visit.jpg](../release/screenshots/desktop-settings-first-visit.jpg) | |
 
 **Customer access:**
 - **Address and key:** open the frontend address from the delivery report, then enter the platform API key in **Settings → Save &
