@@ -49,17 +49,21 @@ class VolatilityExpansion(Strategy):
                 continue
             sw = t.swings_until(k - 1, "high" if d > 0 else "low")
             if not sw or not ((b.c[k] > sw[-1].price) if d > 0 else (b.c[k] < sw[-1].price)):
-                return self.no(d, f"expansion without a structure break (the last swing {fmt(sw[-1].price) if sw else '-'} holds)", "forming")
+                return self.no(d, f"expansion without a structure break (the last swing {fmt(sw[-1].price) if sw else '-'} holds)", "forming",
+                               component="structure")
             mid = (box_hi + box_lo) / 2
             reasons = [f"compression box {fmt(box_lo)}-{fmt(box_hi)} (Bollinger width in the lowest {BBW_PCT:.0%})",
                        f"expansion candle of {rng(t, k) / a:.1f} ATR closing {'above' if d > 0 else 'below'} the box and the last swing"]
             after = b.c[k + 1:i + 1]
             if len(after) and ((after < mid).any() if d > 0 else (after > mid).any()):
-                return self.no(d, f"the expansion failed: a close back past the box midpoint {fmt(mid)}")
+                return self.no(d, f"the expansion failed: a close back past the box midpoint {fmt(mid)}", component="structure")
             ai = float(t.atr[i])
+            anchors = {"expansion": k, "box_hi": box_hi, "box_lo": box_lo}
             if k == i and (float(b.c[i]) - edge) * d <= MAX_BEYOND_ATR * ai:
                 return Candidate(self.key, d, "ready", "market", float(b.c[i]), None, mid, i,
-                                 f"expansion close {fmt(float(b.c[i]))} within {MAX_BEYOND_ATR:g} ATR of the box: {side(d)} at market", reasons)
+                                 f"expansion close {fmt(float(b.c[i]))} within {MAX_BEYOND_ATR:g} ATR of the box: {side(d)} at market", reasons
+                                 ).tag(["structure", "structure"], anchors)
             return Candidate(self.key, d, "pending", "limit", edge, None, mid, k,
-                             f"{side(d)} limit at the box {'high' if d > 0 else 'low'} {fmt(edge)} (retest after the expansion)", reasons)
-        return self.no(d, "no expansion candle out of a compression in the last candles", "forming")
+                             f"{side(d)} limit at the box {'high' if d > 0 else 'low'} {fmt(edge)} (retest after the expansion)", reasons
+                             ).tag(["structure", "structure"], anchors)
+        return self.no(d, "no expansion candle out of a compression in the last candles", "forming", component="structure")

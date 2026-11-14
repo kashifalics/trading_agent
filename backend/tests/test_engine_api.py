@@ -97,6 +97,32 @@ def test_an_open_paper_trade_at_its_stop_is_exit_but_does_not_hide_new_opportuni
 
 
 # ------------------------------------------------------------------ lifecycle
+def test_engine_detail_exposes_confirmations_volume_and_vsa(client):
+    from app.strategy_engine.config import VOLUME_LABELS
+    from app.strategy_engine.confirm import ORDER
+    _seed("XAUUSD", end=datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0))
+    d = client.get("/api/v1/engine/XAUUSD").json()
+    live = 0
+    for t in d["timeframes"]:
+        assert "confirmations" in t and "volume" in t and "vsa" in t
+        if t["volume"] is not None:
+            assert t["volume"]["label"] in VOLUME_LABELS.values() and set(t["volume"]) == {"type", "label", "reliable", "reason"}
+        if t["action"] == "NO TRADE":
+            assert t["confirmations"] == []
+            continue
+        live += 1
+        assert [c["key"] for c in t["confirmations"]] == list(ORDER)
+        assert all(c["verdict"] in ("PASS", "FAIL", "NEUTRAL", "UNAVAILABLE") and c["reason"] for c in t["confirmations"])
+        assert all(c["note"] in ("evidence only — not tested", "did not pass Experiment 6") and not c["gating"]
+                   for c in t["confirmations"] if not c["mandatory"])  # Experiment 6 promoted nothing
+        assert set(t["vsa"]) == {"events", "pressure", "context"}
+    s = client.get("/api/v1/engine").json()
+    gold = next(i for i in s["items"] if i["symbol"] == "XAUUSD")
+    if gold.get("opportunity"):
+        assert [c["key"] for c in gold["opportunity"]["confirmations"]] == list(ORDER)  # the summary carries the primary plan's matrix
+    assert live or gold["primary"]["action"] == "NO TRADE"
+
+
 def _m1(rows: list[tuple[float, float, float, float]], start: datetime) -> Bars:
     a = np.array(rows, float)
     t = np.array([int(start.timestamp()) + 60 * k for k in range(len(rows))], dtype=np.int64)
@@ -112,6 +138,16 @@ def _analysis(mode: str, status: str, d: str = "BUY", entry=100.0, stop=99.0, tp
     return {"symbol": "XAUUSD", "timeframes": [{"timeframe": "1H", "action": d if status == "READY" else f"WAIT FOR {d}", "direction": d,
                                                 "strategy": "breakout_retest", "strategy_name": "Breakout and retest", "regime": {"label": "UNKNOWN"},
                                                 "research_status": "INSUFFICIENT EVIDENCE", "plan": plan, "headline": "test"}]}
+
+
+def test_a_signal_held_back_by_a_promoted_gate_is_not_recorded_as_taken(session):
+    inst = session.scalar(select(Instrument).where(Instrument.canonical_symbol == "XAUUSD"))
+    at = datetime(2026, 11, 2, 10, 0, tzinfo=timezone.utc)
+    gated = _analysis("market", "READY", at=at)
+    gated["timeframes"][0].update(action="WAIT FOR BUY", missing=["missing confirmation: momentum (MACD histogram falling)"])
+    assert lifecycle.record(session, gated, inst.id, None, at) == []  # the card says WAIT: the track record must not count it
+    taken = lifecycle.record(session, _analysis("market", "READY", at=at), inst.id, None, at)
+    assert len(taken) == 1 and taken[0].status == "ACTIVE"  # once the gate passes, the same setup is recorded and triggered
 
 
 def test_signal_lifecycle_runs_from_detection_through_targets_and_is_recorded_once(session):

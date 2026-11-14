@@ -36,6 +36,8 @@ from app.historical.dukascopy import decode
 OUTLIER_MOVE = {"default": 0.02, "XAUUSD": 0.03}
 PRICE = ("open", "high", "low", "close")
 SOURCE = "Dukascopy public datafeed (datafeed.dukascopy.com), 1-minute BID and ASK candles"
+BINANCE_SOURCE = ("Binance public data archive (data.binance.vision), spot 1-minute klines (one price; bid/ask = price -/+ the $1 "
+                  "half-spread cost model)")
 
 
 # ---- raw -> normalized ------------------------------------------------------------------------------------------------------------
@@ -97,6 +99,8 @@ def validate_year(symbol: str, df: pl.DataFrame) -> tuple[pl.DataFrame, dict]:
 def open_minutes(start: datetime, end: datetime, symbol: str) -> pl.DataFrame:
     """Every minute in [start, end) the market is scheduled open (New York rules, daylight saving included)."""
     grid = pl.DataFrame({"ts": pl.datetime_range(start, end, "1m", closed="left", time_zone="UTC", eager=True)})
+    if INSTRUMENTS[symbol].calendar == "continuous":
+        return grid  # a 24/7 market: every minute is scheduled open
     ny = pl.col("ts").dt.convert_time_zone("America/New_York")
     wd = ny.dt.weekday()  # Monday = 1 ... Sunday = 7
     hm = ny.dt.hour().cast(pl.Int32) * 60 + ny.dt.minute().cast(pl.Int32)  # hour is Int8: widen before multiplying
@@ -118,24 +122,30 @@ def find_gaps(symbol: str, published: pl.Series, start: datetime, end: datetime)
             .group_by("run").agg(pl.col("ts").min().alias("start"), pl.len().alias("minutes")).sort("start"))
     holiday = ((pl.col("start").dt.month() == 12) & (pl.col("start").dt.day().is_between(24, 26))) | \
               ((pl.col("start").dt.month() == 1) & (pl.col("start").dt.day() <= 2))
+    if INSTRUMENTS[symbol].calendar == "continuous":
+        holiday = pl.lit(False)  # no exchange holidays: a missing run is missing data
     runs = runs.with_columns(holiday.alias("holiday")).with_columns(
         ((pl.col("minutes") >= MATERIAL_GAP_MIN) & ~pl.col("holiday")).alias("material"))
     return runs.select("start", pl.col("minutes").cast(pl.Int64), "holiday", "material"), expected.height, present
 
 
 # ---- resampling ----------------------------------------------------------------------------------------------------------------------
-def _aggs(minutes_col: str | None) -> list[pl.Expr]:
+EXTRA_SUMS = ("taker_buy_base",)  # optional per-candle sums carried through every timeframe when the source has them (Binance)
+
+
+def _aggs(minutes_col: str | None, columns=()) -> list[pl.Expr]:
     """OHLC per side (first / max / min / last), summed volumes and the number of traded minutes."""
     aggs = []
     for p in ("bid", "ask"):
         aggs += [pl.col(f"{p}_open").first(), pl.col(f"{p}_high").max(), pl.col(f"{p}_low").min(), pl.col(f"{p}_close").last()]
     return aggs + [pl.col("bid_volume").sum(), pl.col("ask_volume").sum(),
-                   (pl.col(minutes_col).sum() if minutes_col else pl.len()).alias("n_minutes")]
+                   (pl.col(minutes_col).sum() if minutes_col else pl.len()).alias("n_minutes")] + \
+        [pl.col(c).sum() for c in EXTRA_SUMS if c in columns]
 
 
 def resample(df: pl.DataFrame, every: str, minutes_col: str | None = None) -> pl.DataFrame:
     out = (df.sort("ts").group_by_dynamic("ts", every=every, closed="left", label="left",
-                                          start_by="monday" if every == "1w" else "window").agg(_aggs(minutes_col)))
+                                          start_by="monday" if every == "1w" else "window").agg(_aggs(minutes_col, df.columns)))
     return out.with_columns((pl.col("ask_close") - pl.col("bid_close")).alias("spread"))
 
 
@@ -144,7 +154,7 @@ def resample_ny_day(df: pl.DataFrame, minutes_col: str | None = None) -> pl.Data
     `df` must have boundaries that nest in New York hours (M1 ... H1)."""
     ny = pl.col("ts").dt.convert_time_zone("America/New_York")
     day = (ny + pl.duration(hours=7)).dt.date().alias("trading_day")
-    out = df.sort("ts").with_columns(day).group_by("trading_day", maintain_order=True).agg(_aggs(minutes_col))
+    out = df.sort("ts").with_columns(day).group_by("trading_day", maintain_order=True).agg(_aggs(minutes_col, df.columns))
     start = (pl.col("trading_day").cast(pl.Datetime("us")).dt.replace_time_zone("America/New_York", ambiguous="earliest")
              - pl.duration(hours=7)).dt.convert_time_zone("UTC").alias("ts")
     return (out.with_columns(start).drop("trading_day").select("ts", pl.exclude("ts"))
@@ -171,9 +181,10 @@ def verify_timeframes(symbol: str, tfs: list[str] | None = None, log=print) -> d
         direct = resample_ny_day(m1) if tf == NY_DAY_TF else resample(m1, TIMEFRAMES[tf])
         res = {"bars_built": built.height, "bars_direct": direct.height}
         if built.height == direct.height and (built["ts"] == direct["ts"]).all():
-            exact = [c for c in direct.columns if c not in ("ts", "bid_volume", "ask_volume")]
+            sums = ("bid_volume", "ask_volume", *(c for c in EXTRA_SUMS if c in direct.columns))
+            exact = [c for c in direct.columns if c not in ("ts", *sums)]
             res["mismatched_values"] = {c: int((built[c] != direct[c]).sum()) for c in exact if (built[c] != direct[c]).any()}
-            for c in ("bid_volume", "ask_volume"):
+            for c in sums:
                 rel = ((built[c] - direct[c]).abs() / direct[c].abs().clip(lower_bound=1e-9))
                 if (rel > 1e-6).any():
                     res["mismatched_values"][c] = int((rel > 1e-6).sum())
@@ -188,7 +199,38 @@ def verify_timeframes(symbol: str, tfs: list[str] | None = None, log=print) -> d
 
 
 # ---- whole pipeline -----------------------------------------------------------------------------------------------------------------
+def build_binance(symbol: str, log=print) -> dict:
+    """Clean M1 from the Binance archive (binance_archive.write_clean_m1), then the same gap map, timeframes and coverage."""
+    from app.historical import binance_archive
+
+    log(f"{symbol}: raw manifest {binance_archive.raw_manifest(symbol)}")
+    per_year = binance_archive.write_clean_m1(symbol, log=log)
+    stats, gaps, m5 = [], [], []
+    expected = present = 0
+    for y, st in per_year.items():
+        clean = pl.read_parquet(CLEAN / symbol / "M1" / f"{y}.parquet")
+        lo = max(datetime(y, 1, 1, tzinfo=timezone.utc), clean["ts"].min())
+        hi = min(datetime(y + 1, 1, 1, tzinfo=timezone.utc), clean["ts"].max() + timedelta(minutes=1))
+        g, e, p = find_gaps(symbol, clean["ts"], lo, hi)
+        st["feed_open_minutes"], st["traded_open_minutes"], st["expected_open_minutes"] = p, p, e
+        expected, present = expected + e, present + p
+        stats.append(st)
+        gaps.append(g)
+        m5.append(resample(clean, "5m"))
+        log(f"{symbol} {y}: {st['clean_rows']:,} clean M1, {g.filter(pl.col('material')).height} material gaps")
+    frames = build_timeframes(pl.concat(m5).sort("ts"))
+    for tf, df in frames.items():
+        path = CLEAN / symbol / tf / "all.parquet"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        df.write_parquet(path, compression="zstd")
+    gap_df = pl.concat(gaps) if gaps else pl.DataFrame()
+    gap_df.write_parquet(CLEAN / symbol / "gaps.parquet")
+    return coverage(symbol, stats, gap_df, expected, present)
+
+
 def build(symbol: str, log=print, force: bool = False) -> dict:
+    if INSTRUMENTS[symbol].source == "binance":
+        return build_binance(symbol, log)
     years = sorted(int(p.name) for p in (RAW / symbol / "BID").glob("*") if p.is_dir())
     if not years:
         raise RuntimeError(f"{symbol}: nothing downloaded yet")
@@ -241,7 +283,8 @@ def coverage(symbol: str, stats: list[dict], gaps: pl.DataFrame, expected: int, 
     tot = {k: sum(s[k] for s in stats) for k in ("rows_published", "duplicates", "one_side_missing", "quiet_minutes",
                                                      "invalid_candles", "outlier_moves", "clean_rows")}
     start = json.loads((RAW / symbol / "start.json").read_text()) if (RAW / symbol / "start.json").exists() else {}
-    rep = {"symbol": symbol, "source": SOURCE, "bid_ask": True, "timezone": "UTC (candle open time); sessions computed in New York time",
+    binance = INSTRUMENTS[symbol].source == "binance"
+    rep = {"symbol": symbol, "source": BINANCE_SOURCE if binance else SOURCE, "bid_ask": not binance, "timezone": "UTC (candle open time); sessions computed in New York time",
            "first_data_probe": start.get("probe_hit"), "timeframes": tfs, "raw_files_bytes": raw_bytes, **tot,
            "expected_open_minutes": expected, "traded_open_minutes": present,
            "coverage_pct": round(100 * present / expected, 2) if expected else None,
@@ -258,7 +301,8 @@ def coverage(symbol: str, stats: list[dict], gaps: pl.DataFrame, expected: int, 
 
 
 def report_markdown(symbols: list[str]) -> str:
-    lines = ["# Historical data coverage", "", f"Source: {SOURCE}. Times in UTC. Generated {date.today().isoformat()}.", "",
+    sources = [f"{s}: {BINANCE_SOURCE if s in INSTRUMENTS and INSTRUMENTS[s].source == 'binance' else SOURCE}" for s in symbols]
+    lines = ["# Historical data coverage", "", "Sources: " + "; ".join(sources) + f". Times in UTC. Generated {date.today().isoformat()}.", "",
              "| Instrument | Timeframe | Earliest | Latest | Bars | Missing (M1: material gaps / minutes) |", "|---|---|---|---|---:|---|"]
     totals = {"bars": 0, "bytes": 0}
     extra = []

@@ -2,15 +2,15 @@
 
 Plan: `docs/engine_v2/EXPERIMENT_PLAN.md`. Pre-registration (counts only, committed before any outcome): `docs/research/XAUUSD_exp5_preregistration.json` (sha256 `ed78f07b7f57e037…`). Development result: `docs/research/XAUUSD_exp5_development.json`.
 
-**The sealed final-test period was not read.** Development used the training segment (2003-05 to 2020-02-07); validation (2020-02-08 to 2023-06-24) is read only for cells that pass development.
+**The sealed final-test period was not read.** Development used the training segment (2003-05-05 to 2020-02-08); validation (2020-02-08 to 2023-06-24) is read only for cells that pass development.
 
 ## Result
 
 **No strategy passed.** Of 84 pre-registered cells (6 strategies × 2 directions × 7 timeframes), 51 had at least 100 development trades and were tested; **none met all development criteria**, so nothing was carried to validation and every strategy stays **NOT VALIDATED** in the product.
 
-**In numbers:** 65,103 simulated trades across the tested cells, a trade-weighted mean of -0.150R per trade after the real spread. 13 of 51 cells had a positive mean, 10 of them on the long side: gold rose strongly over the training years, which favours long trades of any rule. No cell kept a positive mean after every pre-registered check; the highest deflated Sharpe probability was 0.51 (needed: 0.95).
+**In numbers:** 65,103 simulated trades across the tested cells, a trade-weighted mean of -0.150R per trade after the real spread. 13 of 51 cells had a positive mean, 10 of them on the long side: gold rose strongly over the training years, which favours long trades of any rule. No cell kept a positive mean after every pre-registered check.
 
-Trials counted for the deflated Sharpe ratio: 2032 (experiments 1-5). CSCV probability of backtest overfitting across the tested cells: 0.17.
+Trials counted for the deflated Sharpe ratio: 2032 (experiments 1-5); the highest deflated Sharpe probability was 0.51 (needed: 0.95). CSCV probability of backtest overfitting across the tested cells: 0.17.
 
 ## Development results per tested cell (training segment, after real bid/ask; TP1 full exit, 96-candle horizon)
 

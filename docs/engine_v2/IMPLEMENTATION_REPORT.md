@@ -118,3 +118,37 @@ Screenshots (local run): `docs/screenshots/engine-v2-signals-desktop.png`, `engi
    Phase 12 in the brief). Starting it now would test unvalidated rules, so it was not started.
 9. **ML** was not added (Phase 10): first the rule-based strategies must show defensible value.
 10. **Deploying** needs the owner's approval. It also needs migration 0006, which runs automatically on start (`alembic upgrade head`).
+
+## 5. Confirmation layer and Experiment 6 (2026-11-14, branch `feature/confirmation-engine`)
+
+**What was built**
+- **Confirmation layer** ([design](CONFIRMATION_DESIGN.md)):
+  - volume type and reliability, with relative volume normalised by session;
+  - the missing indicators: EMA 200, MACD, Stochastic RSI, ROC, Keltner Channels, historical volatility, session VWAP, OBV, MFI;
+  - objective VSA events with causal confirmation;
+  - the ten-component matrix on every chosen setup.
+- **Signal cards** show the confirmation chips and an evidence panel.
+- **Gates** (`config.GATES`) stay empty unless research promotes a category.
+- **BTCUSDT history** from the Binance public archive: 111 monthly files, all checksums verified, 4,833,919 one-minute candles at
+  99.38% coverage. The split is frozen with the final 15% sealed.
+
+**Experiment 6** ([plan](EXPERIMENT_6_PLAN.md), [report](../reports/EXPERIMENT6_CONFIRMATIONS.md))
+- **Re-scoring:** every signal reproduced its stored entry and stop: 193,287 gold signals and 229,937 BTCUSDT signals.
+- **Pre-registration:** 50 arms, 36 in the test family, committed before any outcome.
+- **BTCUSDT baseline** (Experiment 5 rules): 47 cells and 70,651 trades at −0.066R per trade; no candidate.
+- **Development:** 4 of 36 arms passed, all four the trend filter on breakout-and-retest and sweep-reversal. They added +0.020 to
+  +0.035R per trade.
+- **Confirmation (run once):** none held. The improvements fell to −0.001 to +0.017R, with Holm p between 0.49 and 0.91.
+- **VSA, momentum, volatility and the combinations** lowered results on average in development.
+- **Result:** no category is a gate. Tested categories show "did not pass Experiment 6".
+- **Trials counted from here on:** 2,115. The sealed periods of both instruments were never read.
+
+**Verification (2026-11-14):**
+
+| Check | Result |
+|---|---|
+| Backend tests | 563 passed, 30 skipped (they need optional local data), 0 failed |
+| Frontend unit tests | 85 passed |
+| End-to-end (production build) | 8 of 8 passed |
+| Typecheck, lint, production build | clean |
+| Decisions with gates empty | identical to before: tested by forcing every evidence verdict to FAIL |

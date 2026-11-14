@@ -42,10 +42,14 @@ SCHEMA = {"pattern": pl.Utf8, "family": pl.Utf8, "direction": pl.Int8, "idx": pl
           "zone_lo": pl.Float64, "zone_hi": pl.Float64, "entry": pl.Utf8}
 
 
-def bars_from_frame(df: pl.DataFrame, step: int) -> Bars:
-    """Bid candles (what a broker chart shows) as the analysis series."""
+def bars_from_frame(df: pl.DataFrame, step: int, volume: str = "bid") -> Bars:
+    """Bid candles (what a broker chart shows) as the analysis series, plus taker-buy volume when the source has it.
+    volume="bid" (default, every experiment before Experiment 6: unchanged) uses bid_volume; volume="both" uses bid + ask volume
+    (Dukascopy venue volume, Experiment 6; for the Binance archive the traded volume sits in bid_volume and ask_volume is 0)."""
+    tb = df["taker_buy_base"].to_numpy().astype(float) if "taker_buy_base" in df.columns else None
+    v = df["bid_volume"] + df["ask_volume"] if volume == "both" and "ask_volume" in df.columns else df["bid_volume"]
     return Bars(t=(df["ts"].dt.epoch("s")).to_numpy().astype(np.int64), o=df["bid_open"].to_numpy(), h=df["bid_high"].to_numpy(),
-                l=df["bid_low"].to_numpy(), c=df["bid_close"].to_numpy(), v=df["bid_volume"].to_numpy().astype(float), step=step)
+                l=df["bid_low"].to_numpy(), c=df["bid_close"].to_numpy(), v=v.to_numpy().astype(float), step=step, tb=tb)
 
 
 def stop_level(e: Event, b: Bars, d: int) -> float:

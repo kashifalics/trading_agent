@@ -37,11 +37,16 @@ def unattended_windows() -> None:
     k32.SetThreadExecutionState(0x80000000 | 0x00000001)  # ES_CONTINUOUS | ES_SYSTEM_REQUIRED
 
 
+def dukascopy_only(symbols: list[str]) -> list[str]:
+    """The Dukascopy downloader never gets an instrument from another source (BTCUSDT comes from the Binance archive)."""
+    return [s for s in symbols if INSTRUMENTS.get(s) is None or INSTRUMENTS[s].source == "dukascopy"]
+
+
 def main() -> None:
     global LOG_FILE
     ap = argparse.ArgumentParser(prog="python -m app.historical")
     ap.add_argument("command", choices=("download", "build", "report", "all", "verify", "crosscheck", "quality", "split", "m1store",
-                                        "foundation", "update"))
+                                        "foundation", "update", "download-binance"))
     ap.add_argument("--symbols", default=",".join(INSTRUMENTS))
     ap.add_argument("--interval", type=float, default=3.0, help="minimum seconds between Dukascopy requests")
     ap.add_argument("--force", action="store_true", help="rebuild normalized files even if unchanged")
@@ -60,11 +65,17 @@ def main() -> None:
         symbols = [s for s in symbols if s in allowed]
         if not symbols:
             return
+    if a.command == "download-binance":
+        from app.historical import binance_archive
+        for s in symbols:
+            if INSTRUMENTS[s].source == "binance":
+                log(f"binance archive summary: {binance_archive.download(s, log=log)}")
+        return
     if a.command == "update":
         # Continuous update: new days only (the downloader resumes), then rebuild, re-verify and refresh the M1 store.
         # The frozen split never moves: new days belong to the sealed final-test period (then to the forward paper test).
         from app.historical import store
-        log(f"download summary: {download(symbols, min_interval=a.interval, log=log)}")
+        log(f"download summary: {download(dukascopy_only(symbols), min_interval=a.interval, log=log)}")
         for s in symbols:
             r = builder.build(s, log=log, force=a.force)
             log(f"{s}: coverage {r['coverage_pct']}%, {r['material_gaps']} material gaps")
@@ -93,7 +104,7 @@ def main() -> None:
                     store.build_m1_store(s, log=log)
         return
     if a.command in ("download", "all"):
-        log(f"download summary: {download(symbols, min_interval=a.interval, log=log)}")
+        log(f"download summary: {download(dukascopy_only(symbols), min_interval=a.interval, log=log)}")
     if a.command in ("build", "all"):
         for s in symbols:
             r = builder.build(s, log=log, force=a.force)

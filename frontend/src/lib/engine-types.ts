@@ -78,6 +78,46 @@ export interface EngineTimeframe {
   candidates: EngineCandidate[];
   n_bars: number;
   data_time: string | null;
+  /** The confirmation matrix of the chosen setup (absent on older cached results; [] on NO TRADE). */
+  confirmations?: Confirmation[];
+  volume?: VolumeInfo | null;
+  vsa?: VsaInfo | null;
+}
+
+export type Verdict = "PASS" | "FAIL" | "NEUTRAL" | "UNAVAILABLE";
+
+export interface Confirmation {
+  key: string;
+  label: string;
+  verdict: Verdict;
+  reason: string;
+  evidence: Record<string, unknown>;
+  mandatory: boolean;
+  gating: boolean;
+  promoted_by: string | null;
+  /** Evidence categories: "evidence only — not tested" | "did not pass Experiment 6" | "gate: Experiment 6". */
+  note: string;
+}
+
+export interface VolumeInfo {
+  type: string;
+  label: string;
+  reliable: boolean;
+  reason: string;
+}
+
+export interface VsaEventOut {
+  kind: string;
+  time: string;
+  direction: number;
+  state: string;
+  text: string;
+}
+
+export interface VsaInfo {
+  events: VsaEventOut[];
+  pressure: { source: string; value: number; side: string };
+  context: string | null;
 }
 
 export interface EnginePrimary {

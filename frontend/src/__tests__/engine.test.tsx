@@ -111,3 +111,61 @@ describe("Signals page (strategy engine)", () => {
     expect(hist).toHaveTextContent("3,942.40 / 3,961.80 / 3,981.00");
   });
 });
+
+describe("Confirmation matrix on the signal card", () => {
+  it("shows the seven confirmation chips with their verdicts on a BUY card", async () => {
+    routes();
+    renderWithClient(<SignalsPage />);
+    const gold = await screen.findByTestId("signal-XAUUSD");
+    const chips = within(gold).getAllByTestId(/^chip-/).map((c) => c.getAttribute("data-testid"));
+    expect(chips).toEqual(["chip-trend", "chip-structure", "chip-vsa", "chip-momentum", "chip-volatility", "chip-execution", "chip-rr"]);
+    expect(within(gold).getByTestId("chip-trend")).toHaveTextContent("Trend PASS");
+    expect(within(gold).getByTestId("chip-vsa")).toHaveTextContent("VSA UNAVAILABLE");
+    expect(within(gold).getByTestId("chip-momentum")).toHaveTextContent("Momentum NEUTRAL");
+    expect(within(gold).getByTestId("chip-execution")).toHaveTextContent("Spread PASS");
+    expect(within(gold).getByTestId("chip-rr")).toHaveTextContent("R:R PASS");
+  });
+
+  it("marks evidence-only categories and a gate differently", async () => {
+    routes();
+    renderWithClient(<SignalsPage />);
+    const gold = await screen.findByTestId("signal-XAUUSD");
+    expect(within(gold).getByTestId("chip-trend")).toHaveAttribute("data-note", "evidence only — not tested");
+    expect(within(gold).getByTestId("chip-structure")).not.toHaveAttribute("data-note");
+    const eur = await screen.findByTestId("signal-EURUSD");
+    expect(within(eur).getByTestId("chip-momentum")).toHaveAttribute("data-note", "gate: Experiment 6");
+    expect(within(eur).getByTestId("chip-momentum")).toHaveTextContent("Momentum FAIL");
+  });
+
+  it("says VSA unavailable with its reason and names tick volume as broker volume", async () => {
+    routes();
+    const user = userEvent.setup();
+    renderWithClient(<SignalsPage />);
+    const gold = await screen.findByTestId("signal-XAUUSD");
+    await user.click(within(gold).getByTestId("toggle-evidence"));
+    expect(within(gold).getByTestId("vsa-state")).toHaveTextContent("VSA unavailable: zero or missing volume on 12% of recent candles");
+    expect(within(gold).getByTestId("volume-label")).toHaveTextContent("Tick volume (broker)");
+    expect(within(gold).getByTestId("volume-label")).toHaveTextContent("not market-wide traded volume");
+    expect(within(gold).getByTestId("conf-momentum")).toHaveTextContent("MACD histogram mixed over the last 2 candles");
+    const eur = await screen.findByTestId("signal-EURUSD");
+    await user.click(within(eur).getByTestId("toggle-evidence"));
+    expect(within(eur).getByTestId("vsa-state")).toHaveTextContent("VSA confirming");
+    expect(within(eur).getByTestId("vsa-events")).toHaveTextContent("no demand");
+  });
+
+  it("WAIT card names the missing confirmation", async () => {
+    routes();
+    renderWithClient(<SignalsPage />);
+    const eur = await screen.findByTestId("signal-EURUSD");
+    expect(within(eur).getByTestId("missing")).toHaveTextContent("missing confirmation: momentum (MACD histogram rising 2 candles in a row");
+  });
+
+  it("renders a card without confirmations (older cached result) with no error", async () => {
+    routes();
+    renderWithClient(<SignalsPage />);
+    const us30 = await screen.findByTestId("signal-US30");
+    expect(within(us30).getByTestId("primary-action")).toBeInTheDocument();
+    expect(within(us30).queryByTestId("chip-trend")).toBeNull();
+    expect(within(us30).queryByTestId("toggle-evidence")).toBeNull();
+  });
+});

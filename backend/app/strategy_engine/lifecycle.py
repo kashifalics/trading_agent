@@ -44,6 +44,8 @@ def record(session: Session, analysis: dict, instrument_id: int, provider_id: in
         p = r.get("plan")
         if r.get("action") == "NO TRADE" or not p or p.get("entry_status") not in ("READY", "WAITING FOR ENTRY"):
             continue
+        if any(str(m).startswith("missing confirmation:") for m in r.get("missing") or []):
+            continue  # held back by a promoted gate (the card says WAIT): recorded once the gate passes, never counted before
         key = setup_key(analysis["symbol"], r["timeframe"], r["strategy"], r["direction"], p["signal_time"])
         if session.scalar(select(SignalRecord.id).where(SignalRecord.setup_key == key)) is not None:
             continue

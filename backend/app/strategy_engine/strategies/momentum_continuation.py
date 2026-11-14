@@ -37,7 +37,8 @@ class MomentumContinuation(Strategy):
                 if body(t, k) >= DISPLACEMENT_ATR * float(t.atr[k]) and (b.c[k] - b.o[k]) * d > 0
                 and (close_pos(t, k) >= OUTER if d > 0 else close_pos(t, k) <= 1 - OUTER)]
         if not disp:
-            return self.no(d, f"no {side(d)} displacement candle (body >= {DISPLACEMENT_ATR} ATR) in the last {LOOKBACK - 1} candles", "forming")
+            return self.no(d, f"no {side(d)} displacement candle (body >= {DISPLACEMENT_ATR} ATR) in the last {LOOKBACK - 1} candles", "forming",
+                           component="structure")
         k = disp[0]
         reasons = [f"displacement candle {fmt(float(b.o[k]))} -> {fmt(float(b.c[k]))} ({body(t, k) / float(t.atr[k]):.1f} ATR body)"]
         if not (t.adx[i] >= MIN_ADX and t.adx[i] > t.adx[i - 3]):
@@ -45,7 +46,7 @@ class MomentumContinuation(Strategy):
         brk = t.breaks_until(i)
         last_brk = brk[-1] if brk else None
         if last_brk is None or last_brk.direction != ("bullish" if d > 0 else "bearish") or last_brk.idx < i - BREAK_AGE + 1:
-            return self.no(d, f"no {'bullish' if d > 0 else 'bearish'} structure break in the last {BREAK_AGE} candles")
+            return self.no(d, f"no {'bullish' if d > 0 else 'bearish'} structure break in the last {BREAK_AGE} candles", component="structure")
         reasons.append(f"{last_brk.kind} {last_brk.direction} at {fmt(last_brk.price)}")
         a = float(t.atr[i])
         if abs(float(b.c[i]) - float(t.ema20[i])) > MAX_FROM_EMA_ATR * a:
@@ -58,17 +59,20 @@ class MomentumContinuation(Strategy):
         if retrace <= 0:
             return self.no(d, "no pullback after the displacement yet", "forming", signal_idx=k)
         if retrace > MAX_RETRACE:
-            return self.no(d, f"the pullback retraced {retrace:.0%} of the displacement (maximum {MAX_RETRACE:.0%})")
+            return self.no(d, f"the pullback retraced {retrace:.0%} of the displacement (maximum {MAX_RETRACE:.0%})", component="structure")
         mid = (float(b.h[k]) + float(b.l[k])) / 2
         inval = min(ext, mid) if d > 0 else max(ext, mid)
         reasons.append(f"controlled pullback ({retrace:.0%} of the displacement)")
+        anchors = {"displacement": k, "pullback": list(pull)}
+        entry_ok = [("entry", True, f"ADX {float(t.adx[i]):.0f} rising, price within {MAX_FROM_EMA_ATR:g} ATR of EMA20, RSI not exhausted")]
         prior = range(k + 1, i)
         if len(prior):
             trig = float(max(b.h[j] for j in prior)) if d > 0 else float(min(b.l[j] for j in prior))
             if (b.c[i] > trig) if d > 0 else (b.c[i] < trig):
                 return Candidate(self.key, d, "ready", "market", float(b.c[i]), None, inval, i,
-                                 f"close beyond the pullback {'high' if d > 0 else 'low'} {fmt(trig)}: enter at market", reasons)
+                                 f"close beyond the pullback {'high' if d > 0 else 'low'} {fmt(trig)}: enter at market", reasons
+                                 ).tag(["structure", "structure", "structure"], anchors, extra=entry_ok)
         trig = float(max(b.h[j] for j in pull)) if d > 0 else float(min(b.l[j] for j in pull))
         return Candidate(self.key, d, "pending", "stop", trig, None, inval, i,
                          f"{side(d)} when price trades one tick {'above' if d > 0 else 'below'} the pullback {'high' if d > 0 else 'low'} {fmt(trig)}",
-                         reasons)
+                         reasons).tag(["structure", "structure", "structure"], anchors, extra=entry_ok)

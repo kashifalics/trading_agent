@@ -39,7 +39,7 @@ TFS = tuple(HIST)
 HOLD, HOLD_SENS = 96, 48  # candles: the longest horizon the control pools store (section 9 of the pre-registration), 48 = sensitivity
 GRID = tuple(round(0.5 + 0.1 * k, 1) for k in range(56))  # 0.5R .. 6.0R: first candle each is reached (exit timing)
 N_MIN, FDR_Q, ALPHA, PF_MIN, YEAR_SHARE, DSR_MIN, PBO_MAX = 100, 0.10, 0.05, 1.2, 0.60, 0.95, 0.20
-PRECISION = {"XAUUSD": 2, "EURUSD": 5, "GBPUSD": 5}
+PRECISION = {"XAUUSD": 2, "EURUSD": 5, "GBPUSD": 5, "BTCUSDT": 2}
 START = 220  # candles of warm-up before the first evaluation (indicators, 200-candle percentiles)
 LIVE = ("READY", "WAITING FOR ENTRY")
 

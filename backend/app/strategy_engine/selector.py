@@ -1,9 +1,17 @@
 """Strategy selector for one signal timeframe (DESIGN sections 7-8): regime -> compatible strategies -> candidates -> plans ->
 de-duplication -> conflict resolution -> one action: BUY, SELL, WAIT FOR BUY, WAIT FOR SELL or NO TRADE. BUY and SELL are never
-averaged; a conflict without a known context direction is NO TRADE."""
+averaged; a conflict without a known context direction is NO TRADE.
+The chosen setup is scored by the confirmation matrix (confirm.py, CONFIRMATION_DESIGN.md section 6): mandatory components decide as
+before; an evidence category changes BUY/SELL into WAIT only when Experiment 6 promoted it for this strategy and instrument."""
+import logging
+from dataclasses import asdict, fields
+from datetime import datetime, timezone
+
+from app.strategy_engine import confirm, vsa
 from app.strategy_engine.config import (
     CHAINS,
     COMPATIBLE,
+    GATES,
     GROUPS,
     PLAN_LABEL_UNVALIDATED,
     PLAN_LABEL_VALIDATED,
@@ -15,9 +23,11 @@ from app.strategy_engine.context import TFData
 from app.strategy_engine.plan import build_plan
 from app.strategy_engine.regime import Regime
 from app.strategy_engine.strategies import STRATEGIES
-from app.strategy_engine.strategies.base import fmt
+from app.strategy_engine.strategies.base import Candidate, fmt
+from app.strategy_engine.strategies.range_reversion import find_range
 
 LIVE = ("READY", "WAITING FOR ENTRY")
+log = logging.getLogger(__name__)
 DEDUP_ATR = 0.5
 
 
@@ -34,9 +44,38 @@ def _rank(x: dict, context: Regime | None) -> tuple:
 MAX_STALE_BARS = 3  # more complete candles missing than this (closed-market time excluded): the data is stale, no plan
 
 
+def _iso(ts) -> str:
+    return datetime.fromtimestamp(int(ts), tz=timezone.utc).isoformat()
+
+
+def _vsa_out(t: TFData) -> dict:
+    """The recent VSA events (only on reliable volume), buying/selling pressure and the range context, at the view candle."""
+    i, q = t.last, t.volume
+    evs = vsa.until(t.vsa_events, i) if q.reliable else []
+    return {"events": [{"kind": e.kind, "time": _iso(t.bars.t[e.idx]), "direction": e.direction, "state": vsa.state(e, t.bars, i),
+                        "text": e.text} for e in evs[-10:]],
+            "pressure": vsa.pressure(t.bars, i),
+            "context": vsa.context_label(evs, find_range(t, i), t.bars, i) if q.reliable else None}
+
+
 def evaluate_timeframe(t: TFData | None, tf: str, regime: Regime, context: Regime | None, *, precision: int, spread: float,
                        price_now: float | None, market_open: bool = True, spread_normal: bool = True,
-                       stale_bars: float | None = None) -> dict:
+                       stale_bars: float | None = None, symbol: str = "") -> dict:
+    r = _evaluate(t, tf, regime, context, precision=precision, spread=spread, price_now=price_now, market_open=market_open,
+                  spread_normal=spread_normal, stale_bars=stale_bars, symbol=symbol)
+    r.setdefault("confirmations", [])  # NO TRADE: no setup to score
+    try:
+        r["volume"] = asdict(t.volume) if t is not None else None
+        r["vsa"] = _vsa_out(t) if t is not None and r["confirmations"] else None
+    except Exception as exc:  # noqa: BLE001 - the evidence layer must never hide a decision
+        log.exception("confirmation evidence failed on %s %s", symbol, tf)
+        r["volume"], r["vsa"] = None, None
+        r.setdefault("confirmations_error", f"{exc.__class__.__name__}: {exc}"[:200])
+    return r
+
+
+def _evaluate(t: TFData | None, tf: str, regime: Regime, context: Regime | None, *, precision: int, spread: float,
+              price_now: float | None, market_open: bool, spread_normal: bool, stale_bars: float | None, symbol: str) -> dict:
     chain = CHAINS[tf]
     group = GROUPS[chain.group]
     base = {"timeframe": tf, "group": chain.group, "context_tf": chain.context, "trigger_tf": chain.trigger, "regime": regime.out(),
@@ -107,8 +146,21 @@ def evaluate_timeframe(t: TFData | None, tf: str, regime: Regime, context: Regim
     research = RESEARCH_STATUS[best["strategy"]]
     ready = p["entry_status"] == "READY"
     blocked = [] if (market_open and spread_normal) else (["the market is closed"] if not market_open else ["the live spread is abnormal"])
-    action = _side(d) if ready and not blocked else f"WAIT FOR {_side(d)}"
-    if ready and not blocked:
+    err = None
+    try:
+        cand = Candidate(**{f.name: best[f.name] for f in fields(Candidate)})
+        comps = confirm.score(cand, t, regime, context, p, blocked=blocked, stale=False, symbol=symbol)
+        gate_miss = [f"missing confirmation: {x.label.lower()} ({x.reason})" for x in confirm.gate_failures(comps, symbol, best["strategy"])]
+    except Exception as exc:  # noqa: BLE001 - the evidence layer must never hide a decision
+        log.exception("confirmation matrix failed on %s %s", symbol, tf)
+        err = f"{exc.__class__.__name__}: {exc}"[:200]
+        comps = []
+        # a promoted gate that cannot be checked is not a PASS: hold the trade back
+        gate_miss = [f"missing confirmation: evidence unavailable ({err})"] if GATES.get(symbol, {}).get(best["strategy"]) else []
+    action = _side(d) if ready and not blocked and not gate_miss else f"WAIT FOR {_side(d)}"
+    if ready and not blocked and gate_miss:
+        nxt = f"Wait: {gate_miss[0]}. The setup stays valid until {fmt(p['invalidation'])} is broken or it expires."
+    elif ready and not blocked:
         nxt = (f"{_side(d)} now near {fmt(p['entry'])} (skip it if price runs more than 0.3R past the entry); stop {fmt(p['stop_loss'])}, "
                f"TP1 {fmt(p['targets'][0]['price'])}. Research: {research.lower()}: a hypothetical plan.")
     elif ready:
@@ -118,8 +170,9 @@ def evaluate_timeframe(t: TFData | None, tf: str, regime: Regime, context: Regim
     return {**base, "action": action, "direction": _side(d), "strategy": best["strategy"], "strategy_name": best["name"],
             "technical_status": "QUALIFIED", "research_status": research,
             "plan_label": PLAN_LABEL_VALIDATED if research == "VALIDATED" else PLAN_LABEL_UNVALIDATED, "plan": p,
-            "why": best["reasons"], "agreeing": best.get("agreeing", []), "next_action": nxt, "missing": blocked,
-            "headline": f"{action}: {best['name']} on {tf} ({regime.out()['name'].lower()})"}
+            "why": best["reasons"], "agreeing": best.get("agreeing", []), "next_action": nxt, "missing": blocked + gate_miss,
+            "headline": f"{action}: {best['name']} on {tf} ({regime.out()['name'].lower()})",
+            "confirmations": [asdict(x) for x in comps], **({"confirmations_error": err} if err else {})}
 
 
 def _no_trade(headline: str, technical: str, missing: list[str], reasons: list[str] | None = None) -> dict:

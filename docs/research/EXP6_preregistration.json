@@ -1,0 +1,514 @@
+{
+ "experiment": 6,
+ "created": "2026-11-14T08:48:34+00:00",
+ "code_commit": "7a73fc1f219708d050b3dde9bed47ec6699f6ced",
+ "plan_commit": "a039c3a1b1ce35a1e08fd8e35fe36f5f71593273",
+ "thresholds_sha256": "156a016cd272e1b3ba1ac26ad111ccfe2b5041cdad41f1a884ee5926130039cb",
+ "splits": {
+  "XAUUSD": "c2e8d3f85d7d3879b4a94257834bd9045757b07d09540279483a882b434b5e29",
+  "BTCUSDT": "ec6f90c506db699968adf2bc05a21216a6e42d085ca075ff0caf02616d893827"
+ },
+ "exp5_preregistrations": {
+  "XAUUSD": "ed78f07b7f57e037458f6ee79b39c474ef2382972d8fdbb265bf67eb89bf1239",
+  "BTCUSDT": "5598d6813d247495105f0e54fb41baa8cdb2ac86b9b5951dfa96140158c7dfd9"
+ },
+ "rule": "an arm keeps a trade only on PASS; family = arms with >= 300 kept development signals and >= 10% dropped (counts only, before outcomes)",
+ "test": "random-filter p, 20,000 stratified draws (timeframe x direction x year); Holm across the family at 0.05",
+ "arms": [
+  {
+   "symbol": "XAUUSD",
+   "strategy": "breakout_retest",
+   "arm": "vsa",
+   "signals": 67974,
+   "kept": 5373,
+   "dropped": 62601,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "breakout_retest",
+   "arm": "momentum",
+   "signals": 67974,
+   "kept": 61781,
+   "dropped": 6193,
+   "in_family": false
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "breakout_retest",
+   "arm": "trend",
+   "signals": 67974,
+   "kept": 48726,
+   "dropped": 19248,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "breakout_retest",
+   "arm": "volatility",
+   "signals": 67974,
+   "kept": 53453,
+   "dropped": 14521,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "breakout_retest",
+   "arm": "combo",
+   "signals": 67974,
+   "kept": 3869,
+   "dropped": 64105,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "momentum_continuation",
+   "arm": "vsa",
+   "signals": 387,
+   "kept": 19,
+   "dropped": 368,
+   "in_family": false
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "momentum_continuation",
+   "arm": "momentum",
+   "signals": 387,
+   "kept": 326,
+   "dropped": 61,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "momentum_continuation",
+   "arm": "trend",
+   "signals": 387,
+   "kept": 365,
+   "dropped": 22,
+   "in_family": false
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "momentum_continuation",
+   "arm": "volatility",
+   "signals": 387,
+   "kept": 301,
+   "dropped": 86,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "momentum_continuation",
+   "arm": "combo",
+   "signals": 387,
+   "kept": 244,
+   "dropped": 143,
+   "in_family": false
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "sweep_reversal",
+   "arm": "vsa",
+   "signals": 52892,
+   "kept": 20458,
+   "dropped": 32434,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "sweep_reversal",
+   "arm": "momentum",
+   "signals": 52892,
+   "kept": 38592,
+   "dropped": 14300,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "sweep_reversal",
+   "arm": "trend",
+   "signals": 52892,
+   "kept": 34393,
+   "dropped": 18499,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "sweep_reversal",
+   "arm": "volatility",
+   "signals": 52892,
+   "kept": 41920,
+   "dropped": 10972,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "sweep_reversal",
+   "arm": "combo",
+   "signals": 52892,
+   "kept": 15076,
+   "dropped": 37816,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "trend_pullback",
+   "arm": "vsa",
+   "signals": 16336,
+   "kept": 2931,
+   "dropped": 13405,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "trend_pullback",
+   "arm": "momentum",
+   "signals": 16336,
+   "kept": 4849,
+   "dropped": 11487,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "trend_pullback",
+   "arm": "trend",
+   "signals": 16336,
+   "kept": 15273,
+   "dropped": 1063,
+   "in_family": false
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "trend_pullback",
+   "arm": "volatility",
+   "signals": 16336,
+   "kept": 12496,
+   "dropped": 3840,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "trend_pullback",
+   "arm": "combo",
+   "signals": 16336,
+   "kept": 869,
+   "dropped": 15467,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "volatility_expansion",
+   "arm": "vsa",
+   "signals": 6945,
+   "kept": 2235,
+   "dropped": 4710,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "volatility_expansion",
+   "arm": "momentum",
+   "signals": 6945,
+   "kept": 6798,
+   "dropped": 147,
+   "in_family": false
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "volatility_expansion",
+   "arm": "trend",
+   "signals": 6945,
+   "kept": 4633,
+   "dropped": 2312,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "volatility_expansion",
+   "arm": "volatility",
+   "signals": 6945,
+   "kept": 3066,
+   "dropped": 3879,
+   "in_family": true
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "volatility_expansion",
+   "arm": "combo",
+   "signals": 6945,
+   "kept": 1174,
+   "dropped": 5771,
+   "in_family": true
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "breakout_retest",
+   "arm": "vsa",
+   "signals": 107685,
+   "kept": 25234,
+   "dropped": 82451,
+   "in_family": true
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "breakout_retest",
+   "arm": "momentum",
+   "signals": 107685,
+   "kept": 99148,
+   "dropped": 8537,
+   "in_family": false
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "breakout_retest",
+   "arm": "trend",
+   "signals": 107685,
+   "kept": 75916,
+   "dropped": 31769,
+   "in_family": true
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "breakout_retest",
+   "arm": "volatility",
+   "signals": 107685,
+   "kept": 75501,
+   "dropped": 32184,
+   "in_family": true
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "breakout_retest",
+   "arm": "combo",
+   "signals": 107685,
+   "kept": 18286,
+   "dropped": 89399,
+   "in_family": true
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "momentum_continuation",
+   "arm": "vsa",
+   "signals": 220,
+   "kept": 27,
+   "dropped": 193,
+   "in_family": false
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "momentum_continuation",
+   "arm": "momentum",
+   "signals": 220,
+   "kept": 197,
+   "dropped": 23,
+   "in_family": false
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "momentum_continuation",
+   "arm": "trend",
+   "signals": 220,
+   "kept": 212,
+   "dropped": 8,
+   "in_family": false
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "momentum_continuation",
+   "arm": "volatility",
+   "signals": 220,
+   "kept": 167,
+   "dropped": 53,
+   "in_family": false
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "momentum_continuation",
+   "arm": "combo",
+   "signals": 220,
+   "kept": 145,
+   "dropped": 75,
+   "in_family": false
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "sweep_reversal",
+   "arm": "vsa",
+   "signals": 55939,
+   "kept": 29220,
+   "dropped": 26719,
+   "in_family": true
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "sweep_reversal",
+   "arm": "momentum",
+   "signals": 55939,
+   "kept": 41424,
+   "dropped": 14515,
+   "in_family": true
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "sweep_reversal",
+   "arm": "trend",
+   "signals": 55939,
+   "kept": 33502,
+   "dropped": 22437,
+   "in_family": true
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "sweep_reversal",
+   "arm": "volatility",
+   "signals": 55939,
+   "kept": 40345,
+   "dropped": 15594,
+   "in_family": true
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "sweep_reversal",
+   "arm": "combo",
+   "signals": 55939,
+   "kept": 22094,
+   "dropped": 33845,
+   "in_family": true
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "trend_pullback",
+   "arm": "vsa",
+   "signals": 12435,
+   "kept": 2959,
+   "dropped": 9476,
+   "in_family": true
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "trend_pullback",
+   "arm": "momentum",
+   "signals": 12435,
+   "kept": 4083,
+   "dropped": 8352,
+   "in_family": true
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "trend_pullback",
+   "arm": "trend",
+   "signals": 12435,
+   "kept": 11733,
+   "dropped": 702,
+   "in_family": false
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "trend_pullback",
+   "arm": "volatility",
+   "signals": 12435,
+   "kept": 9125,
+   "dropped": 3310,
+   "in_family": true
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "trend_pullback",
+   "arm": "combo",
+   "signals": 12435,
+   "kept": 1014,
+   "dropped": 11421,
+   "in_family": true
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "volatility_expansion",
+   "arm": "vsa",
+   "signals": 7618,
+   "kept": 4903,
+   "dropped": 2715,
+   "in_family": true
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "volatility_expansion",
+   "arm": "momentum",
+   "signals": 7618,
+   "kept": 7505,
+   "dropped": 113,
+   "in_family": false
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "volatility_expansion",
+   "arm": "trend",
+   "signals": 7618,
+   "kept": 5078,
+   "dropped": 2540,
+   "in_family": true
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "volatility_expansion",
+   "arm": "volatility",
+   "signals": 7618,
+   "kept": 3218,
+   "dropped": 4400,
+   "in_family": true
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "volatility_expansion",
+   "arm": "combo",
+   "signals": 7618,
+   "kept": 2376,
+   "dropped": 5242,
+   "in_family": true
+  }
+ ],
+ "family": [
+  "XAUUSD|breakout_retest|vsa",
+  "XAUUSD|breakout_retest|trend",
+  "XAUUSD|breakout_retest|volatility",
+  "XAUUSD|breakout_retest|combo",
+  "XAUUSD|momentum_continuation|momentum",
+  "XAUUSD|momentum_continuation|volatility",
+  "XAUUSD|sweep_reversal|vsa",
+  "XAUUSD|sweep_reversal|momentum",
+  "XAUUSD|sweep_reversal|trend",
+  "XAUUSD|sweep_reversal|volatility",
+  "XAUUSD|sweep_reversal|combo",
+  "XAUUSD|trend_pullback|vsa",
+  "XAUUSD|trend_pullback|momentum",
+  "XAUUSD|trend_pullback|volatility",
+  "XAUUSD|trend_pullback|combo",
+  "XAUUSD|volatility_expansion|vsa",
+  "XAUUSD|volatility_expansion|trend",
+  "XAUUSD|volatility_expansion|volatility",
+  "XAUUSD|volatility_expansion|combo",
+  "BTCUSDT|breakout_retest|vsa",
+  "BTCUSDT|breakout_retest|trend",
+  "BTCUSDT|breakout_retest|volatility",
+  "BTCUSDT|breakout_retest|combo",
+  "BTCUSDT|sweep_reversal|vsa",
+  "BTCUSDT|sweep_reversal|momentum",
+  "BTCUSDT|sweep_reversal|trend",
+  "BTCUSDT|sweep_reversal|volatility",
+  "BTCUSDT|sweep_reversal|combo",
+  "BTCUSDT|trend_pullback|vsa",
+  "BTCUSDT|trend_pullback|momentum",
+  "BTCUSDT|trend_pullback|volatility",
+  "BTCUSDT|trend_pullback|combo",
+  "BTCUSDT|volatility_expansion|vsa",
+  "BTCUSDT|volatility_expansion|trend",
+  "BTCUSDT|volatility_expansion|volatility",
+  "BTCUSDT|volatility_expansion|combo"
+ ],
+ "prior_trials": 2032,
+ "new_trials": {
+  "btcusdt_baseline_cells": 47,
+  "experiment6_arms": 36
+ },
+ "total_trials": 2115,
+ "sha256": "3a94322ddee95619703363fcd2b4bb1f621fef1117e09641ed5414c7147f94fd"
+}

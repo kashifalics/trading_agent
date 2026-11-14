@@ -16,13 +16,15 @@ EARLIEST_YEAR = 2003  # Dukascopy's archive starts no earlier; the real first da
 class Instrument:
     symbol: str
     point: float  # Dukascopy stores prices as integers: price = value * point
-    calendar: str = "fx_weekly"
+    calendar: str = "fx_weekly"  # fx_weekly: closed Friday 17:00 to Sunday 17:00 New York; continuous: open every minute (crypto)
     daily_break: bool = False  # metals pause 17:00-18:00 New York every day; that hour is not a data gap
+    source: str = "dukascopy"  # dukascopy (bid/ask bi5 files) | binance (public spot kline archive, one price + modelled spread)
 
 
 INSTRUMENTS = {i.symbol: i for i in (
     Instrument("EURUSD", 1e-5), Instrument("GBPUSD", 1e-5), Instrument("USDJPY", 1e-3), Instrument("USDCHF", 1e-5),
     Instrument("USDCAD", 1e-5), Instrument("AUDUSD", 1e-5), Instrument("NZDUSD", 1e-5), Instrument("XAUUSD", 1e-3, daily_break=True),
+    Instrument("BTCUSDT", 1e-2, calendar="continuous", source="binance"),
 )}
 
 # Rebuilt from M1 only (never the other way round). polars duration strings on UTC boundaries: intraday windows are aligned to

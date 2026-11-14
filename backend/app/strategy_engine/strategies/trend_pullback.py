@@ -25,11 +25,11 @@ class TrendPullback(Strategy):
         i = t.last
         b = t.bars
         if regime.label != "TRENDING" or regime.direction != d:
-            return self.no(d, f"needs a {'rising' if d > 0 else 'falling'} TRENDING regime (now {regime.name.lower()})")
+            return self.no(d, f"needs a {'rising' if d > 0 else 'falling'} TRENDING regime (now {regime.name.lower()})", component="regime")
         if int(t.pa.trend[i]) != d:
-            return self.no(d, f"market structure is not {'bullish' if d > 0 else 'bearish'}")
+            return self.no(d, f"market structure is not {'bullish' if d > 0 else 'bearish'}", component="structure")
         if context is not None and context.label == "TRENDING" and context.direction == -d:
-            return self.no(d, "the context timeframe trends the other way")
+            return self.no(d, "the context timeframe trends the other way", component="htf")
         a = float(t.atr[i])
         lo, hi = i - WINDOW + 1, i
         zones = [z for z in (t.pa.order_blocks + t.pa.fvgs + t.pa.zones)
@@ -44,14 +44,18 @@ class TrendPullback(Strategy):
                 if z.low - NEAR_EMA_ATR * a <= ext <= z.high + NEAR_EMA_ATR * a:
                     touched, where = j, f"{z.kind.replace('_', ' ')} {fmt(z.low)}-{fmt(z.high)}"
         if touched is None:
-            return self.no(d, f"no pullback to EMA20 or a {'bullish' if d > 0 else 'bearish'} zone in the last {WINDOW} candles", "forming")
+            return self.no(d, f"no pullback to EMA20 or a {'bullish' if d > 0 else 'bearish'} zone in the last {WINDOW} candles", "forming",
+                           component="structure")
         closes = b.c[lo:hi + 1].astype(float)
         e50 = t.ema50[lo:hi + 1]
         if (d > 0 and (closes < e50 - DEPTH_EMA50_ATR * a).any()) or (d < 0 and (closes > e50 + DEPTH_EMA50_ATR * a).any()):
-            return self.no(d, "the pullback closed more than 0.5 ATR beyond EMA50: the trend is in doubt")
+            return self.no(d, "the pullback closed more than 0.5 ATR beyond EMA50: the trend is in doubt", component="structure")
         seg = b.l[lo:hi + 1] if d > 0 else b.h[lo:hi + 1]
         k = lo + int(np.argmin(seg) if d > 0 else np.argmax(seg))  # deepest pullback candle
         inval = float(b.l[k]) if d > 0 else float(b.h[k])
+        peak = lo + int(np.argmax(b.h[lo:k + 1]) if d > 0 else np.argmin(b.l[lo:k + 1]))  # the extreme the pullback started from
+        anchors = {"pullback": list(range(peak + 1, k + 1)) or [k], "trigger": i}
+        htf = [("htf", True, f"the context timeframe ({context.name.lower()}) does not trend against the trade")] if context is not None else []
         r = t.rsi
         crossed = any(np.isfinite(r[j]) and np.isfinite(r[j - 1]) and ((r[j - 1] < 50 <= r[j]) if d > 0 else (r[j - 1] > 50 >= r[j]))
                       for j in range(i - 2, i + 1))
@@ -60,10 +64,13 @@ class TrendPullback(Strategy):
         trig_level = float(b.h[k]) if d > 0 else float(b.l[k])
         if not (crossed or beyond_prev):
             return Candidate(self.key, d, "forming", invalidation=inval, signal_idx=i, reasons=reasons,
-                             missing=[f"momentum recovery: RSI back {'above' if d > 0 else 'below'} 50, or a close beyond the prior candle"])
+                             missing=[f"momentum recovery: RSI back {'above' if d > 0 else 'below'} 50, or a close beyond the prior candle"]
+                             ).tag(["regime", "structure", "structure"], anchors, extra=htf)
         reasons.append("momentum recovered" + (" (RSI crossed 50)" if crossed else " (close beyond the prior candle)"))
         if k < i and ((b.c[i] > trig_level) if d > 0 else (b.c[i] < trig_level)):
             return Candidate(self.key, d, "ready", "market", float(b.c[i]), None, inval, i,
-                             f"continuation close beyond the pullback {'high' if d > 0 else 'low'} {fmt(trig_level)}: enter at market", reasons)
+                             f"continuation close beyond the pullback {'high' if d > 0 else 'low'} {fmt(trig_level)}: enter at market", reasons
+                             ).tag(["regime", "structure", "structure", "entry"], anchors, extra=htf)
         return Candidate(self.key, d, "pending", "stop", trig_level, None, inval, i,
-                         f"{side(d)} when price trades one tick {'above' if d > 0 else 'below'} {fmt(trig_level)} (continuation trigger)", reasons)
+                         f"{side(d)} when price trades one tick {'above' if d > 0 else 'below'} {fmt(trig_level)} (continuation trigger)", reasons
+                         ).tag(["regime", "structure", "structure", "entry"], anchors, extra=htf)

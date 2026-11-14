@@ -421,3 +421,197 @@ def test_replaying_history_gives_exactly_what_the_engine_saw_at_the_time(make):
                 if a_.status in ("ready", "pending"):
                     pa_, pp_ = (build_plan(x, y, group=INTRADAY, precision=2, spread=0.05, price_now=None) for x, y in ((a_, view), (p_, past)))
                     assert pa_ == pp_, (i, key, d)
+
+
+# ---- confirmation layer: strategies tag their checks and report their key candles (CONFIRMATION_DESIGN.md section 6) -------------
+EXPECTED_ANCHORS = {"trend_pullback": {"pullback", "trigger"}, "breakout_retest": {"breakout", "retest", "level"},
+                    "momentum_continuation": {"displacement", "pullback"}, "range_reversion": {"touch", "boundary"},
+                    "sweep_reversal": {"sweep", "level"}, "volatility_expansion": {"expansion", "box_hi", "box_lo"}}
+COMPONENTS = {"regime", "htf", "entry", "structure"}
+
+
+def _momentum_series() -> TFData:
+    rng = np.random.default_rng(1)
+    steps = rng.normal(0.15, 0.5, 300)
+    steps[np.arange(60, 300, 37)] += 3.0  # a displacement candle now and then
+    return td(from_closes(list(100 + np.cumsum(steps)), wick=0.3)).at(246)  # a pending continuation at candle 246
+
+
+def _live_cases():
+    b, lv = _sweep_series(shift=True)
+    return [("trend_pullback", td(_uptrend_pullback(trigger=True)), TREND_UP, 1),
+            ("breakout_retest", td(_box_then_break()), UNKNOWN, 1),
+            ("breakout_retest", td(_box_then_break(retest_last=False)), UNKNOWN, 1),
+            ("momentum_continuation", _momentum_series(), TREND_UP, 1),
+            ("range_reversion", td(_range_top_rejection()), RANGE, -1),
+            ("sweep_reversal", td(b, lv), UNKNOWN, -1),
+            ("volatility_expansion", td(_compression_then_expansion()), UNKNOWN, 1)]
+
+
+def _indices(anchors: dict) -> list[int]:
+    out = []
+    for v in anchors.values():
+        if isinstance(v, (int, np.integer)):
+            out.append(int(v))
+        elif isinstance(v, list):
+            out += [int(x) for x in v]
+    return out
+
+
+@pytest.mark.parametrize("case", range(7))
+def test_live_candidates_carry_anchors_inside_the_view(case):
+    key, t, reg, d = _live_cases()[case]
+    c = STRATEGIES[key].evaluate(t, reg, None, d)
+    assert c.status in ("ready", "pending"), c.missing
+    assert set(c.anchors) == EXPECTED_ANCHORS[key]
+    idx = _indices(c.anchors)
+    assert idx and all(0 <= k <= t.last for k in idx)
+
+
+@pytest.mark.parametrize("case", range(7))
+def test_checks_tag_every_reason_with_a_component(case):
+    key, t, reg, d = _live_cases()[case]
+    c = STRATEGIES[key].evaluate(t, reg, None, d)
+    met = [text for comp, ok_, text in c.checks if ok_]
+    assert all(r in met for r in c.reasons) and all(comp in COMPONENTS for comp, _, _ in c.checks)
+    assert c.reasons == STRATEGIES[key].evaluate(t, reg, None, d).reasons  # reasons unchanged in text and order
+
+
+def test_rejections_name_the_component_that_failed():
+    tp = STRATEGIES["trend_pullback"]
+    t = td(_uptrend_pullback(trigger=True))
+    assert tp.evaluate(t, RANGE, None, 1).checks == [("regime", False, tp.evaluate(t, RANGE, None, 1).missing[0])]
+    assert tp.evaluate(t, TREND_UP, TREND_DN, 1).checks[0][:2] == ("htf", False)
+    assert tp.evaluate(td(_uptrend_pullback(trigger=False)), TREND_UP, None, 1).checks[-1][:2] == ("entry", False)
+    br = STRATEGIES["breakout_retest"].evaluate(td(_box_then_break(fail=True)), UNKNOWN, None, 1)
+    assert br.checks[-1][:2] == ("structure", False)
+    b, lv = _sweep_series(shift=True)
+    assert STRATEGIES["sweep_reversal"].evaluate(td(b, lv), Regime("HIGH_VOLATILITY"), None, -1).checks[0][:2] == ("regime", False)
+    b, lv = _sweep_series(shift=False)
+    forming = STRATEGIES["sweep_reversal"].evaluate(td(b, lv), UNKNOWN, None, -1)
+    assert ("structure", False) in [x[:2] for x in forming.checks] and ("structure", True) in [x[:2] for x in forming.checks]
+
+
+def test_find_range_returns_the_established_range_only():
+    from app.strategy_engine.strategies.range_reversion import find_range
+    t = td(_range_top_rejection())
+    rng_ = find_range(t, t.last)
+    assert rng_ is not None and rng_[0] < rng_[1] and 0 <= rng_[2] < t.last
+    trending = td(from_closes(list(np.linspace(100, 160, 260)), wick=0.2))
+    assert find_range(trending, trending.last) is None
+
+
+# ---- confirmation layer in the selector (CONFIRMATION_DESIGN.md sections 6-9) --------------------------------------------------------
+def _with_volume(b: Bars, seed: int = 3) -> Bars:
+    rng_ = np.random.default_rng(seed)
+    return Bars(b.t, b.o, b.h, b.l, b.c, rng_.uniform(80, 120, len(b)).round(0) + np.arange(len(b)) % 5, b.step, "tick")
+
+
+DECISION_KEYS = ("action", "direction", "strategy", "plan", "headline", "missing", "next_action", "technical_status")
+
+
+def test_decisions_do_not_depend_on_evidence_while_gates_are_empty(monkeypatch):
+    from app.strategy_engine import confirm
+    from app.strategy_engine.config import GATES
+    assert GATES == {}
+    live = 0
+    for b, reg in ((_uptrend_pullback(True), TREND_UP), (_box_then_break(), UNKNOWN), (_range_top_rejection(), RANGE),
+                   (_compression_then_expansion(), UNKNOWN)):
+        t = td(_with_volume(b))
+        args = dict(precision=2, spread=0.0, price_now=float(t.bars.c[-1]), symbol="BTCUSDT")
+        r1 = evaluate_timeframe(t, "1H", reg, None, **args)
+        with monkeypatch.context() as m:  # every evidence category says FAIL: nothing may change while no gate is promoted
+            for fn in ("vsa_verdict", "volatility_verdict"):
+                m.setattr(confirm, fn, lambda *a: ("FAIL", "forced", {}))
+            for fn in ("momentum_verdict",):
+                m.setattr(confirm, fn, lambda *a: ("FAIL", "forced", {}))
+            m.setattr(confirm, "trend_verdict", lambda *a: ("FAIL", "forced", {}))
+            r2 = evaluate_timeframe(t, "1H", reg, None, **args)
+        assert {k: r1[k] for k in DECISION_KEYS} == {k: r2[k] for k in DECISION_KEYS}
+        if r1["action"] != "NO TRADE":
+            live += 1
+            assert [c["key"] for c in r1["confirmations"]] == list(confirm.ORDER)
+            assert {c["key"]: c["verdict"] for c in r2["confirmations"]}["momentum"] == "FAIL"
+    assert live >= 2
+
+
+def test_replay_view_equals_live_matrix():
+    b = _with_volume(_box_then_break(retest_last=False))
+    full = td(b)
+    seen = 0
+    for k in range(len(b) - 12, len(b) + 1):
+        direct, view = td(b.upto(k)), full.at(k - 1)
+        args = dict(precision=2, spread=0.0, price_now=float(b.c[k - 1]), symbol="BTCUSDT")
+        r_direct = evaluate_timeframe(direct, "1H", UNKNOWN, None, **args)
+        r_view = evaluate_timeframe(view, "1H", UNKNOWN, None, **args)
+        assert r_direct["action"] == r_view["action"] and r_direct["confirmations"] == r_view["confirmations"], k
+        assert r_direct["volume"] == r_view["volume"] and r_direct["vsa"] == r_view["vsa"], k
+        seen += bool(r_direct["confirmations"])
+    assert seen  # at least one candle had a live setup to compare
+
+
+def test_promoted_gate_turns_buy_into_wait_and_names_the_missing_confirmation(monkeypatch):
+    from app.strategy_engine import confirm
+    from app.strategy_engine.config import GATES
+    t = td(_with_volume(_uptrend_pullback(True)))
+    args = dict(precision=2, spread=0.0, price_now=float(t.bars.c[-1]))
+    assert evaluate_timeframe(t, "1H", TREND_UP, None, symbol="BTCUSDT", **args)["action"] == "BUY"
+    monkeypatch.setattr(confirm, "momentum_verdict", lambda *a: ("FAIL", "MACD histogram falling 2 candles in a row, against the trade", {}))
+    monkeypatch.setitem(GATES, "BTCUSDT", {"trend_pullback": ("momentum",)})
+    r = evaluate_timeframe(t, "1H", TREND_UP, None, symbol="BTCUSDT", **args)
+    assert r["action"] == "WAIT FOR BUY" and r["plan"] is not None
+    assert any(m.startswith("missing confirmation: momentum (MACD histogram falling") for m in r["missing"])
+    mom = next(c for c in r["confirmations"] if c["key"] == "momentum")
+    assert mom["gating"] and mom["note"] == "gate: Experiment 6" and mom["promoted_by"] == "Experiment 6"
+    assert evaluate_timeframe(t, "1H", TREND_UP, None, symbol="XAUUSD", **args)["action"] == "BUY"  # the gate is BTCUSDT's only
+
+
+def test_short_history_reports_unavailable_not_errors():
+    full = _with_volume(_box_then_break())
+    b = full.slice(len(full) - 90, len(full))  # 90 hourly candles: under 4 days, so fewer than 4 same-hour volume samples
+    t = td(b)
+    r = evaluate_timeframe(t, "1H", UNKNOWN, None, precision=2, spread=0.0, price_now=float(t.bars.c[-1]), symbol="BTCUSDT")
+    assert r["action"] != "NO TRADE" and r["volume"]["label"] == "Tick volume (broker)" and not r["volume"]["reliable"]
+    by = {c["key"]: c for c in r["confirmations"]}
+    assert by["trend"]["verdict"] == "UNAVAILABLE" and by["trend"]["evidence"]["ema200"] is None  # no EMA 200, no VWAP: 1 of 3
+    assert by["vsa"]["verdict"] == "UNAVAILABLE" and by["vsa"]["reason"].startswith("VSA unavailable") and "baseline" in by["vsa"]["reason"]
+    assert r["vsa"]["events"] == [] and r["vsa"]["pressure"]["source"] == "inferred from price"
+    longer = evaluate_timeframe(td(full), "1H", UNKNOWN, None, precision=2, spread=0.0, price_now=float(full.c[-1]), symbol="BTCUSDT")
+    trend = next(c for c in longer["confirmations"] if c["key"] == "trend")
+    assert trend["evidence"]["ema200"] is None and trend["verdict"] != "UNAVAILABLE"  # 153 candles: DI and VWAP still decide (2 of 3)
+    none = evaluate_timeframe(None, "1H", classify(None), None, precision=2, spread=0.0, price_now=None)
+    assert none["confirmations"] == [] and none["volume"] is None and none["vsa"] is None
+    wild = evaluate_timeframe(t, "1H", Regime("HIGH_VOLATILITY", reason="abnormal"), None, precision=2, spread=0.0, price_now=100.0)
+    assert wild["confirmations"] == [] and wild["volume"]["type"] == "tick"
+
+
+def test_an_evidence_layer_error_never_hides_the_decision(monkeypatch):
+    from app.strategy_engine import confirm, selector
+    from app.strategy_engine.config import GATES
+    t = td(_with_volume(_uptrend_pullback(True)))
+    args = dict(precision=2, spread=0.0, price_now=float(t.bars.c[-1]), symbol="BTCUSDT")
+
+    def boom(*a, **k):
+        raise ValueError("bad candle data")
+
+    monkeypatch.setattr(confirm, "score", boom)
+    monkeypatch.setattr(selector, "_vsa_out", boom)
+    r = evaluate_timeframe(t, "1H", TREND_UP, None, **args)
+    assert r["action"] == "BUY" and r["plan"] is not None  # the decision stands without its evidence
+    assert r["confirmations"] == [] and r["vsa"] is None and "bad candle data" in r["confirmations_error"]
+    monkeypatch.setitem(GATES, "BTCUSDT", {"trend_pullback": ("momentum",)})
+    gated = evaluate_timeframe(t, "1H", TREND_UP, None, **args)
+    assert gated["action"] == "WAIT FOR BUY"  # a promoted gate that cannot be checked is not a PASS
+    assert any(m.startswith("missing confirmation: evidence unavailable") for m in gated["missing"])
+
+
+def test_a_reason_without_a_component_tag_never_crashes_a_strategy():
+    c = Candidate("trend_pullback", 1, "ready", "market", 100.0, None, 99.0, 5, "x", ["a", "b"])
+    c.tag(["regime"])  # one component for two reasons: tagged as far as known, the rest as entry
+    assert [x[2] for x in c.checks if x[1]] == ["a", "b"] and c.checks[1][0] == "entry"
+
+
+def test_8h_bars_keep_the_4h_volume_type():
+    b4 = Bars(np.arange(12, dtype=np.int64) * 14400 + 1_704_067_200, *(np.full(12, 1.0) for _ in range(4)), np.full(12, 5.0), 14400, "tick")
+    b8 = derive_8h(b4, None)
+    assert b8 is not None and b8.vtype == "tick"

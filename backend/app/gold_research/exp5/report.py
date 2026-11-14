@@ -15,6 +15,45 @@ def _f(x, d=3, signed=True):
         return "—"
 
 
+def _trial_correction(symbol: str, dev: dict, rows: list[dict]) -> list[str]:
+    """Experiments 1-5 were run on gold, so this run's own trial count covers only its cells. Experiment 6's plan (section 7) counts
+    every trial from all experiments: the deflated Sharpe is recomputed here with that total. CSCV needs 12 development years."""
+    import numpy as np
+    import polars as pl
+
+    from app.gold_research.exp2.run import deflated_sharpe
+    from app.gold_research.exp6 import run as R6
+    out = []
+    total = json.loads(R6.PREREG.read_text())["total_trials"] if R6.PREREG.exists() else None
+    if total:
+        null_var = float(np.mean([1.0 / max(r["trades"], 2) for r in rows]))
+        best = None
+        for r in rows:
+            p = run.out_dir(symbol) / f"trades_{r['tf']}_train.parquet"
+            if not p.exists():
+                continue
+            d = 1 if r["direction"] == "long" else -1
+            t = pl.read_parquet(p).filter(pl.col("compatible") & (pl.col("strategy") == r["strategy"]) & (pl.col("direction") == d))
+            v = deflated_sharpe(run.r_of(t), total, null_var)
+            if np.isfinite(v) and (best is None or v > best[0]):
+                best = (v, r)
+        own = dev["trials_counted_for_deflated_sharpe"]
+        line = (f"**Trial count.** This run counted only its own {own} cells, but experiments 1-5 were run on gold: under the Experiment 6 "
+                f"plan every deflated Sharpe counts all {total:,} trials. ")
+        if best:
+            b = best[1]
+            line += (f"Recomputed with {total:,} trials, the highest deflated Sharpe probability is {best[0]:.2f} ({b['tf']} "
+                     f"{b['strategy'].replace('_', ' ')} {b['direction']}; needed: 0.95). The per-cell DSR column below uses {own} trials "
+                     "and therefore overstates every value.")
+        out.append(line + "\n")
+    years = (int(run.load_split(symbol)["train"]["end_exclusive"][:4]) - int(run.load_split(symbol)["train"]["start"][:4]))
+    blocked_only = [r for r in rows if [k for k, v in r["checks"].items() if not v] == ["pbo"]]
+    out.append(f"**Overfitting probability (CSCV).** Not computed: the method needs 12 yearly blocks and {symbol} has fewer than 12 "
+               f"development years (about {years}). Every cell therefore fails that check; {len(blocked_only)} cell(s) failed on it alone, so "
+               "the result does not depend on it.\n")
+    return out
+
+
 def render(symbol: str) -> str:
     pre = run.load_prereg(symbol)
     dev = json.loads(run.dev_path(symbol).read_text())
@@ -25,8 +64,11 @@ def render(symbol: str) -> str:
     L.append("Plan: `docs/engine_v2/EXPERIMENT_PLAN.md`. Pre-registration (counts only, committed before any outcome): "
              f"`docs/research/{symbol}_exp5_preregistration.json` (sha256 `{pre['sha256'][:16]}…`). Development result: "
              f"`docs/research/{symbol}_exp5_development.json`" + (f"; validation result: `docs/research/{symbol}_exp5_validation.json`." if val else "."))
-    L.append("\n**The sealed final-test period was not read.** Development used the training segment (2003-05 to 2020-02-07); "
-             "validation (2020-02-08 to 2023-06-24) is read only for cells that pass development.\n")
+    sp = run.load_split(symbol)
+    d0, d1 = sp["train"]["start"][:10], sp["train"]["end_exclusive"][:10]
+    v1 = sp["validation"]["end_exclusive"][:10]
+    L.append(f"\n**The sealed final-test period was not read.** Development used the training segment ({d0} to {d1}); "
+             f"validation ({d1} to {v1}) is read only for cells that pass development.\n")
     n_cand = len(dev["candidates"])
     passed = val["passed"] if val else []
     L.append("## Result\n")
@@ -43,13 +85,17 @@ def render(symbol: str) -> str:
         wmean = sum(r["expectancy_r"] * r["trades"] for r in rows) / tot
         pos = [r for r in rows if r["expectancy_r"] > 0]
         longs = sum(1 for r in pos if r["direction"] == "long")
+        cost = "the real spread" if symbol != "BTCUSDT" else "the $2 round-trip spread model (the archive has no bid/ask)"
+        drift = (": gold rose strongly over the training years, which favours long trades of any rule" if symbol == "XAUUSD" else "")
         L.append(f"**In numbers:** {tot:,} simulated trades across the tested cells, a trade-weighted mean of {wmean:+.3f}R per trade after "
-                 f"the real spread. {len(pos)} of {len(rows)} cells had a positive mean, {longs} of them on the long side: gold rose "
-                 "strongly over the training years, which favours long trades of any rule. No cell kept a positive mean after every "
-                 f"pre-registered check; the highest deflated Sharpe probability was {max(r['deflated_sharpe'] for r in rows):.2f} "
-                 "(needed: 0.95).\n")
-    L.append(f"Trials counted for the deflated Sharpe ratio: {dev['trials_counted_for_deflated_sharpe']} (experiments 1-5). "
-             f"CSCV probability of backtest overfitting across the tested cells: {_f((dev.get('pbo') or {}).get('pbo'), 2, False)}.\n")
+                 f"{cost}. {len(pos)} of {len(rows)} cells had a positive mean, {longs} of them on the long side{drift}. No cell kept a "
+                 "positive mean after every pre-registered check.\n")
+    if symbol == "XAUUSD":
+        L.append(f"Trials counted for the deflated Sharpe ratio: {dev['trials_counted_for_deflated_sharpe']} (experiments 1-5); the highest "
+                 f"deflated Sharpe probability was {max(r['deflated_sharpe'] for r in rows):.2f} (needed: 0.95). CSCV probability of backtest "
+                 f"overfitting across the tested cells: {_f((dev.get('pbo') or {}).get('pbo'), 2, False)}.\n")
+    else:
+        L += _trial_correction(symbol, dev, rows)
     L.append("## Development results per tested cell (training segment, after real bid/ask; TP1 full exit, 96-candle horizon)\n")
     L.append("| TF | Strategy | Side | Trades | Win | Avg win | Avg loss | Exp. R | 95% CI | PF | Max DD R | Edge vs random | BH q | DSR | Years + | Status |")
     L.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
