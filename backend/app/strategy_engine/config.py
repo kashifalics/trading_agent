@@ -96,6 +96,39 @@ VOLUME_RULES = {"weeks": 20, "min_samples": 4, "min_nonzero": 0.95, "max_run": 1
 # VSA bar measures and events (design section 5). Fixed for Experiment 6: never tuned on data.
 VSA_T = {"wide": 1.2, "narrow": 0.6, "top": 0.67, "bottom": 0.33, "low": 0.7, "high": 1.5, "ultra": 2.5, "prior_n": 8,
          "prior_atr": 2.0, "confirm_n": 3, "test_n": 10, "test_atr": 0.3, "absorb_n": 5, "absorb_atr": 1.0, "level_n": 50}
+# Category rules per strategy (design section 7). Fixed for Experiment 6: never tuned on data.
+CONFIRM = {"di_for": 5.0, "atr_pct_pass": (20, 90), "atr_pct_fail": (10, 95), "roc_dead_atr": 0.25, "stoch_lo": 20, "stoch_hi": 80,
+           "pullback_rvol_pass": 0.8, "pullback_rvol_fail": 1.3, "breakout_rvol": 1.5, "retest_rvol": 1.0, "weak_rvol": 1.0,
+           "disp_rvol": 1.5, "disp_pullback_ratio": 0.6, "sweep_rvol": 1.2, "expansion_rvol": 1.5}
+CATEGORIES = ("vsa", "momentum", "trend", "volatility")  # the evidence categories (design section 6, components 5-8)
+# The required combination per strategy (owner's brief), tested as one Experiment 6 arm.
+COMBOS = {"trend_pullback": ("trend", "momentum", "vsa"), "breakout_retest": ("vsa", "trend"),
+          "momentum_continuation": ("trend", "momentum", "volatility"), "range_reversion": ("momentum", "vsa"),
+          "sweep_reversal": ("momentum", "vsa"), "volatility_expansion": ("volatility", "vsa")}
+# Promoted gates: instrument -> strategy -> categories that must be PASS for BUY/SELL. EMPTY until Experiment 6 promotes one; only a
+# commit citing docs/reports/EXPERIMENT6_CONFIRMATIONS.md may fill it. Gold VSA can never be a gate (historical and live gold volume
+# are different measures and their only overlap is sealed).
+GATES: dict[str, dict[str, tuple[str, ...]]] = {}
+# Experiment 6 outcome per instrument -> strategy -> category: "gate" | "not passed". Missing = "evidence only - not tested".
+CONFIRM_STATUS: dict[str, dict[str, dict[str, str]]] = {}
+INSTRUMENTS = ("XAUUSD", "EURUSD", "GBPUSD", "US30", "USOIL", "BTCUSDT")
+
+
+def validate_gates(g: dict) -> None:
+    for sym, per in g.items():
+        if sym not in INSTRUMENTS:
+            raise ValueError(f"GATES: unknown instrument {sym}")
+        for strat, cats in per.items():
+            if strat not in STRATEGY_NAMES:
+                raise ValueError(f"GATES: unknown strategy {strat}")
+            bad = [c for c in cats if c not in CATEGORIES]
+            if bad:
+                raise ValueError(f"GATES: unknown categories {bad} (allowed: {CATEGORIES})")
+            if sym == "XAUUSD" and "vsa" in cats:
+                raise ValueError("GATES: gold VSA can never be a gate (Experiment 6 plan, section 8)")
+
+
+validate_gates(GATES)
 
 # Contract size per lot, for position sizing (risk.py)
 CONTRACT_SIZE = {"XAUUSD": 100.0, "EURUSD": 100_000.0, "GBPUSD": 100_000.0, "US30": 1.0, "USOIL": 1_000.0, "BTCUSDT": 1.0}
