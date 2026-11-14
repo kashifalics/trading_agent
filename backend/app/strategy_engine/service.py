@@ -52,14 +52,14 @@ def derive_8h(b4: Bars | None, b1d: Bars | None) -> Bars | None:
     if not rows:
         return None
     a = np.array(rows)
-    return Bars(t=a[:, 0].astype(np.int64), o=a[:, 1], h=a[:, 2], l=a[:, 3], c=a[:, 4], v=a[:, 5], step=28800)
+    return Bars(t=a[:, 0].astype(np.int64), o=a[:, 1], h=a[:, 2], l=a[:, 3], c=a[:, 4], v=a[:, 5], step=28800, vtype=b4.vtype)
 
 
-def _tfdata(key: tuple, tf: str, bars: Bars, pa, levels: dict) -> TFData:
+def _tfdata(key: tuple, tf: str, bars: Bars, pa, levels: dict, calendar: str = "fx_weekly") -> TFData:
     k = (*key, tf, len(bars), int(bars.t[-1]), float(bars.c[-1]), tuple(sorted((levels or {}).items())))
     hit = _TFD.get(k)
     if hit is None:
-        hit = TFData.build(tf, bars, pa, levels)
+        hit = TFData.build(tf, bars, pa, levels, calendar=calendar)
         _TFD[k] = hit
         while len(_TFD) > MAX_TFD:
             _TFD.pop(next(iter(_TFD)))
@@ -117,7 +117,7 @@ def analyze(session: Session, symbol: str, now: datetime | None = None) -> dict:
             tfd[tf] = None
             continue
         pa = frames[tf].pa if tf in frames and frames[tf].bars is not None else None
-        tfd[tf] = _tfdata(key, tf, b, pa, lv)
+        tfd[tf] = _tfdata(key, tf, b, pa, lv, "continuous" if inst.calendar == "continuous" else "fx_weekly")
     regimes: dict[str, Regime] = {tf: classify(tfd[tf]) for tf in SIGNAL_TFS}
     quote = v1._quote(prov, pi)
     live_q = quote is not None and not quote.get("delayed") and quote.get("price") is not None
@@ -134,7 +134,7 @@ def analyze(session: Session, symbol: str, now: datetime | None = None) -> dict:
         ctx_tf = CHAINS[tf].context
         r = evaluate_timeframe(tfd[tf], tf, regimes[tf], regimes.get(ctx_tf) if ctx_tf else None, precision=inst.price_precision,
                                spread=spread, price_now=price_now, market_open=market_open and sess["entry_allowed"],
-                               spread_normal=spread_normal, stale_bars=_stale(frames, tf))
+                               spread_normal=spread_normal, stale_bars=_stale(frames, tf), symbol=sym)
         t = tfd[tf]
         r["n_bars"] = 0 if t is None else t.n
         r["data_time"] = _iso(int(t.bars.t[-1]) + int(t.bars.step)) if t is not None else None

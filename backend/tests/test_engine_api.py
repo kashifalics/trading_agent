@@ -97,6 +97,31 @@ def test_an_open_paper_trade_at_its_stop_is_exit_but_does_not_hide_new_opportuni
 
 
 # ------------------------------------------------------------------ lifecycle
+def test_engine_detail_exposes_confirmations_volume_and_vsa(client):
+    from app.strategy_engine.config import VOLUME_LABELS
+    from app.strategy_engine.confirm import ORDER
+    _seed("XAUUSD", end=datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0))
+    d = client.get("/api/v1/engine/XAUUSD").json()
+    live = 0
+    for t in d["timeframes"]:
+        assert "confirmations" in t and "volume" in t and "vsa" in t
+        if t["volume"] is not None:
+            assert t["volume"]["label"] in VOLUME_LABELS.values() and set(t["volume"]) == {"type", "label", "reliable", "reason"}
+        if t["action"] == "NO TRADE":
+            assert t["confirmations"] == []
+            continue
+        live += 1
+        assert [c["key"] for c in t["confirmations"]] == list(ORDER)
+        assert all(c["verdict"] in ("PASS", "FAIL", "NEUTRAL", "UNAVAILABLE") and c["reason"] for c in t["confirmations"])
+        assert all(c["note"] == "evidence only — not tested" for c in t["confirmations"] if not c["mandatory"])
+        assert set(t["vsa"]) == {"events", "pressure", "context"}
+    s = client.get("/api/v1/engine").json()
+    gold = next(i for i in s["items"] if i["symbol"] == "XAUUSD")
+    if gold.get("opportunity"):
+        assert [c["key"] for c in gold["opportunity"]["confirmations"]] == list(ORDER)  # the summary carries the primary plan's matrix
+    assert live or gold["primary"]["action"] == "NO TRADE"
+
+
 def _m1(rows: list[tuple[float, float, float, float]], start: datetime) -> Bars:
     a = np.array(rows, float)
     t = np.array([int(start.timestamp()) + 60 * k for k in range(len(rows))], dtype=np.int64)
