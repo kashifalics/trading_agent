@@ -93,6 +93,9 @@ PLAN_LABEL_VALIDATED = "VALIDATED TRADE PLAN"
 VOLUME_LABELS = {"base": "Exchange volume (Binance only)", "tick": "Tick volume (broker)", "venue": "Venue volume (Dukascopy)",
                  "none": "No volume"}
 VOLUME_RULES = {"weeks": 20, "min_samples": 4, "min_nonzero": 0.95, "max_run": 10, "window": 2000}
+# VSA bar measures and events (design section 5). Fixed for Experiment 6: never tuned on data.
+VSA_T = {"wide": 1.2, "narrow": 0.6, "top": 0.67, "bottom": 0.33, "low": 0.7, "high": 1.5, "ultra": 2.5, "prior_n": 8,
+         "prior_atr": 2.0, "confirm_n": 3, "test_n": 10, "test_atr": 0.3, "absorb_n": 5, "absorb_atr": 1.0, "level_n": 50}
 
 # Contract size per lot, for position sizing (risk.py)
 CONTRACT_SIZE = {"XAUUSD": 100.0, "EURUSD": 100_000.0, "GBPUSD": 100_000.0, "US30": 1.0, "USOIL": 1_000.0, "BTCUSDT": 1.0}
