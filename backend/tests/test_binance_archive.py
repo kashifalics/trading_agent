@@ -137,6 +137,19 @@ def test_raw_manifest_lists_every_verified_zip_with_its_hash_and_size(tmp_path, 
     assert out["files"] == 2 and out["sha256"] == hashlib.sha256(text.encode()).hexdigest()
 
 
+def test_bars_from_frame_sums_both_sides_and_keeps_taker_buy():
+    from app.gold_research.events import bars_from_frame
+    from app.gold_research.exp5.run import PRECISION
+    ts = [datetime(2024, 1, 1, h, tzinfo=UTC) for h in (0, 1)]
+    one = {f"{p}_{k}": [1.0, 1.0] for p in ("bid", "ask") for k in ("open", "high", "low", "close")}
+    df = pl.DataFrame({"ts": ts, **one, "bid_volume": [2.0, 3.0], "ask_volume": [1.0, 1.0], "taker_buy_base": [1.0, 2.0]})
+    b = bars_from_frame(df, 3600, volume="both")
+    assert b.v.tolist() == [3.0, 4.0] and b.tb.tolist() == [1.0, 2.0]
+    assert bars_from_frame(df, 3600).v.tolist() == [2.0, 3.0]  # the default every earlier experiment used: unchanged
+    assert bars_from_frame(df.drop("taker_buy_base"), 3600).tb is None
+    assert PRECISION["BTCUSDT"] == 2
+
+
 def test_btcusdt_final_period_is_sealed():
     from app.historical.split import split_path
     from app.historical.store import SealError, load_tf
