@@ -248,7 +248,12 @@ def test_score_returns_ten_components_in_design_order():
     assert [c.key for c in comps if c.mandatory] == ["regime", "htf", "entry", "structure", "execution", "rr"]
     assert by["regime"].verdict == "PASS" and by["entry"].verdict == "PASS" and by["structure"].verdict == "PASS"
     assert by["htf"].verdict == "NEUTRAL" and by["execution"].verdict == "PASS" and by["rr"].verdict == "PASS"
-    assert all(by[k].note == "evidence only — not tested" and not by[k].gating for k in ("vsa", "momentum", "trend", "volatility"))
+    # BTCUSDT trend pullback: VSA, momentum and volatility were tested in Experiment 6 and did not pass; trend was below the count rule
+    assert all(by[k].note == "did not pass Experiment 6" and not by[k].gating for k in ("vsa", "momentum", "volatility"))
+    assert by["trend"].note == "evidence only — not tested"
+    untested = confirm.score(_cand(), t, Regime("TRENDING", 1, None, "uptrend"), None, {"risk_reward": 2.4}, blocked=[], stale=False,
+                             symbol="EURUSD")
+    assert all(c.note == "evidence only — not tested" for c in untested if not c.mandatory)  # no research data for EURUSD yet
     pending = {c.key: c for c in confirm.score(_cand("pending"), t, Regime("TRENDING", 1), None, {"risk_reward": 2.0}, blocked=["the market is closed"],
                                                stale=False, symbol="BTCUSDT")}
     assert pending["entry"].verdict == "NEUTRAL" and pending["execution"].verdict == "FAIL"

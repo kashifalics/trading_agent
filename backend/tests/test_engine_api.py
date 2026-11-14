@@ -113,7 +113,8 @@ def test_engine_detail_exposes_confirmations_volume_and_vsa(client):
         live += 1
         assert [c["key"] for c in t["confirmations"]] == list(ORDER)
         assert all(c["verdict"] in ("PASS", "FAIL", "NEUTRAL", "UNAVAILABLE") and c["reason"] for c in t["confirmations"])
-        assert all(c["note"] == "evidence only — not tested" for c in t["confirmations"] if not c["mandatory"])
+        assert all(c["note"] in ("evidence only — not tested", "did not pass Experiment 6") and not c["gating"]
+                   for c in t["confirmations"] if not c["mandatory"])  # Experiment 6 promoted nothing
         assert set(t["vsa"]) == {"events", "pressure", "context"}
     s = client.get("/api/v1/engine").json()
     gold = next(i for i in s["items"] if i["symbol"] == "XAUUSD")

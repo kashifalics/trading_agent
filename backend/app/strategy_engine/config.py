@@ -110,7 +110,20 @@ COMBOS = {"trend_pullback": ("trend", "momentum", "vsa"), "breakout_retest": ("v
 # are different measures and their only overlap is sealed).
 GATES: dict[str, dict[str, tuple[str, ...]]] = {}
 # Experiment 6 outcome per instrument -> strategy -> category: "gate" | "not passed". Missing = "evidence only - not tested".
-CONFIRM_STATUS: dict[str, dict[str, dict[str, str]]] = {}
+# From docs/reports/EXPERIMENT6_CONFIRMATIONS.md (2026-11-14): every tested category arm "not passed" (4 trend arms passed development
+# but none was confirmed on the confirmation segment); arms below the count rule, other strategies and instruments: not tested.
+_NP = "not passed"
+CONFIRM_STATUS: dict[str, dict[str, dict[str, str]]] = {
+    "XAUUSD": {"breakout_retest": {"trend": _NP, "volatility": _NP, "vsa": _NP},
+               "momentum_continuation": {"momentum": _NP, "volatility": _NP},
+               "sweep_reversal": {"momentum": _NP, "trend": _NP, "volatility": _NP, "vsa": _NP},
+               "trend_pullback": {"momentum": _NP, "volatility": _NP, "vsa": _NP},
+               "volatility_expansion": {"trend": _NP, "volatility": _NP, "vsa": _NP}},
+    "BTCUSDT": {"breakout_retest": {"trend": _NP, "volatility": _NP, "vsa": _NP},
+                "sweep_reversal": {"momentum": _NP, "trend": _NP, "volatility": _NP, "vsa": _NP},
+                "trend_pullback": {"momentum": _NP, "volatility": _NP, "vsa": _NP},
+                "volatility_expansion": {"trend": _NP, "volatility": _NP, "vsa": _NP}},
+}
 INSTRUMENTS = ("XAUUSD", "EURUSD", "GBPUSD", "US30", "USOIL", "BTCUSDT")
 
 

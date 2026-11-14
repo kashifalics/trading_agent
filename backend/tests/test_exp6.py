@@ -148,6 +148,8 @@ def test_report_states_every_arm_result_with_its_sample_and_never_hides_failures
     assert "Range mean reversion" in md and "below the count rule" in md  # out-of-family arms are listed, not dropped silently
     assert "No confirmation was promoted to a gate" in md  # the carried arm failed the confirmation segment
     assert "2,120" in md
+    assert "## By confirmation" in md
+    assert "| Momentum | 1 | 1 | 1 | 0 |" in md and "| VSA | 1 | 0 | 0 | 0 |" in md  # tested, improved, passed dev, confirmed
 
 
 def test_exp5_report_for_btcusdt_uses_its_own_split_costs_and_all_trials():
@@ -159,6 +161,27 @@ def test_exp5_report_for_btcusdt_uses_its_own_split_costs_and_all_trials():
     assert "2017-08-17" in md and "2024-01-29" in md and "2003-05" not in md  # BTCUSDT's own segments
     assert "gold rose" not in md and "$2 round-trip" in md
     assert "2,115 trials" in md and "fewer than 12 development years" in md  # the Experiment 6 trial count and the PBO limit
+
+
+def test_confirm_status_and_gates_match_the_frozen_experiment_6_results():
+    import json
+
+    from app.strategy_engine.config import CONFIRM_STATUS, GATES
+    if not (run.DEV.exists() and run.CONF.exists()):
+        pytest.skip("Experiment 6 results not on this machine")
+    dev, conf = json.loads(run.DEV.read_text()), json.loads(run.CONF.read_text())
+    confirmed = {(r["symbol"], r["strategy"], r["arm"]) for r in conf["arms"] if r.get("passed") and r.get("promotable")}
+    expected: dict = {}
+    for r in dev["arms"]:
+        if r["arm"] in run.CATS and r.get("trades"):
+            key = (r["symbol"], r["strategy"], r["arm"])
+            expected.setdefault(r["symbol"], {}).setdefault(r["strategy"], {})[r["arm"]] = "gate" if key in confirmed else "not passed"
+    assert CONFIRM_STATUS == expected
+    gates: dict = {}
+    for sym, strat, arm in confirmed:
+        if arm in run.CATS:
+            gates.setdefault(sym, {}).setdefault(strat, ()).__add__((arm,))
+    assert GATES == gates == {}  # Experiment 6 confirmed nothing: no gate
 
 
 # ---- re-scoring must reproduce the stored signal -------------------------------------------------------------------------------------

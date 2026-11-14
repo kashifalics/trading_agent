@@ -75,6 +75,29 @@ def render() -> str:
         lines.append(f"{conf.get('status', 'not run')}.")
     else:
         lines += [HEAD] + [_row(a, "confirmation") for a in conf_rows]
+    names = {"vsa": "VSA", "momentum": "Momentum", "trend": "Trend", "volatility": "Volatility", "combo": "Combination"}
+    conf_keys = {f"{r['symbol']}|{r['strategy']}|{r['arm']}" for r in conf_rows if r.get("passed")}
+    lines += ["", "## By confirmation", "",
+              "Arms tested in development, how many kept trades that did better than the unfiltered strategy, how many passed every "
+              "development check, and how many were confirmed on fresh data.", "",
+              "| Confirmation | Arms tested | Improved in development | Passed development | Confirmed | Mean improvement (R per trade) |",
+              "|---|---:|---:|---:|---:|---:|"]
+    for arm, label in names.items():
+        rs = [r for r in dev_rows if r["arm"] == arm and r.get("trades")]
+        if not rs:
+            continue
+        imps = [r["improvement_r"] for r in rs if r.get("improvement_r") is not None]
+        confirmed = sum(1 for r in rs if "|".join((r["symbol"], r["strategy"], r["arm"])) in conf_keys)
+        lines.append(f"| {label} | {len(rs)} | {sum(1 for x in imps if x > 0)} | {sum(1 for r in rs if r.get('passed'))} | "
+                     f"{confirmed} | {_f(sum(imps) / len(imps) if imps else None)} |")
+    carried = [r for r in dev_rows if r.get("passed") and r.get("by_regime")]
+    if carried:
+        lines += ["", "Market regime of the arms that passed development (mean R per trade, development segment):", "",
+                  "| Arm | Regime | Unfiltered | Kept |", "|---|---|---:|---:|"]
+        for r in carried:
+            for reg, v in sorted(r["by_regime"].items()):
+                lines.append(f"| {r['symbol']} {STRATEGY_NAMES.get(r['strategy'], r['strategy'])}, {r['arm']} | {reg.lower()} | "
+                             f"{_f(v.get('baseline'))} | {_f(v.get('kept'))} |")
     lines += ["", "## What this means", "",
               "- A gate changes BUY/SELL into WAIT only for a promoted category, on the instrument it passed on. Every other category "
               "stays evidence on the signal card, marked \"did not pass Experiment 6\" when it was tested.",
