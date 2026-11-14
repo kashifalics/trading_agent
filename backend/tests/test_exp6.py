@@ -150,6 +150,17 @@ def test_report_states_every_arm_result_with_its_sample_and_never_hides_failures
     assert "2,120" in md
 
 
+def test_exp5_report_for_btcusdt_uses_its_own_split_costs_and_all_trials():
+    from app.gold_research.exp5 import report as R5report
+    from app.gold_research.exp5 import run as R5
+    if not R5.dev_path("BTCUSDT").exists() or not run.PREREG.exists():
+        pytest.skip("BTCUSDT Experiment 5 results not on this machine")
+    md = R5report.render("BTCUSDT")
+    assert "2017-08-17" in md and "2024-01-29" in md and "2003-05" not in md  # BTCUSDT's own segments
+    assert "gold rose" not in md and "$2 round-trip" in md
+    assert "2,115 trials" in md and "fewer than 12 development years" in md  # the Experiment 6 trial count and the PBO limit
+
+
 # ---- re-scoring must reproduce the stored signal -------------------------------------------------------------------------------------
 def test_rescore_raises_on_signal_mismatch():
     ev = {"direction": 1, "entry_mode": "market", "limit": 100.0, "stop": 99.0, "idx": 5, "strategy": "trend_pullback"}
