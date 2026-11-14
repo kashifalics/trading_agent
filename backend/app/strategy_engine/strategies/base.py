@@ -23,6 +23,19 @@ class Candidate:
     reasons: list[str] = field(default_factory=list)  # conditions met
     missing: list[str] = field(default_factory=list)  # conditions not met (forming) or the rule that rejected it
     targets: list[tuple[float, str]] | None = None  # strategy-specific targets (range reversion)
+    checks: list[tuple[str, bool, str]] = field(default_factory=list)  # (component: regime|htf|entry|structure, met, text)
+    anchors: dict = field(default_factory=dict)  # the setup's key candles (indices) and levels, for the confirmation layer
+
+    def tag(self, comps: list[str], anchors: dict | None = None, missing_comp: str = "entry",
+            extra: list[tuple[str, bool, str]] = ()) -> "Candidate":
+        """Pair each reason with its component (same order), add extra checks and the unmet ones, attach the key candles."""
+        assert len(comps) == len(self.reasons), (self.strategy, comps, self.reasons)
+        self.checks = [(c, True, r) for c, r in zip(comps, self.reasons)] + list(extra) + \
+            [(missing_comp, False, m) for m in self.missing]
+        if anchors is not None:
+            self.anchors = {k: (int(v) if isinstance(v, (int, np.integer)) else [int(x) for x in v] if isinstance(v, (list, range))
+                                else float(v)) for k, v in anchors.items()}
+        return self
 
     @property
     def name(self) -> str:
@@ -74,5 +87,5 @@ class Strategy:
     def evaluate(self, t: TFData, regime: Regime, context: Regime | None, d: int) -> Candidate:  # pragma: no cover - interface
         raise NotImplementedError
 
-    def no(self, d: int, why: str, status: str = "rejected", **kw) -> Candidate:
-        return Candidate(self.key, d, status, missing=[why], **kw)
+    def no(self, d: int, why: str, status: str = "rejected", component: str = "entry", **kw) -> Candidate:
+        return Candidate(self.key, d, status, missing=[why], checks=[(component, False, why)], **kw)

@@ -46,7 +46,7 @@ class SweepReversal(Strategy):
     def evaluate(self, t: TFData, regime: Regime, context: Regime | None, d: int) -> Candidate:
         i, b = t.last, t.bars
         if regime.label == "HIGH_VOLATILITY":
-            return self.no(d, "disabled in abnormal volatility")
+            return self.no(d, "disabled in abnormal volatility", component="regime")
         levels = self._levels(t, i, d)
         for j in range(i, i - WINDOW, -1):  # most recent sweep first
             swept = [(p, name, k) for p, name, k in levels if k <= j
@@ -60,19 +60,23 @@ class SweepReversal(Strategy):
             opp = [s for s in t.swings_until(j, "high" if d > 0 else "low") if s.idx < j and ((s.price > lvl) if d > 0 else (s.price < lvl))]
             if not opp:
                 return self.no(d, f"sweep of {fmt(lvl)} without a prior {'down' if d > 0 else 'up'}-leg (no swing {'above' if d > 0 else 'below'} it) "
-                                  "to define the market-structure shift", "forming")
+                                  "to define the market-structure shift", "forming", component="structure")
             shift = float(opp[-1].price)
             shifted = [k for k in range(j, i + 1) if ((b.c[k] > shift) if d > 0 else (b.c[k] < shift))]
             if not shifted:
                 return Candidate(self.key, d, "forming", invalidation=ext, signal_idx=j, reasons=reasons,
-                                 missing=[f"market-structure shift: a close {'above' if d > 0 else 'below'} {fmt(shift)} (a sweep alone is not a trade)"])
+                                 missing=[f"market-structure shift: a close {'above' if d > 0 else 'below'} {fmt(shift)} (a sweep alone is not a trade)"]
+                                 ).tag(["structure"], {"sweep": j, "level": lvl}, missing_comp="structure")
             k = shifted[0]
             reasons.append(f"market-structure shift: close {fmt(float(b.c[k]))} beyond the swing {fmt(shift)}")
             if k == i:
                 return Candidate(self.key, d, "ready", "market", float(b.c[i]), None, ext, i,
-                                 f"shift confirmed on the last candle: {side(d)} at market", reasons)
+                                 f"shift confirmed on the last candle: {side(d)} at market", reasons
+                                 ).tag(["structure", "structure"], {"sweep": j, "level": lvl})
             if (b.c[i] < shift) if d > 0 else (b.c[i] > shift):
-                return self.no(d, f"price closed back {'below' if d > 0 else 'above'} the shift level {fmt(shift)}: reversal failed", signal_idx=k)
+                return self.no(d, f"price closed back {'below' if d > 0 else 'above'} the shift level {fmt(shift)}: reversal failed", signal_idx=k,
+                               component="structure")
             return Candidate(self.key, d, "pending", "limit", shift, None, ext, k,
-                             f"{side(d)} limit at {fmt(shift)} on a retest of the broken swing", reasons)
-        return self.no(d, f"no sweep of meaningful {'lows' if d > 0 else 'highs'} in the last {WINDOW} candles", "forming")
+                             f"{side(d)} limit at {fmt(shift)} on a retest of the broken swing", reasons
+                             ).tag(["structure", "structure"], {"sweep": j, "level": lvl})
+        return self.no(d, f"no sweep of meaningful {'lows' if d > 0 else 'highs'} in the last {WINDOW} candles", "forming", component="structure")

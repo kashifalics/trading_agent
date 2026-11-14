@@ -421,3 +421,81 @@ def test_replaying_history_gives_exactly_what_the_engine_saw_at_the_time(make):
                 if a_.status in ("ready", "pending"):
                     pa_, pp_ = (build_plan(x, y, group=INTRADAY, precision=2, spread=0.05, price_now=None) for x, y in ((a_, view), (p_, past)))
                     assert pa_ == pp_, (i, key, d)
+
+
+# ---- confirmation layer: strategies tag their checks and report their key candles (CONFIRMATION_DESIGN.md section 6) -------------
+EXPECTED_ANCHORS = {"trend_pullback": {"pullback", "trigger"}, "breakout_retest": {"breakout", "retest", "level"},
+                    "momentum_continuation": {"displacement", "pullback"}, "range_reversion": {"touch", "boundary"},
+                    "sweep_reversal": {"sweep", "level"}, "volatility_expansion": {"expansion", "box_hi", "box_lo"}}
+COMPONENTS = {"regime", "htf", "entry", "structure"}
+
+
+def _momentum_series() -> TFData:
+    rng = np.random.default_rng(1)
+    steps = rng.normal(0.15, 0.5, 300)
+    steps[np.arange(60, 300, 37)] += 3.0  # a displacement candle now and then
+    return td(from_closes(list(100 + np.cumsum(steps)), wick=0.3)).at(246)  # a pending continuation at candle 246
+
+
+def _live_cases():
+    b, lv = _sweep_series(shift=True)
+    return [("trend_pullback", td(_uptrend_pullback(trigger=True)), TREND_UP, 1),
+            ("breakout_retest", td(_box_then_break()), UNKNOWN, 1),
+            ("breakout_retest", td(_box_then_break(retest_last=False)), UNKNOWN, 1),
+            ("momentum_continuation", _momentum_series(), TREND_UP, 1),
+            ("range_reversion", td(_range_top_rejection()), RANGE, -1),
+            ("sweep_reversal", td(b, lv), UNKNOWN, -1),
+            ("volatility_expansion", td(_compression_then_expansion()), UNKNOWN, 1)]
+
+
+def _indices(anchors: dict) -> list[int]:
+    out = []
+    for v in anchors.values():
+        if isinstance(v, (int, np.integer)):
+            out.append(int(v))
+        elif isinstance(v, list):
+            out += [int(x) for x in v]
+    return out
+
+
+@pytest.mark.parametrize("case", range(7))
+def test_live_candidates_carry_anchors_inside_the_view(case):
+    key, t, reg, d = _live_cases()[case]
+    c = STRATEGIES[key].evaluate(t, reg, None, d)
+    assert c.status in ("ready", "pending"), c.missing
+    assert set(c.anchors) == EXPECTED_ANCHORS[key]
+    idx = _indices(c.anchors)
+    assert idx and all(0 <= k <= t.last for k in idx)
+
+
+@pytest.mark.parametrize("case", range(7))
+def test_checks_tag_every_reason_with_a_component(case):
+    key, t, reg, d = _live_cases()[case]
+    c = STRATEGIES[key].evaluate(t, reg, None, d)
+    met = [text for comp, ok_, text in c.checks if ok_]
+    assert all(r in met for r in c.reasons) and all(comp in COMPONENTS for comp, _, _ in c.checks)
+    assert c.reasons == STRATEGIES[key].evaluate(t, reg, None, d).reasons  # reasons unchanged in text and order
+
+
+def test_rejections_name_the_component_that_failed():
+    tp = STRATEGIES["trend_pullback"]
+    t = td(_uptrend_pullback(trigger=True))
+    assert tp.evaluate(t, RANGE, None, 1).checks == [("regime", False, tp.evaluate(t, RANGE, None, 1).missing[0])]
+    assert tp.evaluate(t, TREND_UP, TREND_DN, 1).checks[0][:2] == ("htf", False)
+    assert tp.evaluate(td(_uptrend_pullback(trigger=False)), TREND_UP, None, 1).checks[-1][:2] == ("entry", False)
+    br = STRATEGIES["breakout_retest"].evaluate(td(_box_then_break(fail=True)), UNKNOWN, None, 1)
+    assert br.checks[-1][:2] == ("structure", False)
+    b, lv = _sweep_series(shift=True)
+    assert STRATEGIES["sweep_reversal"].evaluate(td(b, lv), Regime("HIGH_VOLATILITY"), None, -1).checks[0][:2] == ("regime", False)
+    b, lv = _sweep_series(shift=False)
+    forming = STRATEGIES["sweep_reversal"].evaluate(td(b, lv), UNKNOWN, None, -1)
+    assert ("structure", False) in [x[:2] for x in forming.checks] and ("structure", True) in [x[:2] for x in forming.checks]
+
+
+def test_find_range_returns_the_established_range_only():
+    from app.strategy_engine.strategies.range_reversion import find_range
+    t = td(_range_top_rejection())
+    rng_ = find_range(t, t.last)
+    assert rng_ is not None and rng_[0] < rng_[1] and 0 <= rng_[2] < t.last
+    trending = td(from_closes(list(np.linspace(100, 160, 260)), wick=0.2))
+    assert find_range(trending, trending.last) is None

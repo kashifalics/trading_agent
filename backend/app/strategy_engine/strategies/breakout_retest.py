@@ -45,7 +45,7 @@ class BreakoutRetest(Strategy):
                        f"breakout close {fmt(float(b.c[k]))} {'above' if d > 0 else 'below'} {fmt(level)} with a strong body"]
             after = b.c[k + 1:i + 1]
             if len(after) and ((after < level).any() if d > 0 else (after > level).any()):
-                return self.no(d, f"false breakout: a close back inside the box after the break of {fmt(level)}")
+                return self.no(d, f"false breakout: a close back inside the box after the break of {fmt(level)}", component="structure")
             ai = float(t.atr[i])
             travel = (float(b.c[i]) - level) * d / ai
             if travel > MAX_TRAVEL_ATR:
@@ -54,10 +54,13 @@ class BreakoutRetest(Strategy):
             inval = level - d * INVAL_ATR * ai
             retests = [j for j in range(k + 1, i + 1)
                        if ((b.l[j] <= level + RETEST_ATR * ai and b.c[j] > level) if d > 0 else (b.h[j] >= level - RETEST_ATR * ai and b.c[j] < level))]
+            anchors = {"breakout": k, "retest": retests, "level": level}
             if retests and retests[-1] == i:
                 return Candidate(self.key, d, "ready", "market", float(b.c[i]), None, inval, i,
-                                 f"retest of {fmt(level)} held on the last candle: enter at market", reasons + ["retest held"])
+                                 f"retest of {fmt(level)} held on the last candle: enter at market", reasons + ["retest held"]
+                                 ).tag(["structure", "structure", "entry"], anchors)
             entry = level + d * LIMIT_OFFSET_ATR * ai
             return Candidate(self.key, d, "pending", "limit", entry, (min(level, entry), max(level, entry)), inval, k,
-                             f"{side(d)} limit at {fmt(entry)} on a retest of the broken level {fmt(level)}", reasons)
-        return self.no(d, f"no {BOX}-candle box broken with a strong close in the last {MAX_AGE} candles", "forming")
+                             f"{side(d)} limit at {fmt(entry)} on a retest of the broken level {fmt(level)}", reasons
+                             ).tag(["structure", "structure"], anchors)
+        return self.no(d, f"no {BOX}-candle box broken with a strong close in the last {MAX_AGE} candles", "forming", component="structure")
