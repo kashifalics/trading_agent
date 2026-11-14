@@ -122,6 +122,21 @@ def test_the_dukascopy_downloader_never_gets_a_binance_instrument():
     assert dukascopy_only(["XAUUSD", "BTCUSDT", "EURUSD"]) == ["XAUUSD", "EURUSD"]
 
 
+def test_raw_manifest_lists_every_verified_zip_with_its_hash_and_size(tmp_path, monkeypatch):
+    monkeypatch.setattr(ba, "RAW_BINANCE", tmp_path / "raw" / "binance")
+    monkeypatch.setattr(ba, "REPORTS", tmp_path / "reports")
+    d = tmp_path / "raw" / "binance" / "BTCUSDT"
+    d.mkdir(parents=True)
+    a, b = _zip([_row(1704067200000, 1, 2, 0.5, 1.5)]), _zip([_row(1706745600000, 1, 2, 0.5, 1.5)], "BTCUSDT-1m-2024-02.csv")
+    (d / "BTCUSDT-1m-2024-02.zip").write_bytes(b)
+    (d / "BTCUSDT-1m-2024-01.zip").write_bytes(a)
+    out = ba.raw_manifest("BTCUSDT")
+    text = (tmp_path / "reports" / "BTCUSDT_raw_manifest.txt").read_text()
+    assert text.splitlines() == [f"{hashlib.sha256(a).hexdigest()}  {len(a)}  binance/BTCUSDT/BTCUSDT-1m-2024-01.zip",
+                                 f"{hashlib.sha256(b).hexdigest()}  {len(b)}  binance/BTCUSDT/BTCUSDT-1m-2024-02.zip"]
+    assert out["files"] == 2 and out["sha256"] == hashlib.sha256(text.encode()).hexdigest()
+
+
 def test_btcusdt_final_period_is_sealed():
     from app.historical.split import split_path
     from app.historical.store import SealError, load_tf

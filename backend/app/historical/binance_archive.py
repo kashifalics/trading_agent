@@ -19,7 +19,7 @@ from datetime import date, datetime, timezone
 
 import polars as pl
 
-from app.historical.config import CLEAN, RAW
+from app.historical.config import CLEAN, RAW, REPORTS
 
 RAW_BINANCE = RAW.parent / "binance"
 BASE_URL = "https://data.binance.vision/data/spot/monthly/klines"
@@ -107,6 +107,18 @@ def download(symbol: str, start: str = FIRST_MONTH, end: str | None = None, *, f
         else:
             log(f"{symbol} {ym}: ok ({zp.stat().st_size:,} bytes)")
     return out
+
+
+def raw_manifest(symbol: str) -> dict:
+    """SHA-256 and size of every raw zip (sorted), written like the Dukascopy manifest; the split records the digest of this file."""
+    lines = []
+    for f in sorted((RAW_BINANCE / symbol).glob(f"{symbol}-1m-*.zip")):
+        b = f.read_bytes()
+        lines.append(f"{_sha(b)}  {len(b)}  binance/{symbol}/{f.name}")
+    text = "\n".join(lines) + "\n"
+    REPORTS.mkdir(parents=True, exist_ok=True)
+    (REPORTS / f"{symbol}_raw_manifest.txt").write_text(text, encoding="utf8")
+    return {"files": len(lines), "sha256": _sha(text.encode())}
 
 
 def parse_month(zip_bytes: bytes) -> pl.DataFrame:

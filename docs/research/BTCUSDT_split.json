@@ -1,0 +1,28 @@
+{
+ "symbol": "BTCUSDT",
+ "method": "clean-M1 observations at 70% and 85%, each moved to the next Monday 00:00 UTC",
+ "fractions": [
+  0.7,
+  0.15,
+  0.15
+ ],
+ "train": {
+  "start": "2017-08-17T04:00:00+00:00",
+  "end_exclusive": "2024-01-29T00:00:00+00:00",
+  "m1_rows": 3383839
+ },
+ "validation": {
+  "start": "2024-01-29T00:00:00+00:00",
+  "end_exclusive": "2025-06-16T00:00:00+00:00",
+  "m1_rows": 725760
+ },
+ "test": {
+  "start": "2025-06-16T00:00:00+00:00",
+  "data_end_when_frozen": "2026-10-31T23:59:00+00:00",
+  "m1_rows_when_frozen": 724320
+ },
+ "m1_rows_total": 4833919,
+ "raw_manifest_sha256": "51e69a0c10390231c5371c11bba49798debd6d42eaa55f7d80055708211eceb8",
+ "created": "2026-11-14T05:47:52+00:00",
+ "sha256": "ec6f90c506db699968adf2bc05a21216a6e42d085ca075ff0caf02616d893827"
+}

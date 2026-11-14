@@ -203,6 +203,7 @@ def build_binance(symbol: str, log=print) -> dict:
     """Clean M1 from the Binance archive (binance_archive.write_clean_m1), then the same gap map, timeframes and coverage."""
     from app.historical import binance_archive
 
+    log(f"{symbol}: raw manifest {binance_archive.raw_manifest(symbol)}")
     per_year = binance_archive.write_clean_m1(symbol, log=log)
     stats, gaps, m5 = [], [], []
     expected = present = 0
@@ -300,7 +301,8 @@ def coverage(symbol: str, stats: list[dict], gaps: pl.DataFrame, expected: int, 
 
 
 def report_markdown(symbols: list[str]) -> str:
-    lines = ["# Historical data coverage", "", f"Source: {SOURCE}. Times in UTC. Generated {date.today().isoformat()}.", "",
+    sources = [f"{s}: {BINANCE_SOURCE if s in INSTRUMENTS and INSTRUMENTS[s].source == 'binance' else SOURCE}" for s in symbols]
+    lines = ["# Historical data coverage", "", "Sources: " + "; ".join(sources) + f". Times in UTC. Generated {date.today().isoformat()}.", "",
              "| Instrument | Timeframe | Earliest | Latest | Bars | Missing (M1: material gaps / minutes) |", "|---|---|---|---|---:|---|"]
     totals = {"bars": 0, "bytes": 0}
     extra = []

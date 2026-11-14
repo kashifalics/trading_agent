@@ -1,6 +1,6 @@
 # Historical data coverage
 
-Source: Dukascopy public datafeed (datafeed.dukascopy.com), 1-minute BID and ASK candles. Times in UTC. Generated 2026-11-09.
+Sources: XAUUSD: Dukascopy public datafeed (datafeed.dukascopy.com), 1-minute BID and ASK candles; BTCUSDT: Binance public data archive (data.binance.vision), spot 1-minute klines (one price; bid/ask = price -/+ the $1 half-spread cost model). Times in UTC. Generated 2026-11-14.
 
 | Instrument | Timeframe | Earliest | Latest | Bars | Missing (M1: material gaps / minutes) |
 |---|---|---|---|---:|---|
@@ -18,11 +18,26 @@ Source: Dukascopy public datafeed (datafeed.dukascopy.com), 1-minute BID and ASK
 | XAUUSD | W1 | 2003-05-05 | 2026-11-02T00:00 | 1,227 | rebuilt from M1 |
 | XAUUSD | MN1 | 2003-05-01 | 2026-11-01T00:00 | 283 | rebuilt from M1 |
 | XAUUSD | D1_NY | 2003-05-04 | 2026-11-05T22:00 | 6,098 | rebuilt from M1 |
+| BTCUSDT | M1 | 2017-08-17 | 2026-10-31T23:59 | 4,833,919 | 32 / 30,160 |
+| BTCUSDT | M5 | 2017-08-17 | 2026-10-31T23:55 | 966,793 | rebuilt from M1 |
+| BTCUSDT | M15 | 2017-08-17 | 2026-10-31T23:45 | 322,270 | rebuilt from M1 |
+| BTCUSDT | M30 | 2017-08-17 | 2026-10-31T23:30 | 161,142 | rebuilt from M1 |
+| BTCUSDT | H1 | 2017-08-17 | 2026-10-31T23:00 | 80,581 | rebuilt from M1 |
+| BTCUSDT | H2 | 2017-08-17 | 2026-10-31T22:00 | 40,302 | rebuilt from M1 |
+| BTCUSDT | H4 | 2017-08-17 | 2026-10-31T20:00 | 20,160 | rebuilt from M1 |
+| BTCUSDT | H6 | 2017-08-17 | 2026-10-31T18:00 | 13,446 | rebuilt from M1 |
+| BTCUSDT | H8 | 2017-08-17 | 2026-10-31T16:00 | 10,086 | rebuilt from M1 |
+| BTCUSDT | H12 | 2017-08-17 | 2026-10-31T12:00 | 6,725 | rebuilt from M1 |
+| BTCUSDT | D1 | 2017-08-17 | 2026-10-31T00:00 | 3,363 | rebuilt from M1 |
+| BTCUSDT | W1 | 2017-08-14 | 2026-10-26T00:00 | 481 | rebuilt from M1 |
+| BTCUSDT | MN1 | 2017-08-01 | 2026-10-01T00:00 | 111 | rebuilt from M1 |
+| BTCUSDT | D1_NY | 2017-08-16 | 2026-10-31T21:00 | 3,364 | rebuilt from M1 |
 
-Total bars across timeframes: 10,851,563. Raw download size: 0.18 GB. Bid and ask: both.
+Total bars across timeframes: 17,314,306. Raw download size: 0.18 GB. Bid and ask: both.
 
 | Instrument | First traded minute | Traded coverage | Feed coverage (incl. filler) | M1 published | Quiet minutes (no ticks, removed) | Duplicates | Invalid | Outlier moves (kept) | One side missing |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
 | XAUUSD | 2003-05-05T00:01 | 92.3% | 100.0% | 10,752,480 | 2,755,570 | 0 | 0 | 0 | 0 |
+| BTCUSDT | 2017-08-17T04:00 | 99.38% | 99.38% | 4,833,919 | 0 | 0 | 0 | 0 | 0 |
 
 Traded coverage = minutes with at least one tick / minutes the market was scheduled open (FX: Friday 17:00 to Sunday 17:00 New York closed; XAUUSD also 17:00-18:00 New York daily). Material gap = 30+ consecutive scheduled-open minutes missing from the feed, excluding 24-26 Dec and 1-2 Jan.
