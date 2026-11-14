@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 
 import polars as pl
 
-from app.historical.config import CLEAN, REPO_ROOT, REPORTS
+from app.historical.config import CLEAN, INSTRUMENTS, REPO_ROOT, REPORTS
 
 SPLIT_DIR = REPO_ROOT / "docs" / "research"
 FRACTIONS = (0.70, 0.15, 0.15)
@@ -29,6 +29,17 @@ def next_saturday(ts: datetime) -> datetime:
     """The first Saturday 00:00 UTC strictly after ts."""
     d = (ts + timedelta(days=1)).date()
     while d.weekday() != 5:
+        d += timedelta(days=1)
+    return datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
+
+
+def next_boundary(ts: datetime, calendar: str) -> datetime:
+    """The segment boundary after ts: Saturday 00:00 UTC for the FX weekly calendar (inside the weekend closure), Monday
+    00:00 UTC for a continuous (24/7) market (the start of a calendar week)."""
+    if calendar != "continuous":
+        return next_saturday(ts)
+    d = (ts + timedelta(days=1)).date()
+    while d.weekday() != 0:
         d += timedelta(days=1)
     return datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
 
@@ -47,8 +58,9 @@ def compute_split(symbol: str) -> dict:
         raise RuntimeError(f"{symbol}: no clean M1 yet (run the build first)")
     counts = [pl.scan_parquet(f).select(pl.len()).collect().item() for f in files]
     total = sum(counts)
-    b1 = next_saturday(_row_ts(files, counts, int(total * FRACTIONS[0])))
-    b2 = next_saturday(_row_ts(files, counts, int(total * (FRACTIONS[0] + FRACTIONS[1]))))
+    cal = INSTRUMENTS[symbol].calendar if symbol in INSTRUMENTS else "fx_weekly"
+    b1 = next_boundary(_row_ts(files, counts, int(total * FRACTIONS[0])), cal)
+    b2 = next_boundary(_row_ts(files, counts, int(total * (FRACTIONS[0] + FRACTIONS[1]))), cal)
     lf = pl.scan_parquet(files)
     stats = lf.select(pl.col("ts").min().alias("first"), pl.col("ts").max().alias("last"),
                       (pl.col("ts") < b1).sum().alias("n_train"), ((pl.col("ts") >= b1) & (pl.col("ts") < b2)).sum().alias("n_val"),
@@ -56,7 +68,8 @@ def compute_split(symbol: str) -> dict:
     man = REPORTS / f"{symbol}_raw_manifest.txt"
     content = {
         "symbol": symbol,
-        "method": "clean-M1 observations at 70% and 85%, each moved to the next Saturday 00:00 UTC",
+        "method": "clean-M1 observations at 70% and 85%, each moved to the next "
+                  + ("Monday" if cal == "continuous" else "Saturday") + " 00:00 UTC",
         "fractions": list(FRACTIONS),
         "train": {"start": stats["first"].isoformat(), "end_exclusive": b1.isoformat(), "m1_rows": stats["n_train"]},
         "validation": {"start": b1.isoformat(), "end_exclusive": b2.isoformat(), "m1_rows": stats["n_val"]},
