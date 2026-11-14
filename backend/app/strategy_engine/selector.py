@@ -3,6 +3,7 @@ de-duplication -> conflict resolution -> one action: BUY, SELL, WAIT FOR BUY, WA
 averaged; a conflict without a known context direction is NO TRADE.
 The chosen setup is scored by the confirmation matrix (confirm.py, CONFIRMATION_DESIGN.md section 6): mandatory components decide as
 before; an evidence category changes BUY/SELL into WAIT only when Experiment 6 promoted it for this strategy and instrument."""
+import logging
 from dataclasses import asdict, fields
 from datetime import datetime, timezone
 
@@ -10,6 +11,7 @@ from app.strategy_engine import confirm, vsa
 from app.strategy_engine.config import (
     CHAINS,
     COMPATIBLE,
+    GATES,
     GROUPS,
     PLAN_LABEL_UNVALIDATED,
     PLAN_LABEL_VALIDATED,
@@ -25,6 +27,7 @@ from app.strategy_engine.strategies.base import Candidate, fmt
 from app.strategy_engine.strategies.range_reversion import find_range
 
 LIVE = ("READY", "WAITING FOR ENTRY")
+log = logging.getLogger(__name__)
 DEDUP_ATR = 0.5
 
 
@@ -61,8 +64,13 @@ def evaluate_timeframe(t: TFData | None, tf: str, regime: Regime, context: Regim
     r = _evaluate(t, tf, regime, context, precision=precision, spread=spread, price_now=price_now, market_open=market_open,
                   spread_normal=spread_normal, stale_bars=stale_bars, symbol=symbol)
     r.setdefault("confirmations", [])  # NO TRADE: no setup to score
-    r["volume"] = asdict(t.volume) if t is not None else None
-    r["vsa"] = _vsa_out(t) if t is not None and r["confirmations"] else None
+    try:
+        r["volume"] = asdict(t.volume) if t is not None else None
+        r["vsa"] = _vsa_out(t) if t is not None and r["confirmations"] else None
+    except Exception as exc:  # noqa: BLE001 - the evidence layer must never hide a decision
+        log.exception("confirmation evidence failed on %s %s", symbol, tf)
+        r["volume"], r["vsa"] = None, None
+        r.setdefault("confirmations_error", f"{exc.__class__.__name__}: {exc}"[:200])
     return r
 
 
@@ -138,9 +146,17 @@ def _evaluate(t: TFData | None, tf: str, regime: Regime, context: Regime | None,
     research = RESEARCH_STATUS[best["strategy"]]
     ready = p["entry_status"] == "READY"
     blocked = [] if (market_open and spread_normal) else (["the market is closed"] if not market_open else ["the live spread is abnormal"])
-    cand = Candidate(**{f.name: best[f.name] for f in fields(Candidate)})
-    comps = confirm.score(cand, t, regime, context, p, blocked=blocked, stale=False, symbol=symbol)
-    gate_miss = [f"missing confirmation: {x.label.lower()} ({x.reason})" for x in confirm.gate_failures(comps, symbol, best["strategy"])]
+    err = None
+    try:
+        cand = Candidate(**{f.name: best[f.name] for f in fields(Candidate)})
+        comps = confirm.score(cand, t, regime, context, p, blocked=blocked, stale=False, symbol=symbol)
+        gate_miss = [f"missing confirmation: {x.label.lower()} ({x.reason})" for x in confirm.gate_failures(comps, symbol, best["strategy"])]
+    except Exception as exc:  # noqa: BLE001 - the evidence layer must never hide a decision
+        log.exception("confirmation matrix failed on %s %s", symbol, tf)
+        err = f"{exc.__class__.__name__}: {exc}"[:200]
+        comps = []
+        # a promoted gate that cannot be checked is not a PASS: hold the trade back
+        gate_miss = [f"missing confirmation: evidence unavailable ({err})"] if GATES.get(symbol, {}).get(best["strategy"]) else []
     action = _side(d) if ready and not blocked and not gate_miss else f"WAIT FOR {_side(d)}"
     if ready and not blocked and gate_miss:
         nxt = f"Wait: {gate_miss[0]}. The setup stays valid until {fmt(p['invalidation'])} is broken or it expires."
@@ -156,7 +172,7 @@ def _evaluate(t: TFData | None, tf: str, regime: Regime, context: Regime | None,
             "plan_label": PLAN_LABEL_VALIDATED if research == "VALIDATED" else PLAN_LABEL_UNVALIDATED, "plan": p,
             "why": best["reasons"], "agreeing": best.get("agreeing", []), "next_action": nxt, "missing": blocked + gate_miss,
             "headline": f"{action}: {best['name']} on {tf} ({regime.out()['name'].lower()})",
-            "confirmations": [asdict(x) for x in comps]}
+            "confirmations": [asdict(x) for x in comps], **({"confirmations_error": err} if err else {})}
 
 
 def _no_trade(headline: str, technical: str, missing: list[str], reasons: list[str] | None = None) -> dict:

@@ -4,6 +4,7 @@ from datetime import date
 
 from app.gold_research.exp6 import run
 from app.historical.config import REPO_ROOT
+from app.historical.split import load_split
 from app.strategy_engine.config import STRATEGY_NAMES
 
 OUT = REPO_ROOT / "docs" / "reports" / "EXPERIMENT6_CONFIRMATIONS.md"
@@ -20,6 +21,15 @@ def _f(x, nd: int = 3, signed: bool = True) -> str:
         return f"{x:+.{nd}f}" if signed else f"{x:.{nd}f}"
     except (TypeError, ValueError):
         return "—"
+
+
+def _segments(symbol: str) -> str:
+    try:
+        sp = load_split(symbol)
+    except Exception:  # noqa: BLE001 - a missing split only drops this line
+        return f"{symbol}: split not on this machine"
+    return (f"{symbol} development {sp['train']['start'][:10]} to {sp['train']['end_exclusive'][:10]}, confirmation to "
+            f"{sp['validation']['end_exclusive'][:10]}")
 
 
 def _row(a: dict, stage: str) -> str:
@@ -61,6 +71,7 @@ def render() -> str:
              "it is compared with the strategy without the filter and with 20,000 random filters keeping the same number of trades per "
              "timeframe, direction and year. R is net of the real spread (gold: Dukascopy bid/ask; BTCUSDT: the $2 round-trip model). "
              "Results are hypothetical research figures, not trading performance.", "",
+             "Segments: " + "; ".join(_segments(s) for s in run.SYMBOLS) + ". The sealed final-test periods were never read.", "",
              "## Development (training segment)", "", HEAD]
     lines += [_row(a, "development") for a in dev_rows] or ["| — | — | — | — | — | — | — | — | — | — | — | — | not run yet |"]
     out = [a for a in pre.get("arms", []) if not a.get("in_family")]
@@ -75,6 +86,24 @@ def render() -> str:
         lines.append(f"{conf.get('status', 'not run')}.")
     else:
         lines += [HEAD] + [_row(a, "confirmation") for a in conf_rows]
+    if dev_rows:
+        def pair(a: dict, key: str, src: tuple[str, str] = ("kept", "baseline"), nd: int = 2) -> str:
+            x, y = (a.get(src[0]) or {}).get(key), (a.get(src[1]) or {}).get(key)
+            return f"{_f(x, nd, False)} / {_f(y, nd, False)}"
+
+        lines += ["", "## Details per arm (development)", "",
+                  "Kept trades against all trades of the strategy; stop-outs = trades that hit the stop before TP1 (false entries). "
+                  "Taker fee: the improvement after Binance's 0.1% per side, BTCUSDT only. Max drawdown is the largest fall of "
+                  "cumulative R and grows with the number of trades, so a smaller kept set shows a smaller drawdown by construction: "
+                  "compare per-trade figures.", "",
+                  "| Arm | Win rate kept / all | Profit factor kept / all | Sharpe per trade kept / all | Max drawdown R kept / all | "
+                  "Stop-outs kept / dropped | Taker fee |", "|---|---|---|---|---|---|---:|"]
+        for a in dev_rows:
+            fe = a.get("false_entry") or {}
+            lines.append(f"| {a['symbol']} {STRATEGY_NAMES.get(a['strategy'], a['strategy'])}, {a['arm']} | {pair(a, 'win_rate')} | "
+                         f"{pair(a, 'profit_factor')} | {pair(a, 'sharpe_per_trade', nd=3)} | {pair(a, 'max_drawdown_r', nd=1)} | "
+                         f"{_f(fe.get('stop_share_kept'), 2, False)} / {_f(fe.get('stop_share_dropped'), 2, False)} | "
+                         f"{_f(a.get('improvement_r_fee')) if a['symbol'] == 'BTCUSDT' else '—'} |")
     names = {"vsa": "VSA", "momentum": "Momentum", "trend": "Trend", "volatility": "Volatility", "combo": "Combination"}
     conf_keys = {f"{r['symbol']}|{r['strategy']}|{r['arm']}" for r in conf_rows if r.get("passed")}
     lines += ["", "## By confirmation", "",
@@ -105,7 +134,11 @@ def render() -> str:
               "one-time sealed final test.",
               "- Gold VSA uses Dukascopy venue volume; live gold uses broker tick counts, and their only overlap is sealed, so gold VSA is "
               "research only.",
-              "- EURUSD and GBPUSD are not tested yet (their history is still incomplete)."]
+              "- EURUSD and GBPUSD are not tested yet (their history is still incomplete).",
+              "- The live engine keeps about 500 candles per timeframe. Below 1H that is too short for the same-session volume baseline "
+              "used here (the same time of the week over 20 weeks), so live VSA is unavailable on 1m-5m and often on 15m, and live trend "
+              "decides from EMA 200 and the DI spread without VWAP there. This experiment measured the categories on full history: before "
+              "any category could become a gate, the live computation must be made to match it."]
     return "\n".join(lines) + "\n"
 
 

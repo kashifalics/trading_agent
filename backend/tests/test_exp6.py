@@ -150,6 +150,10 @@ def test_report_states_every_arm_result_with_its_sample_and_never_hides_failures
     assert "2,120" in md
     assert "## By confirmation" in md
     assert "| Momentum | 1 | 1 | 1 | 0 |" in md and "| VSA | 1 | 0 | 0 | 0 |" in md  # tested, improved, passed dev, confirmed
+    assert "## Details per arm (development)" in md and "Stop-outs kept / dropped" in md and "0.50 / 0.60" in md
+    assert "Win rate kept / all" in md and "0.40 / 0.38" in md and "Taker fee" in md
+    assert "Segments:" in md and "2017-08-17" in md and "2003-05-05" in md  # each instrument's own periods
+    assert "500 candles" in md  # the live window limitation is disclosed
 
 
 def test_exp5_report_for_btcusdt_uses_its_own_split_costs_and_all_trials():

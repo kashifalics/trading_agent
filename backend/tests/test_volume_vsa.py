@@ -110,7 +110,24 @@ def test_quality_unavailable_for_mixed_zero_constant_or_missing_volume():
 def test_quality_unavailable_when_history_is_shorter_than_four_samples():
     v = _healthy(50)
     q = quality(v, "tick", 49, np.full(50, 3))
-    assert not q.reliable and "baseline" in q.reason
+    assert not q.reliable and "baseline" in q.reason and "history" in q.reason  # says why: too little history, not bad data
+
+
+def test_zero_volume_candles_get_no_rvol_and_stay_out_of_baselines():
+    t = _hours(datetime(2024, 1, 1, tzinfo=UTC), 24 * 7 * 30)
+    v = np.full(len(t), 2.0)
+    slot = 24 * 7  # the first hour of each week
+    zeros = np.array([w * slot for w in range(5, 25) if w % 4 != 0])  # 15 of 20 weeks: volume missing (reported as 0)
+    v[zeros] = 0.0
+    rv, n = rvol(v, t, 3600, "continuous")
+    assert np.isnan(rv[zeros]).all()  # a zero candle has no relative volume, so it can never be a VSA event
+    assert np.isclose(rv[25 * slot], 1.0) and n[25 * slot] == 5  # the baseline skips the zeros (it would be 0 with them)
+    m = vsa.measures(Bars.from_arrays(np.full(len(t), 100.0), np.full(len(t), 101.0), np.full(len(t), 99.0), np.full(len(t), 100.5), v=v),
+                     np.ones(len(t)), rv)
+    hi, lo = vsa.levels(Bars.from_arrays(np.full(len(t), 100.0), np.full(len(t), 101.0), np.full(len(t), 99.0), np.full(len(t), 100.5)))
+    events = vsa.detect(Bars.from_arrays(np.full(len(t), 100.0), np.full(len(t), 101.0), np.full(len(t), 99.0), np.full(len(t), 100.5), v=v),
+                        m, hi, lo)
+    assert not {e.idx for e in events} & set(zeros.tolist())
 
 
 # ---- Bars carry the volume type and Binance taker-buy volume ------------------------------------------------------------------------

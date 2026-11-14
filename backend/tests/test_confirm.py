@@ -70,6 +70,11 @@ def test_trend_uses_vwap_on_intraday_with_reliable_volume():
     assert confirm.trend_verdict(put(t, "vwap", [c + 0.5]), 1)[0] == "NEUTRAL"
 
 
+def test_trend_hides_vwap_evidence_when_volume_is_unreliable():
+    v, _, ev = confirm.trend_verdict(base_t(vtype="none"), 1)
+    assert ev["vwap"] is None  # never show a VWAP computed from volume we call unreliable
+
+
 def test_trend_ignores_signals_the_regime_already_uses():
     t = base_t()
     v0 = confirm.trend_verdict(t, 1)

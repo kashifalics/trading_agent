@@ -79,6 +79,7 @@ def rvol(v: np.ndarray, t: np.ndarray, step: int, calendar: str) -> tuple[np.nda
     20 days (weekdays only on FX calendars) while the week has fewer than 4 samples. 8H and above: the previous 20 candles.
     NaN without 4 samples."""
     v = np.asarray(v, dtype=float)
+    v = np.where(v > 0, v, np.nan)  # zero volume = missing (a feed gap): no relative volume, and never part of a baseline
     n = len(v)
     need = VOLUME_RULES["min_samples"]
     if n == 0:
@@ -128,5 +129,6 @@ def quality(v: np.ndarray, vtype: str, i: int, rv_n: np.ndarray, window: int = V
         return VolumeQuality(vtype, label, False, f"constant volume ({run} identical values in a row): the feed looks stuck")
     if int(rv_n[i]) < VOLUME_RULES["min_samples"]:
         return VolumeQuality(vtype, label, False,
-                             f"the volume baseline needs {VOLUME_RULES['min_samples']} comparable candles, has {int(rv_n[i])}")
+                             f"the volume baseline needs {VOLUME_RULES['min_samples']} comparable candles (same time of the week or day), "
+                             f"has {int(rv_n[i])}: the history is too short for this timeframe")
     return VolumeQuality(vtype, label, True, "")

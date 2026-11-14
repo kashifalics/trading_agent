@@ -585,6 +585,32 @@ def test_short_history_reports_unavailable_not_errors():
     assert wild["confirmations"] == [] and wild["volume"]["type"] == "tick"
 
 
+def test_an_evidence_layer_error_never_hides_the_decision(monkeypatch):
+    from app.strategy_engine import confirm, selector
+    from app.strategy_engine.config import GATES
+    t = td(_with_volume(_uptrend_pullback(True)))
+    args = dict(precision=2, spread=0.0, price_now=float(t.bars.c[-1]), symbol="BTCUSDT")
+
+    def boom(*a, **k):
+        raise ValueError("bad candle data")
+
+    monkeypatch.setattr(confirm, "score", boom)
+    monkeypatch.setattr(selector, "_vsa_out", boom)
+    r = evaluate_timeframe(t, "1H", TREND_UP, None, **args)
+    assert r["action"] == "BUY" and r["plan"] is not None  # the decision stands without its evidence
+    assert r["confirmations"] == [] and r["vsa"] is None and "bad candle data" in r["confirmations_error"]
+    monkeypatch.setitem(GATES, "BTCUSDT", {"trend_pullback": ("momentum",)})
+    gated = evaluate_timeframe(t, "1H", TREND_UP, None, **args)
+    assert gated["action"] == "WAIT FOR BUY"  # a promoted gate that cannot be checked is not a PASS
+    assert any(m.startswith("missing confirmation: evidence unavailable") for m in gated["missing"])
+
+
+def test_a_reason_without_a_component_tag_never_crashes_a_strategy():
+    c = Candidate("trend_pullback", 1, "ready", "market", 100.0, None, 99.0, 5, "x", ["a", "b"])
+    c.tag(["regime"])  # one component for two reasons: tagged as far as known, the rest as entry
+    assert [x[2] for x in c.checks if x[1]] == ["a", "b"] and c.checks[1][0] == "entry"
+
+
 def test_8h_bars_keep_the_4h_volume_type():
     b4 = Bars(np.arange(12, dtype=np.int64) * 14400 + 1_704_067_200, *(np.full(12, 1.0) for _ in range(4)), np.full(12, 5.0), 14400, "tick")
     b8 = derive_8h(b4, None)

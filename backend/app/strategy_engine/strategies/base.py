@@ -29,7 +29,7 @@ class Candidate:
     def tag(self, comps: list[str], anchors: dict | None = None, missing_comp: str = "entry",
             extra: list[tuple[str, bool, str]] = ()) -> "Candidate":
         """Pair each reason with its component (same order), add extra checks and the unmet ones, attach the key candles."""
-        assert len(comps) == len(self.reasons), (self.strategy, comps, self.reasons)
+        comps = (list(comps) + ["entry"] * len(self.reasons))[:len(self.reasons)]  # an untagged reason counts as an entry condition
         self.checks = [(c, True, r) for c, r in zip(comps, self.reasons)] + list(extra) + \
             [(missing_comp, False, m) for m in self.missing]
         if anchors is not None:

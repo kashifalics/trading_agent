@@ -140,6 +140,16 @@ def _analysis(mode: str, status: str, d: str = "BUY", entry=100.0, stop=99.0, tp
                                                 "research_status": "INSUFFICIENT EVIDENCE", "plan": plan, "headline": "test"}]}
 
 
+def test_a_signal_held_back_by_a_promoted_gate_is_not_recorded_as_taken(session):
+    inst = session.scalar(select(Instrument).where(Instrument.canonical_symbol == "XAUUSD"))
+    at = datetime(2026, 11, 2, 10, 0, tzinfo=timezone.utc)
+    gated = _analysis("market", "READY", at=at)
+    gated["timeframes"][0].update(action="WAIT FOR BUY", missing=["missing confirmation: momentum (MACD histogram falling)"])
+    assert lifecycle.record(session, gated, inst.id, None, at) == []  # the card says WAIT: the track record must not count it
+    taken = lifecycle.record(session, _analysis("market", "READY", at=at), inst.id, None, at)
+    assert len(taken) == 1 and taken[0].status == "ACTIVE"  # once the gate passes, the same setup is recorded and triggered
+
+
 def test_signal_lifecycle_runs_from_detection_through_targets_and_is_recorded_once(session):
     inst = session.scalar(select(Instrument).where(Instrument.canonical_symbol == "XAUUSD"))
     at = datetime(2026, 11, 2, 10, 0, tzinfo=timezone.utc)

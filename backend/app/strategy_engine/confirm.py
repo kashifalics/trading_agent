@@ -71,8 +71,8 @@ def trend_verdict(t: TFData, d: int) -> tuple[str, str, dict]:
         s = 1 if spread >= CONFIRM["di_for"] else -1 if spread <= -CONFIRM["di_for"] else 0
         lead = "+DI" if pdi >= mdi else "-DI"
         subs.append((s, f"{lead} leads by {abs(pdi - mdi):.0f}" + (" (flat)" if s == 0 else "")))
-    vw = _val(t.vwap, i)
-    if np.isfinite(vw) and t.bars.step <= 3600 and t.volume.reliable:
+    vw = _val(t.vwap, i) if t.volume.reliable else float("nan")  # never shown or used on unreliable volume
+    if np.isfinite(vw) and t.bars.step <= 3600:
         s = int(np.sign((c - vw) * d))
         subs.append((s, f"close {'above' if c > vw else 'below'} session VWAP {fmt(vw)}"))
     ev = {"ema200": _r(e200, 5), "plus_di": _r(pdi), "minus_di": _r(mdi), "vwap": _r(vw, 5)}

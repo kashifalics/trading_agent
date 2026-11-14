@@ -21,7 +21,15 @@
    - **Gold history:** Dukascopy venue volume.
 
    Live gold's tick counts and historical gold's venue volume overlap only in the sealed period, so gold VSA can never become a gate.
-   VSA is UNAVAILABLE whenever a source's volume is missing or unreliable.
+   VSA is UNAVAILABLE whenever a source's volume is missing or unreliable. Zero-volume candles count as missing.
+
+   **Live versus research.** The live engine keeps about 500 candles per timeframe. Below 1H that is too short for the same-session
+   volume baseline (the same time of the week over 20 weeks), so:
+   - live VSA is unavailable on 1m-5m and often on 15m;
+   - live trend decides there from EMA 200 and the DI spread, without VWAP.
+
+   Experiment 6 measured the categories on full history. No category was promoted, so this changes no decision, but the live
+   computation must be made to match the research before any category could become a gate.
 7. **Quotes can be delayed.** When the provider's quote is stale, prices are labelled delayed and the last close is used.
 
 **Product scope**
