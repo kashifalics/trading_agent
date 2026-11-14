@@ -339,6 +339,15 @@ export const useEngine = (symbol: string | null) =>
     retry: retryPolicy,
   });
 
+/** Every tracked engine signal that is still open (waiting for entry or in the market), newest first. */
+export const useEngineOpenSignals = () =>
+  useQuery({
+    queryKey: ["engine-signals", "open"],
+    queryFn: () => api.get<{ items: SignalRecord[] }>("/engine/signals", { open_only: "true", limit: 500 }),
+    refetchInterval: 60_000,
+    retry: retryPolicy,
+  });
+
 export const useEngineSignals = (symbol?: string) =>
   useQuery({
     queryKey: ["engine-signals", symbol ?? "all"],

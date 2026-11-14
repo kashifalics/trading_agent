@@ -208,6 +208,9 @@ export interface SignalRecord {
   closed_at: string | null;
   best_target: number;
   last_price: number | null;
+  /** Entry-to-stop distance in price; the API sends it (older fixtures may not). */
+  risk?: number | null;
+  triggered_at?: string | null;
   history: { status: string; at: string; price: number | null; note: string }[];
   hypothetical: true;
 }

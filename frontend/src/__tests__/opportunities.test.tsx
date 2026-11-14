@@ -105,7 +105,8 @@ describe("navigation", () => {
     expect(NAV[0].label).toBe("Overview");
     expect(NAV[1]).toMatchObject({ label: "Signals", href: "/signals" });
     expect(NAV[2]).toMatchObject({ label: "Paper Trading", href: "/paper" });
-    expect(NAV[3]).toMatchObject({ label: "Trade Opportunities", href: "/opportunities" });
+    expect(NAV[3]).toMatchObject({ label: "Active Trades", href: "/active" });
+    expect(NAV[4]).toMatchObject({ label: "Trade Opportunities", href: "/opportunities" });
   });
 });
 
