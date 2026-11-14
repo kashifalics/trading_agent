@@ -88,6 +88,12 @@ RESEARCH_NOTE = ("Experiment 5 tested these strategies on 17 years of gold (pre-
 PLAN_LABEL_UNVALIDATED = "UNVALIDATED — HYPOTHETICAL TRADE PLAN"
 PLAN_LABEL_VALIDATED = "VALIDATED TRADE PLAN"
 
+# ---- confirmation layer (docs/engine_v2/CONFIRMATION_DESIGN.md) ----------------------------------------------------------------------
+# What the candle volume is, in the customer's words (design section 3). Spot FX, gold, US30 and oil have no market-wide volume.
+VOLUME_LABELS = {"base": "Exchange volume (Binance only)", "tick": "Tick volume (broker)", "venue": "Venue volume (Dukascopy)",
+                 "none": "No volume"}
+VOLUME_RULES = {"weeks": 20, "min_samples": 4, "min_nonzero": 0.95, "max_run": 10, "window": 2000}
+
 # Contract size per lot, for position sizing (risk.py)
 CONTRACT_SIZE = {"XAUUSD": 100.0, "EURUSD": 100_000.0, "GBPUSD": 100_000.0, "US30": 1.0, "USOIL": 1_000.0, "BTCUSDT": 1.0}
 # Currency legs for exposure checks: (base, quote). A BUY is +base -quote.

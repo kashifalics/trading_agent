@@ -120,7 +120,7 @@ class BinanceProvider(MarketDataProvider):
             open=Decimal(r[1]), high=Decimal(r[2]), low=Decimal(r[3]), close=Decimal(r[4]),
             volume=Decimal(r[5]), volume_type="base",
             complete=int(r[6]) < now_ms,  # close time already passed
-            meta={"quote_volume": r[7], "trades": r[8]},
+            meta={"quote_volume": r[7], "trades": r[8], "taker_buy_base": r[9]},
         )
 
     def get_latest_quote(self, symbol: str) -> Quote:
