@@ -14,7 +14,14 @@
 4. **Live history is short.** The free providers give weeks of intraday candles. H8, W1 and MN1 often have fewer than the 120
    candles the regime classifier needs, and then honestly report NO TRADE (insufficient data). BiQuote has no monthly series.
 5. **News is not filtered.** No free, reliable economic calendar exists. The product says so on every signal page.
-6. **No real volume.** Spot FX and gold have no exchange volume, so no strategy uses volume.
+6. **Volume is not market-wide.** The strategies themselves never use volume. The confirmation layer (VSA, VWAP, relative volume)
+   uses what each source has:
+   - **Live gold, FX, US30 and oil:** broker tick counts.
+   - **Live BTCUSDT:** Binance exchange volume.
+   - **Gold history:** Dukascopy venue volume.
+
+   Live gold's tick counts and historical gold's venue volume overlap only in the sealed period, so gold VSA can never become a gate.
+   VSA is UNAVAILABLE whenever a source's volume is missing or unreliable.
 7. **Quotes can be delayed.** When the provider's quote is stale, prices are labelled delayed and the last close is used.
 
 **Product scope**

@@ -41,10 +41,19 @@ Each instrument has one card, best opportunity first:
 - **Entry, stop loss, TP1, TP2 and TP3:** each target with its reward:risk and what it is based on (a swing high, an order block, or a
   "risk objective" when no structural level is near). Then the overall R:R, the spread cost, the entry status (READY, WAITING FOR
   ENTRY) and when the signal expires.
-- **Why, what invalidates it, and the next action.**
-- **"UNVALIDATED — HYPOTHETICAL TRADE PLAN" and "Research: INSUFFICIENT EVIDENCE":** no strategy has passed research yet, so these
-  are analysis, not proven recommendations, and no win probability is ever shown. Untick **Show hypothetical trade plans** to hide
-  the prices of unvalidated plans.
+- **Why, what invalidates it, and the next action.** A WAIT also lists what is missing.
+- **Confirmation chips:** Trend, Structure, VSA, Momentum, Volatility, Spread and R:R, each **PASS**, **FAIL**, **NEUTRAL** or
+  **UNAVAILABLE** (never counted as a pass).
+  - **Structure, Spread and R:R** are the conditions that decide the action, as before.
+  - **VSA, Momentum, Trend and Volatility** are evidence. Each shows whether it is "evidence only — not tested", "did not pass
+    Experiment 6" or a "gate". Only a gate can turn a BUY or SELL into a WAIT, and only on the instrument where it passed the research.
+  - **Evidence** opens every verdict with its reason and values. It also shows the volume behind VSA:
+    - **Tick volume (broker):** price updates at one broker, not market-wide traded volume.
+    - **Exchange volume (Binance only):** coins traded on one exchange.
+  - **VSA states:** confirming, neutral, contradictory, or unavailable with the reason (for example, too little volume history).
+- **"UNVALIDATED — HYPOTHETICAL TRADE PLAN" and "Research: NOT VALIDATED":** no strategy has passed research (Experiment 5), so
+  these are analysis, not proven recommendations, and no win probability is ever shown. Untick **Show hypothetical trade plans** to
+  hide the prices of unvalidated plans.
 - **Paper trades on that instrument:** shown in their own block. They are the forward test of the older v1 rules and never hide a new
   signal.
 - **All timeframes and strategies** opens every timeframe's action; click a timeframe to see each strategy's verdict. **Signal history**

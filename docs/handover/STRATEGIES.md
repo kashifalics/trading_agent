@@ -46,6 +46,33 @@ picks the strongest qualifying setup, and turns it into a plan. The exact rules,
   - ENTRY MISSED: price ran away, or TP1 already traded;
   - EXPIRED.
 
+## Confirmations (VSA and indicators)
+
+The strategy finds the setup first. The confirmation layer then judges it in four evidence categories, each giving one verdict:
+PASS, FAIL, NEUTRAL or UNAVAILABLE. Related indicators never add up: momentum is decided by one primary indicator per strategy, and
+the others are shown as evidence only.
+
+| Strategy | Momentum (primary) | VSA asks | Volatility |
+|---|---|---|---|
+| Trend-following pullback | MACD histogram rising 2 candles | was the pullback on light volume? | ATR in its normal range (20th-90th percentile) |
+| Breakout and retest | ROC 10 for the trade | was the breakout on heavy volume and the retest light? | ATR normal |
+| Momentum continuation | MACD histogram for the trade, not shrinking | effort on the displacement, light pullback, no climax? | ATR normal |
+| Range mean reversion | Stochastic RSI cross from the extreme | failed effort at the boundary (no demand / no supply)? | ATR normal |
+| Liquidity-sweep reversal | MACD histogram rising 2 candles | stopping volume on the sweep, or a quiet test? | ATR normal |
+| Volatility expansion | ROC 10 for the trade | heavy volume on the expansion candle? | close beyond the Keltner band |
+
+**Trend** is the same for every strategy, using signals the regime test does not already use: EMA 200, the +DI/−DI spread, and
+session VWAP on timeframes up to 1H.
+
+**These categories are evidence, not gates.** Experiment 6 ([report](../reports/EXPERIMENT6_CONFIRMATIONS.md)) tested each one on
+gold and BTCUSDT, against the strategy without it and against random filters. **None was confirmed:**
+- Trend improved breakout-and-retest and sweep-reversal trades in development (+0.02 to +0.035R per trade). The improvement did not
+  hold on the confirmation data.
+- VSA, momentum and volatility did not improve results.
+
+So no category can turn a BUY into a WAIT, and the cards mark tested categories "did not pass Experiment 6". The exact rules are in
+[CONFIRMATION_DESIGN.md](../engine_v2/CONFIRMATION_DESIGN.md).
+
 ## Signal lifecycle
 
 Every plan is recorded once and followed on 1-minute candles to its outcome:
