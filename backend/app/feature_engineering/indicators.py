@@ -114,6 +114,134 @@ def efficiency_ratio(c: np.ndarray, n: int = 20) -> np.ndarray:
     return out
 
 
+# ---- confirmation layer (docs/engine_v2/CONFIRMATION_DESIGN.md section 4) ----------------------------------------------------------
+def valid_from(x: np.ndarray, k: int) -> np.ndarray:
+    """A copy of x with the first k values set to NaN (an explicit warm-up)."""
+    out = np.asarray(x, dtype=float).copy()
+    out[:k] = np.nan
+    return out
+
+
+def _ema_valid(x: np.ndarray, n: int) -> np.ndarray:
+    """EMA that starts where x becomes finite (seeded with the mean of the first n finite values)."""
+    x = np.asarray(x, dtype=float)
+    out = np.full(len(x), np.nan)
+    fin = np.flatnonzero(np.isfinite(x))
+    if len(fin) == 0:
+        return out
+    s = fin[0]
+    out[s:] = ema(x[s:], n)
+    return out
+
+
+def sma(x: np.ndarray, n: int) -> np.ndarray:
+    x = np.asarray(x, dtype=float)
+    out = np.full(len(x), np.nan)
+    if len(x) >= n:
+        cs = np.cumsum(np.insert(x, 0, 0.0))
+        out[n - 1:] = (cs[n:] - cs[:-n]) / n
+    return out
+
+
+def macd(c: np.ndarray, fast: int = 12, slow: int = 26, signal: int = 9) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """(MACD line, signal line, histogram). The histogram is valid from index slow + signal - 2."""
+    line = ema(c, fast) - ema(c, slow)
+    sig = _ema_valid(line, signal)
+    return line, sig, line - sig
+
+
+def stoch_rsi(c: np.ndarray, rsi_n: int = 14, stoch_n: int = 14, k: int = 3, d: int = 3) -> tuple[np.ndarray, np.ndarray]:
+    """(%K, %D) on 0-100: where RSI sits in its own range over stoch_n candles, smoothed. A flat RSI range reads 50."""
+    r = rsi(c, rsi_n)
+    raw = np.full(len(c), np.nan)
+    for i in range(rsi_n + stoch_n - 1, len(c)):
+        w = r[i - stoch_n + 1:i + 1]
+        lo, hi = w.min(), w.max()
+        raw[i] = 50.0 if hi == lo else 100 * (r[i] - lo) / (hi - lo)
+    kk = np.full(len(c), np.nan)
+    s = rsi_n + stoch_n - 1
+    if len(c) > s:
+        kk[s:] = sma(raw[s:], k)
+    dd = np.full(len(c), np.nan)
+    s2 = s + k - 1
+    if len(c) > s2:
+        dd[s2:] = sma(kk[s2:], d)
+    return kk, dd
+
+
+def roc(c: np.ndarray, n: int = 10) -> np.ndarray:
+    """Rate of change: c[i] / c[i-n] - 1."""
+    c = np.asarray(c, dtype=float)
+    out = np.full(len(c), np.nan)
+    if len(c) > n:
+        with np.errstate(divide="ignore", invalid="ignore"):
+            out[n:] = c[n:] / c[:-n] - 1
+    return out
+
+
+def keltner(h: np.ndarray, l: np.ndarray, c: np.ndarray, n_ema: int = 20, n_atr: int = 10,  # noqa: E741
+            mult: float = 2.0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """(middle = EMA of closes, upper, lower = middle -/+ mult x ATR)."""
+    mid = ema(np.asarray(c, dtype=float), n_ema)
+    a = atr(np.asarray(h, dtype=float), np.asarray(l, dtype=float), np.asarray(c, dtype=float), n_atr)
+    return mid, mid + mult * a, mid - mult * a
+
+
+def hist_vol(c: np.ndarray, n: int = 20) -> np.ndarray:
+    """Standard deviation (sample) of the last n log returns."""
+    c = np.asarray(c, dtype=float)
+    out = np.full(len(c), np.nan)
+    if len(c) <= n:
+        return out
+    r = np.diff(np.log(c))
+    w = np.lib.stride_tricks.sliding_window_view(r, n)
+    out[n:] = w.std(axis=1, ddof=1)
+    return out
+
+
+def session_vwap(h: np.ndarray, l: np.ndarray, c: np.ndarray, v: np.ndarray, session_id: np.ndarray) -> np.ndarray:  # noqa: E741
+    """Volume-weighted typical price since the start of each session. NaN while the session's volume is zero, and for the rest of a
+    session once a candle in it has no volume."""
+    tp = (np.asarray(h, float) + np.asarray(l, float) + np.asarray(c, float)) / 3
+    v = np.asarray(v, dtype=float)
+    out = np.full(len(tp), np.nan)
+    pv = vol = 0.0
+    bad = False
+    for i in range(len(tp)):
+        if i == 0 or session_id[i] != session_id[i - 1]:
+            pv = vol = 0.0
+            bad = False
+        if not np.isfinite(v[i]):
+            bad = True
+        if bad:
+            continue
+        pv += tp[i] * v[i]
+        vol += v[i]
+        if vol > 0:
+            out[i] = pv / vol
+    return out
+
+
+def obv(c: np.ndarray, v: np.ndarray) -> np.ndarray:
+    """On-balance volume from 0: + volume on an up close, - volume on a down close, unchanged on an equal close."""
+    c, v = np.asarray(c, float), np.asarray(v, float)
+    step = np.r_[0.0, np.sign(np.diff(c)) * v[1:]]
+    return np.cumsum(step)
+
+
+def mfi(h: np.ndarray, l: np.ndarray, c: np.ndarray, v: np.ndarray, n: int = 14) -> np.ndarray:  # noqa: E741
+    """Money Flow Index on 0-100 (volume-weighted RSI of the typical price). 100 when no flow was negative."""
+    tp = (np.asarray(h, float) + np.asarray(l, float) + np.asarray(c, float)) / 3
+    flow = tp * np.asarray(v, float)
+    d = np.r_[0.0, np.diff(tp)]
+    pos, neg = np.where(d > 0, flow, 0.0), np.where(d < 0, flow, 0.0)
+    out = np.full(len(tp), np.nan)
+    for i in range(n, len(tp)):
+        p, m = pos[i - n + 1:i + 1].sum(), neg[i - n + 1:i + 1].sum()
+        out[i] = 100.0 if m == 0 else 100 - 100 / (1 + p / m)
+    return out
+
+
 def trailing_percentile(x: np.ndarray, window: int = 200, min_periods: int = 50) -> np.ndarray:
     """Share of the trailing `window` values (including the current one) that are <= the current value. NaN until min_periods."""
     out = np.full(len(x), np.nan)
