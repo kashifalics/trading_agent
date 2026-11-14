@@ -69,6 +69,9 @@ def test_every_instrument_gets_one_clear_action_with_valid_levels(client):
         else:
             assert t["research_status"] == RESEARCH_STATUS[t["strategy"]] and t["plan_label"] == "UNVALIDATED — HYPOTHETICAL TRADE PLAN"
             _check_plan(t["plan"], 1 if t["direction"] == "BUY" else -1, d["price_precision"])
+        if t["regime"]["label"] == "HIGH_VOLATILITY":  # by design no strategy runs; the headline says why (depends on when the seed ends)
+            assert t["action"] == "NO TRADE" and "abnormal volatility" in t["headline"] and t["candidates"] == []
+            continue
         if t["n_bars"] >= 120 and "data stale" not in t["headline"]:  # every strategy is evaluated, both sides, and each says why
             checked.append(t["timeframe"])
             assert {c["strategy"] for c in t["candidates"]} == {"trend_pullback", "breakout_retest", "momentum_continuation", "range_reversion",

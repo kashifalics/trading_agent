@@ -328,7 +328,9 @@ def list_trades(session: Session, status: str | None = None, symbol: str | None 
     if timeframe:
         q = q.where(PaperTrade.timeframe == timeframe)
     total = session.scalar(select(func.count()).select_from(q.subquery())) or 0
-    rows = session.scalars(q.order_by(PaperTrade.detected_at.desc(), PaperTrade.id.desc()).limit(limit).offset(offset)).all()
+    # a trade history reads by close time (a long-held trade that just closed is the newest one); every other list by detection
+    order = (PaperTrade.closed_at.desc(), PaperTrade.id.desc()) if status == "closed" else (PaperTrade.detected_at.desc(), PaperTrade.id.desc())
+    rows = session.scalars(q.order_by(*order).limit(limit).offset(offset)).all()
     return to_jsonable({"items": [trade_out(t) for t in rows], "total": total, "limit": limit, "offset": offset})
 
 

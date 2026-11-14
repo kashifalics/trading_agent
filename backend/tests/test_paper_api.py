@@ -176,3 +176,22 @@ def test_open_and_pending_trades_carry_hold_exit_or_wait_from_the_central_decisi
     assert by_tf["15m"]["management"]["action"] == "WAIT" and "fill" in by_tf["15m"]["management"]["reason"]
     closed = client.get("/api/v1/paper/trades", params={"status": "closed"}).json()["items"]
     assert all("management" not in t for t in closed)  # finished trades are never given a HOLD / EXIT
+
+
+def test_closed_trades_are_listed_by_close_time_newest_first(session):
+    acc = paper.active_account(session)
+    t0 = datetime(2025, 3, 3, 12, 0, tzinfo=timezone.utc)
+    inst_id = signals.resolve(session, "XAUUSD")[0].id
+    common = dict(account_id=acc.id, instrument_id=inst_id, symbol="XAUUSD", direction="BUY", order_type="market", status="closed",
+                  signal_ts=t0, valid_until=t0, entry_price=1, stop_loss=0.5, take_profit=2, cursor_at=t0)
+    # detected first but held for days: it closed last, so it is the newest trade in the history
+    session.add(PaperTrade(timeframe="1D", setup_key="long-held", detected_at=t0, closed_at=t0 + timedelta(days=5), **common))
+    session.add(PaperTrade(timeframe="1H", setup_key="quick", detected_at=t0 + timedelta(days=1), closed_at=t0 + timedelta(days=1, hours=2),
+                           **common))
+    session.add(PaperTrade(timeframe="4H", setup_key="pending-one", detected_at=t0 + timedelta(days=2), closed_at=None,
+                           **{**common, "status": "pending"}))
+    session.flush()
+    closed = paper.list_trades(session, status="closed", limit=10)["items"]
+    assert [t["timeframe"] for t in closed] == ["1D", "1H"]  # by close time, not by detection
+    everything = paper.list_trades(session, status="all", limit=10)["items"]
+    assert [t["timeframe"] for t in everything] == ["4H", "1H", "1D"]  # other lists keep the detection order
