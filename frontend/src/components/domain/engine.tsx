@@ -6,6 +6,7 @@
 import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import { EmptyState, QueryState } from "@/components/domain/common";
+import { ConfirmationChips, ConfirmationDetail } from "@/components/domain/confirmations";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/misc";
@@ -114,6 +115,9 @@ function OpportunityBody({ o, p, hidden }: { o: NonNullable<EngineItem["opportun
           <p className="text-xs font-medium" data-testid="next-action">{hidden && o.plan ? o.headline : o.next_action}</p>
         </div>
       </div>
+      {o.missing.length > 0 && (
+        <p className="text-xs text-warn" data-testid="missing">Missing: {o.missing.join("; ")}</p>
+      )}
       {o.conflict && <p className="text-xs text-warn">Conflict: {o.conflict.buy} (BUY) vs {o.conflict.sell} (SELL): {o.conflict.resolution}.</p>}
     </div>
   );
@@ -123,6 +127,7 @@ function OpportunityBody({ o, p, hidden }: { o: NonNullable<EngineItem["opportun
 export function SignalCard({ item }: { item: EngineItem }) {
   const experimental = useSettings((s) => s.experimentalMode);
   const [open, setOpen] = useState(false);
+  const [evidence, setEvidence] = useState(false);
   const p = item.price_precision ?? 2;
   const pr = item.primary;
   const o = item.opportunity;
@@ -173,6 +178,18 @@ export function SignalCard({ item }: { item: EngineItem }) {
             <span className="text-xs text-muted-foreground">Technical: {o.technical_status}</span>
           </div>
           <div className="mt-3"><OpportunityBody o={o} p={p} hidden={hidden} /></div>
+          {o.confirmations && o.confirmations.length > 0 && (
+            <div className="mt-3 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <ConfirmationChips items={o.confirmations} />
+                <button className="text-xs font-medium text-primary hover:underline" onClick={() => setEvidence((v) => !v)} aria-expanded={evidence}
+                  data-testid="toggle-evidence">
+                  {evidence ? "Hide evidence" : "Evidence"}
+                </button>
+              </div>
+              {evidence && <ConfirmationDetail items={o.confirmations} volume={o.volume} vsa={o.vsa} />}
+            </div>
+          )}
         </>
       ) : (
         <div className="mt-2 space-y-1 text-sm" data-testid="no-trade">

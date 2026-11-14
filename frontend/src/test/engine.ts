@@ -1,7 +1,22 @@
 // Strategy-engine v2 API fixtures shaped like backend output (TEST DATA ONLY: illustrative prices, never real signals).
-import type { EngineItem, EnginePlan, EngineSummary, EngineTimeframe, SignalRecord } from "@/lib/engine-types";
+import type { Confirmation, EngineItem, EnginePlan, EngineSummary, EngineTimeframe, SignalRecord, Verdict } from "@/lib/engine-types";
 
 const NOW = new Date().toISOString();
+
+const ORDER = ["regime", "htf", "entry", "structure", "vsa", "momentum", "trend", "volatility", "execution", "rr"] as const;
+const LABEL: Record<string, string> = { regime: "Market regime", htf: "Higher timeframe", entry: "Entry", structure: "Market structure", vsa: "VSA",
+  momentum: "Momentum", trend: "Trend", volatility: "Volatility", execution: "Spread & execution", rr: "Risk/reward" };
+const EVIDENCE = ["vsa", "momentum", "trend", "volatility"];
+
+/** The ten components of the confirmation matrix, PASS unless overridden; `gates` = categories promoted by Experiment 6. */
+export const conf = (verdicts: Partial<Record<string, [Verdict, string]>> = {}, gates: string[] = []): Confirmation[] =>
+  ORDER.map((key) => {
+    const [verdict, reason] = verdicts[key] ?? (["PASS", `${LABEL[key]} ok`] as [Verdict, string]);
+    const mandatory = !EVIDENCE.includes(key);
+    const gating = gates.includes(key);
+    return { key, label: LABEL[key], verdict, reason, evidence: key === "momentum" ? { macd_hist: 0.12, rsi: 55 } : {}, mandatory, gating,
+      promoted_by: gating ? "Experiment 6" : null, note: mandatory ? "" : gating ? "gate: Experiment 6" : "evidence only — not tested" };
+  });
 
 export const regime = (label: EngineTimeframe["regime"]["label"], name: string, direction = 0) => ({
   label, name, direction, subtype: label === "UNKNOWN" ? "transitional" : null, reason: `${name} regime`, metrics: {}, criteria: [], criteria_met: 0,
@@ -40,7 +55,12 @@ const base = (symbol: string, over: Partial<EngineItem>): EngineItem => ({
 
 export const GOLD_BUY = base("XAUUSD", {
   name: "Gold / US Dollar (spot)", price_now: 3915.5, primary: { action: "BUY", kind: "opportunity", headline: "BUY: Trend-following pullback on 1H", timeframe: "1H" },
-  opportunity: opp({}), tfs: tfs("BUY"),
+  opportunity: opp({
+    confirmations: conf({ vsa: ["UNAVAILABLE", "VSA unavailable: zero or missing volume on 12% of recent candles"],
+      momentum: ["NEUTRAL", "MACD histogram mixed over the last 2 candles"] }),
+    volume: { type: "tick", label: "Tick volume (broker)", reliable: false, reason: "zero or missing volume on 12% of recent candles" },
+    vsa: { events: [], pressure: { source: "inferred from price", value: 0.81, side: "buying" }, context: null },
+  }), tfs: tfs("BUY"),
 });
 
 export const EUR_WAIT_SELL = base("EURUSD", {
@@ -53,6 +73,12 @@ export const EUR_WAIT_SELL = base("EURUSD", {
         { label: "TP3", price: 1.10022, rr: 5.0, rr_net: 4.97, basis: "risk objective 5R" }], risk_reward: 1.53, entry_status: "WAITING FOR ENTRY",
       invalidation_text: "a 4H close above 1.11180", trigger: "SELL limit at 1.11012 on a retest of the broken level 1.10994" }),
     next_action: "SELL limit at 1.11012 on a retest of the broken level 1.10994. Cancel if a 4H close above 1.11180 or after 20 4H candles.",
+    missing: ["missing confirmation: momentum (MACD histogram rising 2 candles in a row, against the trade)"],
+    confirmations: conf({ momentum: ["FAIL", "MACD histogram rising 2 candles in a row, against the trade"],
+      vsa: ["PASS", "breakout on 1.80x volume, retest on 0.70x"] }, ["momentum"]),
+    volume: { type: "tick", label: "Tick volume (broker)", reliable: true, reason: "" },
+    vsa: { events: [{ kind: "no_demand", time: NOW, direction: -1, state: "n/a", text: "no demand: narrow up candle on falling volume (0.6x) in a rally" }],
+      pressure: { source: "inferred from price", value: 0.2, side: "selling" }, context: null },
   }),
   tfs: tfs("WAIT FOR SELL"),
 });
