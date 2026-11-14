@@ -1,0 +1,635 @@
+{
+ "symbol": "BTCUSDT",
+ "experiment": 5,
+ "approved": "owner, 2026-11-13 (final master execution)",
+ "plan": "docs/engine_v2/EXPERIMENT_PLAN.md",
+ "created": "2026-11-14T06:41:34+00:00",
+ "code_commit": "0e3865cc2ef6b90b6cb65f23088bf326953c79a7",
+ "engine_version": "v2-2026-11-13.1",
+ "split_sha256": "ec6f90c506db699968adf2bc05a21216a6e42d085ca075ff0caf02616d893827",
+ "segments": {
+  "development": "train",
+  "confirmation": "validation",
+  "sealed": "test (never read)"
+ },
+ "tests": [
+  {
+   "tf": "M5",
+   "strategy": "trend_pullback",
+   "direction": "long",
+   "signals": 3693,
+   "status": "run"
+  },
+  {
+   "tf": "M5",
+   "strategy": "trend_pullback",
+   "direction": "short",
+   "signals": 3509,
+   "status": "run"
+  },
+  {
+   "tf": "M5",
+   "strategy": "breakout_retest",
+   "direction": "long",
+   "signals": 36572,
+   "status": "run"
+  },
+  {
+   "tf": "M5",
+   "strategy": "breakout_retest",
+   "direction": "short",
+   "signals": 28462,
+   "status": "run"
+  },
+  {
+   "tf": "M5",
+   "strategy": "momentum_continuation",
+   "direction": "long",
+   "signals": 119,
+   "status": "run"
+  },
+  {
+   "tf": "M5",
+   "strategy": "momentum_continuation",
+   "direction": "short",
+   "signals": 101,
+   "status": "run"
+  },
+  {
+   "tf": "M5",
+   "strategy": "range_reversion",
+   "direction": "long",
+   "signals": 4,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "M5",
+   "strategy": "range_reversion",
+   "direction": "short",
+   "signals": 1,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "M5",
+   "strategy": "sweep_reversal",
+   "direction": "long",
+   "signals": 17977,
+   "status": "run"
+  },
+  {
+   "tf": "M5",
+   "strategy": "sweep_reversal",
+   "direction": "short",
+   "signals": 17411,
+   "status": "run"
+  },
+  {
+   "tf": "M5",
+   "strategy": "volatility_expansion",
+   "direction": "long",
+   "signals": 2258,
+   "status": "run"
+  },
+  {
+   "tf": "M5",
+   "strategy": "volatility_expansion",
+   "direction": "short",
+   "signals": 2504,
+   "status": "run"
+  },
+  {
+   "tf": "M15",
+   "strategy": "trend_pullback",
+   "direction": "long",
+   "signals": 1405,
+   "status": "run"
+  },
+  {
+   "tf": "M15",
+   "strategy": "trend_pullback",
+   "direction": "short",
+   "signals": 1283,
+   "status": "run"
+  },
+  {
+   "tf": "M15",
+   "strategy": "breakout_retest",
+   "direction": "long",
+   "signals": 12140,
+   "status": "run"
+  },
+  {
+   "tf": "M15",
+   "strategy": "breakout_retest",
+   "direction": "short",
+   "signals": 9478,
+   "status": "run"
+  },
+  {
+   "tf": "M15",
+   "strategy": "momentum_continuation",
+   "direction": "long",
+   "signals": 33,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "M15",
+   "strategy": "momentum_continuation",
+   "direction": "short",
+   "signals": 38,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "M15",
+   "strategy": "range_reversion",
+   "direction": "long",
+   "signals": 0,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "M15",
+   "strategy": "range_reversion",
+   "direction": "short",
+   "signals": 1,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "M15",
+   "strategy": "sweep_reversal",
+   "direction": "long",
+   "signals": 5902,
+   "status": "run"
+  },
+  {
+   "tf": "M15",
+   "strategy": "sweep_reversal",
+   "direction": "short",
+   "signals": 5315,
+   "status": "run"
+  },
+  {
+   "tf": "M15",
+   "strategy": "volatility_expansion",
+   "direction": "long",
+   "signals": 840,
+   "status": "run"
+  },
+  {
+   "tf": "M15",
+   "strategy": "volatility_expansion",
+   "direction": "short",
+   "signals": 787,
+   "status": "run"
+  },
+  {
+   "tf": "M30",
+   "strategy": "trend_pullback",
+   "direction": "long",
+   "signals": 725,
+   "status": "run"
+  },
+  {
+   "tf": "M30",
+   "strategy": "trend_pullback",
+   "direction": "short",
+   "signals": 615,
+   "status": "run"
+  },
+  {
+   "tf": "M30",
+   "strategy": "breakout_retest",
+   "direction": "long",
+   "signals": 6689,
+   "status": "run"
+  },
+  {
+   "tf": "M30",
+   "strategy": "breakout_retest",
+   "direction": "short",
+   "signals": 4708,
+   "status": "run"
+  },
+  {
+   "tf": "M30",
+   "strategy": "momentum_continuation",
+   "direction": "long",
+   "signals": 22,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "M30",
+   "strategy": "momentum_continuation",
+   "direction": "short",
+   "signals": 16,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "M30",
+   "strategy": "range_reversion",
+   "direction": "long",
+   "signals": 0,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "M30",
+   "strategy": "range_reversion",
+   "direction": "short",
+   "signals": 0,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "M30",
+   "strategy": "sweep_reversal",
+   "direction": "long",
+   "signals": 2826,
+   "status": "run"
+  },
+  {
+   "tf": "M30",
+   "strategy": "sweep_reversal",
+   "direction": "short",
+   "signals": 2745,
+   "status": "run"
+  },
+  {
+   "tf": "M30",
+   "strategy": "volatility_expansion",
+   "direction": "long",
+   "signals": 393,
+   "status": "run"
+  },
+  {
+   "tf": "M30",
+   "strategy": "volatility_expansion",
+   "direction": "short",
+   "signals": 420,
+   "status": "run"
+  },
+  {
+   "tf": "H1",
+   "strategy": "trend_pullback",
+   "direction": "long",
+   "signals": 405,
+   "status": "run"
+  },
+  {
+   "tf": "H1",
+   "strategy": "trend_pullback",
+   "direction": "short",
+   "signals": 385,
+   "status": "run"
+  },
+  {
+   "tf": "H1",
+   "strategy": "breakout_retest",
+   "direction": "long",
+   "signals": 3732,
+   "status": "run"
+  },
+  {
+   "tf": "H1",
+   "strategy": "breakout_retest",
+   "direction": "short",
+   "signals": 2673,
+   "status": "run"
+  },
+  {
+   "tf": "H1",
+   "strategy": "momentum_continuation",
+   "direction": "long",
+   "signals": 11,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "H1",
+   "strategy": "momentum_continuation",
+   "direction": "short",
+   "signals": 9,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "H1",
+   "strategy": "range_reversion",
+   "direction": "long",
+   "signals": 0,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "H1",
+   "strategy": "range_reversion",
+   "direction": "short",
+   "signals": 0,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "H1",
+   "strategy": "sweep_reversal",
+   "direction": "long",
+   "signals": 1349,
+   "status": "run"
+  },
+  {
+   "tf": "H1",
+   "strategy": "sweep_reversal",
+   "direction": "short",
+   "signals": 1269,
+   "status": "run"
+  },
+  {
+   "tf": "H1",
+   "strategy": "volatility_expansion",
+   "direction": "long",
+   "signals": 211,
+   "status": "run"
+  },
+  {
+   "tf": "H1",
+   "strategy": "volatility_expansion",
+   "direction": "short",
+   "signals": 205,
+   "status": "run"
+  },
+  {
+   "tf": "H4",
+   "strategy": "trend_pullback",
+   "direction": "long",
+   "signals": 168,
+   "status": "run"
+  },
+  {
+   "tf": "H4",
+   "strategy": "trend_pullback",
+   "direction": "short",
+   "signals": 147,
+   "status": "run"
+  },
+  {
+   "tf": "H4",
+   "strategy": "breakout_retest",
+   "direction": "long",
+   "signals": 1077,
+   "status": "run"
+  },
+  {
+   "tf": "H4",
+   "strategy": "breakout_retest",
+   "direction": "short",
+   "signals": 798,
+   "status": "run"
+  },
+  {
+   "tf": "H4",
+   "strategy": "momentum_continuation",
+   "direction": "long",
+   "signals": 12,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "H4",
+   "strategy": "momentum_continuation",
+   "direction": "short",
+   "signals": 6,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "H4",
+   "strategy": "range_reversion",
+   "direction": "long",
+   "signals": 0,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "H4",
+   "strategy": "range_reversion",
+   "direction": "short",
+   "signals": 0,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "H4",
+   "strategy": "sweep_reversal",
+   "direction": "long",
+   "signals": 385,
+   "status": "run"
+  },
+  {
+   "tf": "H4",
+   "strategy": "sweep_reversal",
+   "direction": "short",
+   "signals": 359,
+   "status": "run"
+  },
+  {
+   "tf": "H4",
+   "strategy": "volatility_expansion",
+   "direction": "long",
+   "signals": 77,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "H4",
+   "strategy": "volatility_expansion",
+   "direction": "short",
+   "signals": 86,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "H8",
+   "strategy": "trend_pullback",
+   "direction": "long",
+   "signals": 100,
+   "status": "run"
+  },
+  {
+   "tf": "H8",
+   "strategy": "trend_pullback",
+   "direction": "short",
+   "signals": 80,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "H8",
+   "strategy": "breakout_retest",
+   "direction": "long",
+   "signals": 624,
+   "status": "run"
+  },
+  {
+   "tf": "H8",
+   "strategy": "breakout_retest",
+   "direction": "short",
+   "signals": 468,
+   "status": "run"
+  },
+  {
+   "tf": "H8",
+   "strategy": "momentum_continuation",
+   "direction": "long",
+   "signals": 4,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "H8",
+   "strategy": "momentum_continuation",
+   "direction": "short",
+   "signals": 3,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "H8",
+   "strategy": "range_reversion",
+   "direction": "long",
+   "signals": 0,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "H8",
+   "strategy": "range_reversion",
+   "direction": "short",
+   "signals": 0,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "H8",
+   "strategy": "sweep_reversal",
+   "direction": "long",
+   "signals": 215,
+   "status": "run"
+  },
+  {
+   "tf": "H8",
+   "strategy": "sweep_reversal",
+   "direction": "short",
+   "signals": 186,
+   "status": "run"
+  },
+  {
+   "tf": "H8",
+   "strategy": "volatility_expansion",
+   "direction": "long",
+   "signals": 38,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "H8",
+   "strategy": "volatility_expansion",
+   "direction": "short",
+   "signals": 37,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "D1",
+   "strategy": "trend_pullback",
+   "direction": "long",
+   "signals": 32,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "D1",
+   "strategy": "trend_pullback",
+   "direction": "short",
+   "signals": 25,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "D1",
+   "strategy": "breakout_retest",
+   "direction": "long",
+   "signals": 136,
+   "status": "run"
+  },
+  {
+   "tf": "D1",
+   "strategy": "breakout_retest",
+   "direction": "short",
+   "signals": 128,
+   "status": "run"
+  },
+  {
+   "tf": "D1",
+   "strategy": "momentum_continuation",
+   "direction": "long",
+   "signals": 0,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "D1",
+   "strategy": "momentum_continuation",
+   "direction": "short",
+   "signals": 3,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "D1",
+   "strategy": "range_reversion",
+   "direction": "long",
+   "signals": 0,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "D1",
+   "strategy": "range_reversion",
+   "direction": "short",
+   "signals": 0,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "D1",
+   "strategy": "sweep_reversal",
+   "direction": "long",
+   "signals": 59,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "D1",
+   "strategy": "sweep_reversal",
+   "direction": "short",
+   "signals": 54,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "D1",
+   "strategy": "volatility_expansion",
+   "direction": "long",
+   "signals": 13,
+   "status": "not testable (fewer than 100 development signals)"
+  },
+  {
+   "tf": "D1",
+   "strategy": "volatility_expansion",
+   "direction": "short",
+   "signals": 16,
+   "status": "not testable (fewer than 100 development signals)"
+  }
+ ],
+ "criteria": {
+  "development": [
+   ">= 100 trades",
+   "mean R after real bid/ask > 0",
+   "edge over matched random entries > 0 with BH q < 0.1",
+   "mean R > 0 in >= 60% of development years",
+   "mean R > 0 without the best year",
+   "mean R > 0 at 2x the spread",
+   "deflated Sharpe >= 0.95 counting all trials (experiments 1-5)",
+   "CSCV probability of backtest overfitting <= 0.2 over the tested cells"
+  ],
+  "validation": [
+   ">= 100 trades",
+   "mean R > 0 with the 95% cluster-robust CI (weekly clusters) above 0",
+   "profit factor >= 1.2",
+   "edge over matched random entries with Holm-adjusted p < 0.05 across the carried cells"
+  ]
+ },
+ "settings_fixed_before_outcomes": {
+  "entries": "the engine's READY plans enter at the next candle's open (ask to buy, bid to sell); pending LIMIT plans are limit orders that fill only when price trades 1 tick through, cancelled by a close beyond the invalidation, waiting the group's expiry; pending STOP entries (strategies A and C) are not simulated as orders: the engine re-detects them as READY at the close beyond the trigger, which is simulated (a slightly worse price than an intrabar stop fill)",
+  "stop": "the plan's stop (invalidation + 0.1 ATR + the candle's spread), checked on bid/ask 1-minute paths, stop first inside a minute",
+  "target": "TP1 only, full position, measured at its R from the actual fill rounded DOWN to 0.1R (conservative); partial exits descriptive",
+  "horizon": "96 candles (the longest horizon the control pools store) stands in for 'no time stop'; trades still open are valued at the close of candle 96 and their share is reported; 48 candles = sensitivity",
+  "overlap": "one trade at a time per cell (strategy x direction x timeframe): a signal while the cell's previous trade is open is skipped",
+  "controls": "the gold study's matched random-entry pools (same segment, entry type, risk or distance/width bucket, direction, NY session, volatility, period); H8 pool built with the same builder",
+  "walk_forward": "no parameter is fitted, so every development year is already out of sample: the walk-forward reduces to the yearly breakdown",
+  "ci_method": "cluster-robust SE with weekly clusters (the study's tested method) instead of a block bootstrap",
+  "regime_usefulness": "the same strategies outside their compatible regimes are simulated for description only"
+ },
+ "sha256": "5598d6813d247495105f0e54fb41baa8cdb2ac86b9b5951dfa96140158c7dfd9"
+}
