@@ -2,7 +2,19 @@
 import numpy as np
 import pytest
 
-from app.feature_engineering.indicators import ema, hist_vol, keltner, macd, mfi, obv, roc, session_vwap, sma, stoch_rsi, valid_from
+from app.feature_engineering.indicators import (
+    ema,
+    hist_vol,
+    keltner,
+    macd,
+    mfi,
+    obv,
+    roc,
+    session_vwap,
+    sma,
+    stoch_rsi,
+    valid_from,
+)
 
 
 def _series(n: int = 420, seed: int = 7):
