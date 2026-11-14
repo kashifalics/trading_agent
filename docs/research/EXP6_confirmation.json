@@ -1,0 +1,646 @@
+{
+ "experiment": 6,
+ "stage": "confirmation",
+ "generated": "2026-11-14T10:19:15+00:00",
+ "development_sha256": "6b895e4d74d53b82fa8986ff0f7fff74672e66cd5f5bbe06c8bde2d3d21c51d1",
+ "status": "run once",
+ "arms": [
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "breakout_retest",
+   "arm": "trend",
+   "trades": 7703,
+   "kept": {
+    "trades": 5510,
+    "win_rate": 0.35952813067150635,
+    "avg_win_r": 1.9319665139158346,
+    "avg_loss_r": -0.9995279693593382,
+    "expectancy_r": 0.05442676228641816,
+    "total_r": 299.89146019816405,
+    "profit_factor": 1.0850192930029754,
+    "sharpe_per_trade": 0.03799129558464475,
+    "sortino_per_trade": 0.06802710547406786,
+    "max_drawdown_r": 125.50000000000011,
+    "recovery_factor": 2.3895733880331775,
+    "by_year": {
+     "2024": 0.05193179172875469,
+     "2025": 0.059236407973561105
+    },
+    "positive_year_share": 1.0,
+    "without_best_year": 0.05193179172875469,
+    "at_2x_spread": 0.033120010649929095
+   },
+   "dropped": {
+    "trades": 2193,
+    "win_rate": 0.35020519835841313,
+    "avg_win_r": 1.9579427083333332,
+    "avg_loss_r": -0.9995101051581533,
+    "expectancy_r": 0.03620524402627976,
+    "total_r": 79.39810014963152,
+    "profit_factor": 1.0557452743396414,
+    "sharpe_per_trade": 0.0251160342394934,
+    "sortino_per_trade": 0.04492849821600375,
+    "max_drawdown_r": 60.599999999999994,
+    "recovery_factor": 1.3101996724361638,
+    "by_year": {
+     "2024": 0.0129215833218075,
+     "2025": 0.08433566433566433
+    },
+    "positive_year_share": 1.0,
+    "without_best_year": 0.0129215833218075,
+    "at_2x_spread": 0.014817460088912795
+   },
+   "baseline": {
+    "trades": 7703,
+    "win_rate": 0.35687394521614957,
+    "avg_win_r": 1.939223595513739,
+    "avg_loss_r": -0.9995228307871362,
+    "expectancy_r": 0.049239200356717576,
+    "total_r": 379.2895603477955,
+    "profit_factor": 1.0765988356985459,
+    "sharpe_per_trade": 0.034311049769779035,
+    "sortino_per_trade": 0.06141690559780289,
+    "max_drawdown_r": 160.50000000000017,
+    "recovery_factor": 2.3631748308273837,
+    "by_year": {
+     "2024": 0.040639765088435864,
+     "2025": 0.06614667686031651
+    },
+    "positive_year_share": 1.0,
+    "without_best_year": 0.040639765088435864,
+    "at_2x_spread": 0.027909379288081924
+   },
+   "improvement_r": 0.005187561929700581,
+   "improvement_r_2x_costs": 0.005210631361847171,
+   "improvement_r_fee": 0.005234822841350795,
+   "p_random": 0.328383580820959,
+   "ci_kept_minus_dropped": [
+    -0.05568805450767134,
+    0.09213109102794814
+   ],
+   "improvement_by_year": {
+    "2024": 0.01129202664031883,
+    "2025": -0.006910268886755409
+   },
+   "positive_year_share": 0.5,
+   "false_entry": {
+    "stop_share_kept": 0.64010889292196,
+    "stop_share_dropped": 0.6493388052895577
+   },
+   "checks": {
+    "kept_beats_baseline": true,
+    "pf_sharpe_not_worse": true,
+    "positive_years_60pct": false,
+    "positive_at_2x_costs": true,
+    "at_least_300_trades": true
+   },
+   "by_regime": {
+    "UNKNOWN": {
+     "kept": 0.06512838614839934,
+     "baseline": 0.04828368691941407
+    },
+    "TRENDING": {
+     "kept": 0.08681070023463701,
+     "baseline": 0.0797735012281272
+    },
+    "RANGING": {
+     "kept": -0.0034649134759443373,
+     "baseline": 0.048952440131578234
+    },
+    "CONSOLIDATING": {
+     "kept": -0.007070707070707069,
+     "baseline": 0.007933194154488519
+    }
+   },
+   "by_tf": {
+    "M15": {
+     "kept": 0.11962375347603095,
+     "baseline": 0.09986402266393832,
+     "kept_trades": 1065
+    },
+    "H1": {
+     "kept": 0.018803418803418816,
+     "baseline": 0.007988165680473374,
+     "kept_trades": 234
+    },
+    "H8": {
+     "kept": 0.28157894736842104,
+     "baseline": 0.11521739130434783,
+     "kept_trades": 38
+    },
+    "M30": {
+     "kept": 0.06716572786315103,
+     "baseline": 0.10798098405482065,
+     "kept_trades": 534
+    },
+    "D1": {
+     "kept": 0.050000000000000044,
+     "baseline": 0.13333333333333336,
+     "kept_trades": 8
+    },
+    "H4": {
+     "kept": -0.07619047619047617,
+     "baseline": 0.06630434782608695,
+     "kept_trades": 63
+    },
+    "M5": {
+     "kept": 0.03529306728342724,
+     "baseline": 0.027743838579618197,
+     "kept_trades": 3568
+    }
+   },
+   "by_direction": {
+    "short": {
+     "kept": 0.0572301051682896,
+     "baseline": 0.052643783424646796
+    },
+    "long": {
+     "kept": 0.052185552823707064,
+     "baseline": 0.046144278251844126
+    }
+   },
+   "p_holm": 0.9068546572671367,
+   "passed": false,
+   "promotable": false
+  },
+  {
+   "symbol": "BTCUSDT",
+   "strategy": "sweep_reversal",
+   "arm": "trend",
+   "trades": 6915,
+   "kept": {
+    "trades": 3868,
+    "win_rate": 0.359358841778697,
+    "avg_win_r": 1.723135301617356,
+    "avg_loss_r": -0.9942191875531452,
+    "expectancy_r": -0.017713825622690988,
+    "total_r": -68.51707750856875,
+    "profit_factor": 0.9721890779314926,
+    "sharpe_per_trade": -0.013388773840341883,
+    "sortino_per_trade": -0.022213648105424092,
+    "max_drawdown_r": 151.3027811095118,
+    "recovery_factor": -0.4528474427642979,
+    "by_year": {
+     "2024": -0.010458912083915632,
+     "2025": -0.03175026683959324
+    },
+    "positive_year_share": 0.0,
+    "without_best_year": -0.03175026683959324,
+    "at_2x_spread": -0.02871560851790362
+   },
+   "dropped": {
+    "trades": 3047,
+    "win_rate": 0.3449294387922547,
+    "avg_win_r": 1.7280625250846233,
+    "avg_loss_r": -0.9955264279774702,
+    "expectancy_r": -0.056080418896977825,
+    "total_r": -170.87703637909144,
+    "profit_factor": 0.9140055600143114,
+    "sharpe_per_trade": -0.04250388319353832,
+    "sortino_per_trade": -0.06948518250953553,
+    "max_drawdown_r": 191.2775438530374,
+    "recovery_factor": -0.8933460401937192,
+    "by_year": {
+     "2024": -0.055965722349639035,
+     "2025": -0.05631837661779372
+    },
+    "positive_year_share": 0.0,
+    "without_best_year": -0.05631837661779372,
+    "at_2x_spread": -0.06830743939380188
+   },
+   "baseline": {
+    "trades": 6915,
+    "win_rate": 0.353000723065799,
+    "avg_win_r": 1.7252567730897437,
+    "avg_loss_r": -0.9948023909252848,
+    "expectancy_r": -0.034619539246227064,
+    "total_r": -239.39411388766015,
+    "profit_factor": 0.9462125856142367,
+    "sharpe_per_trade": -0.026197452817324513,
+    "sortino_per_trade": -0.04318274766030688,
+    "max_drawdown_r": 258.24458069931745,
+    "recovery_factor": -0.927005373121051,
+    "by_year": {
+     "2024": -0.03077198240660936,
+     "2025": -0.04229465696094304
+    },
+    "positive_year_share": 0.0,
+    "without_best_year": -0.04229465696094304,
+    "at_2x_spread": -0.046161206302265445
+   },
+   "improvement_r": 0.016905713623536076,
+   "improvement_r_2x_costs": 0.017445597784361826,
+   "improvement_r_fee": 0.05939489141535714,
+   "p_random": 0.12259387030648468,
+   "ci_kept_minus_dropped": [
+    -0.017100604503706013,
+    0.09383379105227968
+   ],
+   "improvement_by_year": {
+    "2024": 0.02031307032269373,
+    "2025": 0.010544390121349799
+   },
+   "positive_year_share": 1.0,
+   "false_entry": {
+    "stop_share_kept": 0.6349534643226473,
+    "stop_share_dropped": 0.650475877912701
+   },
+   "checks": {
+    "kept_beats_baseline": true,
+    "pf_sharpe_not_worse": true,
+    "positive_years_60pct": true,
+    "positive_at_2x_costs": true,
+    "at_least_300_trades": true
+   },
+   "by_regime": {
+    "RANGING": {
+     "kept": -0.0029061385851877545,
+     "baseline": 0.018334589107602904
+    },
+    "UNKNOWN": {
+     "kept": 0.015220371152879521,
+     "baseline": -0.035202833636857916
+    },
+    "TRENDING": {
+     "kept": -0.12463753755684151,
+     "baseline": -0.13718432285503981
+    }
+   },
+   "by_tf": {
+    "M30": {
+     "kept": 0.055206968864172215,
+     "baseline": -0.016308558748646094,
+     "kept_trades": 433
+    },
+    "H8": {
+     "kept": -0.09578041821718213,
+     "baseline": 0.05556920194490389,
+     "kept_trades": 25
+    },
+    "M5": {
+     "kept": -0.04435974145696518,
+     "baseline": -0.03866515150452741,
+     "kept_trades": 2350
+    },
+    "M15": {
+     "kept": 0.012984613208009785,
+     "baseline": -0.03268105224696524,
+     "kept_trades": 824
+    },
+    "H1": {
+     "kept": -0.028622943781157754,
+     "baseline": -0.09569518088456794,
+     "kept_trades": 188
+    },
+    "H4": {
+     "kept": 0.18541666666666667,
+     "baseline": 0.16153846153846152,
+     "kept_trades": 48
+    }
+   },
+   "by_direction": {
+    "short": {
+     "kept": -0.014688788957441043,
+     "baseline": -0.04953402454102844
+    },
+    "long": {
+     "kept": -0.020374329200972038,
+     "baseline": -0.02010090073579114
+    }
+   },
+   "p_holm": 0.4903754812259387,
+   "passed": false,
+   "promotable": false
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "breakout_retest",
+   "arm": "trend",
+   "trades": 7235,
+   "kept": {
+    "trades": 5331,
+    "win_rate": 0.3250797223785406,
+    "avg_win_r": 1.7320031309636836,
+    "avg_loss_r": -1.0020304825137083,
+    "expectancy_r": -0.11325159447087947,
+    "total_r": -603.7442501242584,
+    "profit_factor": 0.8325400661227766,
+    "sharpe_per_trade": -0.08676390562508775,
+    "sortino_per_trade": -0.1369669250784903,
+    "max_drawdown_r": 641.5430873335608,
+    "recovery_factor": -0.9410813740252345,
+    "by_year": {
+     "2020": -0.13143971965345394,
+     "2021": -0.1662177239773341,
+     "2022": -0.038075790206342185,
+     "2023": -0.13474277205447463
+    },
+    "positive_year_share": 0.0,
+    "without_best_year": -0.14636063552767378,
+    "at_2x_spread": -0.2729621627083263
+   },
+   "dropped": {
+    "trades": 1904,
+    "win_rate": 0.3119747899159664,
+    "avg_win_r": 1.7490578665476457,
+    "avg_loss_r": -1.000880176918307,
+    "expectancy_r": -0.1429688335260928,
+    "total_r": -272.21265903368067,
+    "profit_factor": 0.7923868134083004,
+    "sharpe_per_trade": -0.10946060571544058,
+    "sortino_per_trade": -0.1720897777703044,
+    "max_drawdown_r": 297.84236200397777,
+    "recovery_factor": -0.9139487653876623,
+    "by_year": {
+     "2020": -0.176285626828107,
+     "2021": -0.1205443048780579,
+     "2022": -0.18195725042450303,
+     "2023": -0.05452987991386898
+    },
+    "positive_year_share": 0.0,
+    "without_best_year": -0.15931380503998852,
+    "at_2x_spread": -0.30593050074251366
+   },
+   "baseline": {
+    "trades": 7235,
+    "win_rate": 0.3216309606081548,
+    "avg_win_r": 1.7363565959129201,
+    "avg_loss_r": -1.0017234531066228,
+    "expectancy_r": -0.12107213671844357,
+    "total_r": -875.9569091579392,
+    "profit_factor": 0.821831736782453,
+    "sharpe_per_trade": -0.09274145776708216,
+    "sortino_per_trade": -0.1462420224775927,
+    "max_drawdown_r": 917.2250754407214,
+    "recovery_factor": -0.9550075904074546,
+    "by_year": {
+     "2020": -0.14269791093375747,
+     "2021": -0.15409712656018962,
+     "2022": -0.07569228433678116,
+     "2023": -0.11190170880830028
+    },
+    "positive_year_share": 0.0,
+    "without_best_year": -0.14099125648899424,
+    "at_2x_spread": -0.2816382809691546
+   },
+   "improvement_r": 0.007820542247564094,
+   "improvement_r_2x_costs": 0.008676118260828314,
+   "improvement_r_fee": null,
+   "p_random": 0.3022848857557122,
+   "ci_kept_minus_dropped": [
+    -0.04737577438515321,
+    0.10681025249557986
+   ],
+   "improvement_by_year": {
+    "2020": 0.011258191280303531,
+    "2021": -0.012120597417144469,
+    "2022": 0.03761649413043897,
+    "2023": -0.022841063246174353
+   },
+   "positive_year_share": 0.5,
+   "false_entry": {
+    "stop_share_kept": 0.6737947852185331,
+    "stop_share_dropped": 0.6869747899159664
+   },
+   "checks": {
+    "kept_beats_baseline": true,
+    "pf_sharpe_not_worse": true,
+    "positive_years_60pct": false,
+    "positive_at_2x_costs": true,
+    "at_least_300_trades": true
+   },
+   "by_regime": {
+    "CONSOLIDATING": {
+     "kept": -0.18277764307266572,
+     "baseline": -0.15881020362825665
+    },
+    "UNKNOWN": {
+     "kept": -0.09728444973060446,
+     "baseline": -0.11533689518496429
+    },
+    "RANGING": {
+     "kept": -0.12662672079028595,
+     "baseline": -0.12517091718486337
+    },
+    "TRENDING": {
+     "kept": -0.13049161169062448,
+     "baseline": -0.12729699624973187
+    }
+   },
+   "by_tf": {
+    "H8": {
+     "kept": 0.1323076923076923,
+     "baseline": 0.10348837209302326,
+     "kept_trades": 65
+    },
+    "M5": {
+     "kept": -0.17500756658559996,
+     "baseline": -0.17491945191266534,
+     "kept_trades": 2544
+    },
+    "M30": {
+     "kept": -0.02166725315175589,
+     "baseline": -0.05882422414707508,
+     "kept_trades": 843
+    },
+    "H4": {
+     "kept": 0.1231481481481481,
+     "baseline": 0.14,
+     "kept_trades": 108
+    },
+    "H1": {
+     "kept": 0.016833768391077423,
+     "baseline": 0.01297610108526032,
+     "kept_trades": 392
+    },
+    "M15": {
+     "kept": -0.12079936510961027,
+     "baseline": -0.12836141016448283,
+     "kept_trades": 1349
+    },
+    "D1": {
+     "kept": -0.19333333333333333,
+     "baseline": -0.10769230769230773,
+     "kept_trades": 30
+    }
+   },
+   "by_direction": {
+    "short": {
+     "kept": -0.14486717854909748,
+     "baseline": -0.1588312829928385
+    },
+    "long": {
+     "kept": -0.08654791255567874,
+     "baseline": -0.08822197224193454
+    }
+   },
+   "p_holm": 0.9068546572671367,
+   "passed": false,
+   "promotable": false
+  },
+  {
+   "symbol": "XAUUSD",
+   "strategy": "sweep_reversal",
+   "arm": "trend",
+   "trades": 8821,
+   "kept": {
+    "trades": 5340,
+    "win_rate": 0.33352059925093636,
+    "avg_win_r": 1.5722538832342512,
+    "avg_loss_r": -0.996537576497854,
+    "expectancy_r": -0.1397927094973148,
+    "total_r": -746.4930687156609,
+    "profit_factor": 0.7895232581639061,
+    "sharpe_per_trade": -0.11314057927497286,
+    "sortino_per_trade": -0.17130116713909682,
+    "max_drawdown_r": 755.1930687156581,
+    "recovery_factor": -0.9884797671477664,
+    "by_year": {
+     "2020": -0.13982011996891208,
+     "2021": -0.17561937346479586,
+     "2022": -0.08191273403585592,
+     "2023": -0.1890928671008821
+    },
+    "positive_year_share": 0.0,
+    "without_best_year": -0.1649538594964122,
+    "at_2x_spread": -0.257222525220973
+   },
+   "dropped": {
+    "trades": 3481,
+    "win_rate": 0.3381212295317437,
+    "avg_win_r": 1.5435361046363822,
+    "avg_loss_r": -0.9965464796190998,
+    "expectancy_r": -0.13769063311846708,
+    "total_r": -479.3010938853839,
+    "profit_factor": 0.7912490857977397,
+    "sharpe_per_trade": -0.11237909274295206,
+    "sortino_per_trade": -0.16935062076383767,
+    "max_drawdown_r": 491.8015170165535,
+    "recovery_factor": -0.9745823819190277,
+    "by_year": {
+     "2020": -0.1891301892654908,
+     "2021": -0.08318631010171869,
+     "2022": -0.1599775671532444,
+     "2023": -0.10638201322302483
+    },
+    "positive_year_share": 0.0,
+    "without_best_year": -0.1595055170290321,
+    "at_2x_spread": -0.262292787482032
+   },
+   "baseline": {
+    "trades": 8821,
+    "win_rate": 0.3353361296905113,
+    "avg_win_r": 1.5608269645697175,
+    "avg_loss_r": -0.9965410751830579,
+    "expectancy_r": -0.13896317453815268,
+    "total_r": -1225.794162601045,
+    "profit_factor": 0.7902014652989289,
+    "sharpe_per_trade": -0.11284698952532626,
+    "sortino_per_trade": -0.1705328745179144,
+    "max_drawdown_r": 1229.7941626010418,
+    "recovery_factor": -0.996747423169145,
+    "by_year": {
+     "2020": -0.15911913565666713,
+     "2021": -0.1402731405492456,
+     "2022": -0.11333469419019619,
+     "2023": -0.15525964797218705
+    },
+    "positive_year_share": 0.0,
+    "without_best_year": -0.1503163439774241,
+    "at_2x_spread": -0.25922338486622254
+   },
+   "improvement_r": -0.0008295349591621037,
+   "improvement_r_2x_costs": 0.002000859645249542,
+   "improvement_r_fee": null,
+   "p_random": 0.5982700864956753,
+   "ci_kept_minus_dropped": [
+    -0.05982137575143219,
+    0.05561722299373677
+   ],
+   "improvement_by_year": {
+    "2020": 0.01929901568775505,
+    "2021": -0.03534623291555025,
+    "2022": 0.031421960154340275,
+    "2023": -0.03383321912869505
+   },
+   "positive_year_share": 0.5,
+   "false_entry": {
+    "stop_share_kept": 0.6606741573033708,
+    "stop_share_dropped": 0.6564205688020683
+   },
+   "checks": {
+    "kept_beats_baseline": false,
+    "pf_sharpe_not_worse": false,
+    "positive_years_60pct": false,
+    "positive_at_2x_costs": true,
+    "at_least_300_trades": true
+   },
+   "by_regime": {
+    "TRENDING": {
+     "kept": -0.13615305067436648,
+     "baseline": -0.14298288248484348
+    },
+    "RANGING": {
+     "kept": -0.11823551458740712,
+     "baseline": -0.11900423803868802
+    },
+    "UNKNOWN": {
+     "kept": -0.1510206041335728,
+     "baseline": -0.14618920412230055
+    }
+   },
+   "by_tf": {
+    "M5": {
+     "kept": -0.1963057851644426,
+     "baseline": -0.18784259291367233,
+     "kept_trades": 2801
+    },
+    "M15": {
+     "kept": -0.0783519514095887,
+     "baseline": -0.09233272049017872,
+     "kept_trades": 1305
+    },
+    "H1": {
+     "kept": -0.08354250262991544,
+     "baseline": -0.10267794241582835,
+     "kept_trades": 370
+    },
+    "D1": {
+     "kept": -0.525,
+     "baseline": -0.14800000000000002,
+     "kept_trades": 12
+    },
+    "M30": {
+     "kept": -0.08876968739219437,
+     "baseline": -0.08902305902125707,
+     "kept_trades": 723
+    },
+    "H4": {
+     "kept": 0.07187087518014584,
+     "baseline": 0.08127446063534435,
+     "kept_trades": 88
+    },
+    "H8": {
+     "kept": 0.016470855151916416,
+     "baseline": 0.08832654797871198,
+     "kept_trades": 41
+    }
+   },
+   "by_direction": {
+    "short": {
+     "kept": -0.15561690549631738,
+     "baseline": -0.15835425760595193
+    },
+    "long": {
+     "kept": -0.12430856661722371,
+     "baseline": -0.11985577825842614
+    }
+   },
+   "p_holm": 0.9068546572671367,
+   "passed": false,
+   "promotable": false
+  }
+ ],
+ "passed": [],
+ "sha256": "fd005cb3a1dfd71c7159e3b51bef6b54bcd99368ebc2a4c5614038c4d5e55da6"
+}
