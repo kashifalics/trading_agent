@@ -45,7 +45,10 @@ OUTCOME_DEF = {
 }
 REACTION = {"touch_tol": "max(0.1 x ATR, tick)", "move_atr": 1.0, "beyond_close_atr": 1.0, "horizon": 20,
             "tie": "the reaction wins when one candle does both (the close is the candle's last price)"}
-CONTROLS = {"draws": DRAWS, "fallback": {"draws": 4_000, "tail": "gaussian fit to the null distribution"},
+LEVEL_DRAWS = 4_000  # measured: 20,000 level draws would take ~30 h (square9 ~1.1 s per draw at H1); the pre-declared fallback
+CONTROLS = {"draws": DRAWS, "tail": "empirical", "level_draws": LEVEL_DRAWS, "level_tail": "gaussian",
+            "fallback": {"draws": 4_000, "tail": "gaussian fit to the null distribution"},
+            "runtime_basis": "timed on a synthetic random walk of the real XAUUSD H1 size (102,671 candles), no real outcome read",
             "time": "random cycle lengths uniform on [7, 366], excluding every Gann count +- its tolerance, same anchors, "
                     "spans and tolerance rule; coverage within 1 percentage point (up to 50 redraws, else the closest)",
             "levels": "every level shifted by a random fraction of the local level spacing, excluding shifts within the "

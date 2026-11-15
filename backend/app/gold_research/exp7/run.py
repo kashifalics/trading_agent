@@ -78,7 +78,7 @@ def prereg_doc() -> dict:
            "register_sha": P.register()["sha"], "gann_sha": P.GannParams().sha(),
            "splits": {s: load_split(s)["sha256"] for s in P.SYMBOLS},
            "exp6_preregistration_sha256": json.loads(EXP6_PREREG.read_text())["sha256"],
-           "families": ids, "alpha": P.ALPHA, "draws": P.DRAWS,
+           "families": ids, "alpha": P.ALPHA, "draws": P.DRAWS, "level_draws": P.LEVEL_DRAWS,
            "rule": "Holm within each family (timing, trading, astro) at development and again across the carried candidates at "
                    "confirmation; descriptive rows never pass; floors and the coverage rule look at counts only",
            "prior_trials": prior, "new_trials": new, "total_trials": prior + sum(new.values()),
@@ -115,7 +115,7 @@ def gate(rows: list[dict], stage: str) -> None:
 def _run_rows(segment: str, only: set[str] | None, draws: int, log) -> list[dict]:
     from app.gold_research.exp7 import filters, rules, timing
 
-    rows = timing.run_all(segment, draws, only=only, log=log)
+    rows = timing.run_all(segment, draws, only=only, log=log, level_draws=P.CONTROLS["level_draws"])
     rows += filters.run(segment, draws, only=only, log=log)
     rows += rules.run(segment, draws, only=only, log=log)
     rows += timing.run_astro(segment, draws, only=only, log=log)

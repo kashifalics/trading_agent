@@ -231,7 +231,8 @@ def run_series(b: Bars, symbol: str, tf: str, daily: bool, draws: int, seed: int
                 row["direction"] = "more" if row["lift"] > 1 else "less"
             rows.append(row)
     if levels:
-        rows += _level_rows(b, atr, symbol, tf, eval_mask, p, rng, level_draws or draws, only, tail)
+        lt = P.CONTROLS["level_tail"] if (level_draws or draws) < P.DRAWS else tail
+        rows += _level_rows(b, atr, symbol, tf, eval_mask, p, rng, level_draws or draws, only, lt)
     return rows
 
 
