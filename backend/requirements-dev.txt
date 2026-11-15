@@ -2,3 +2,8 @@
 pytest==8.3.4
 respx==0.22.0
 ruff==0.8.4
+
+# Experimental Gann astro module (research only; never imported by the production engine)
+skyfield==1.55
+jplephem==2.24
+sgp4==2.27

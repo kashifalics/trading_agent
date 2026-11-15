@@ -42,3 +42,6 @@ data/historical/
 # SQLite write-ahead files of the local dev database
 backend/dev.db-wal
 backend/dev.db-shm
+
+# JPL ephemeris for the experimental Gann astro module (downloaded once, about 17 MB)
+data/ephemeris/
