@@ -101,7 +101,7 @@ def line_sets(b: Bars, p: GannParams) -> dict[str, S.LineSet]:
     cx = G._context(b, p, False)
     n = len(b.c)
     bounds = sorted({0, n} | {min(max(s, 0), n) for _, s, _ in cx.spans} | {min(max(e, 0), n) for _, _, e in cx.spans})
-    stat = {"division": [], "twelfth": [], "square9": [], "symmetry": []}
+    stat = {"division": [], "twelfth": [], "square9": [], "symmetry": [], "half": []}
     x0s, x1s, ang = [], [], {"swing": [], "atr": []}
     rates = np.array(p.rates, dtype=float)
     order = np.argsort(rates)
@@ -116,7 +116,10 @@ def line_sets(b: Bars, p: GannParams) -> dict[str, S.LineSet]:
         L = G._latest(A)
         lv = G._static_levels(A, L, cx.prev.get(L), p)
         for m in stat:
-            stat[m].append(np.array([x["price"] for x in lv if x["method"] == m]))
+            if m == "half":  # the 50% level of the latest major swing (Gann-only rule J3)
+                stat[m].append(np.array([x["price"] for x in lv if x["method"] == "division" and x.get("fraction") == 0.5]))
+            else:
+                stat[m].append(np.array([x["price"] for x in lv if x["method"] == m]))
         x0s.append(x0)
         x1s.append(x1)
         for a in A:
