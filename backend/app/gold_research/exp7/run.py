@@ -112,23 +112,40 @@ def gate(rows: list[dict], stage: str) -> None:
         r["stage"] = stage
 
 
-def _run_rows(segment: str, only: set[str] | None, draws: int, log) -> list[dict]:
+CHECKPOINTS = REPO_ROOT / "data" / "historical" / "research" / "exp7"
+
+
+def _run_rows(segment: str, only: set[str] | None, draws: int, log, pre_sha: str = "") -> list[dict]:
+    """Each track's rows are checkpointed (keyed by the pre-registration sha, the segment and the requested ids), so a crash
+    late in a multi-hour run does not discard finished tracks. A checkpoint only replays rows the same code already produced."""
     from app.gold_research.exp7 import filters, rules, timing
 
-    rows = timing.run_all(segment, draws, only=only, log=log, level_draws=P.CONTROLS["level_draws"])
-    rows += filters.run(segment, draws, only=only, log=log)
-    rows += rules.run(segment, draws, only=only, log=log)
-    rows += timing.run_astro(segment, draws, only=only, log=log)
+    tracks = (("timing", lambda: timing.run_all(segment, draws, only=only, log=log, level_draws=P.CONTROLS["level_draws"])),
+              ("filters", lambda: filters.run(segment, draws, only=only, log=log)),
+              ("rules", lambda: rules.run(segment, draws, only=only, log=log)),
+              ("astro", lambda: timing.run_astro(segment, draws, only=only, log=log)))
+    key = _sha({"pre": pre_sha, "segment": segment, "only": sorted(only) if only else None, "draws": draws})[:16]
+    CHECKPOINTS.mkdir(parents=True, exist_ok=True)
+    rows = []
+    for name, fn in tracks:
+        f = CHECKPOINTS / f"{segment}_{name}_{key}.json"
+        if f.exists():
+            part = json.loads(f.read_text())["rows"]
+            log(f"{name}: {len(part)} rows from checkpoint {f.name}")
+        else:
+            part = fn()
+            f.write_text(json.dumps({"rows": part, "code_commit": _git_head()}, default=float), encoding="utf8")
+        rows += part
     return rows
 
 
 def develop(log=print, draws: int | None = None) -> dict:
     require_committed(PREREG)
     pre = json.loads(PREREG.read_text())
-    rows = _run_rows("train", None, draws or pre["draws"], log)
+    rows = _run_rows("train", None, draws or pre["draws"], log, pre["sha256"])
     gate(rows, "development")
     out = {"experiment": 7, "stage": "development", "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-           "preregistration_sha256": pre["sha256"], "rows": rows,
+           "preregistration_sha256": pre["sha256"], "code_commit": _git_head(), "rows": rows,
            "candidates": [r["id"] for r in rows if r["passed"]]}
     out["sha256"] = _sha(out)
     write_once(DEV, out)
@@ -147,7 +164,7 @@ def confirm(log=print, draws: int | None = None) -> dict:
     if not carried:
         out |= {"status": "not run: no candidate passed development", "rows": []}
     else:
-        rows = _run_rows("validation", carried, draws or pre["draws"], log)
+        rows = _run_rows("validation", carried, draws or pre["draws"], log, pre["sha256"])
         gate(rows, "confirmation")
         out |= {"status": "run once", "rows": rows, "passed": [r["id"] for r in rows if r["passed"]]}
     out["sha256"] = _sha(out)
