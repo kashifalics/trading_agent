@@ -1,0 +1,119 @@
+# Gann parameter register (Experiment 7)
+
+Generated from `app/gold_research/exp7/params.py` before any Experiment 7 outcome was computed. Register sha256 `cb124aaf2c853eb0632090cbb4811cfe9581eaf188724d9c584cd61fc78f62bc`; Gann settings sha256 `8c31c2d71c7828066f34dbb087e5095ff1810c45a46f59086b9e0652badac651`. It is frozen in `docs/research/EXP7_parameters.json` and hashed into the pre-registration: any change after an outcome is seen is a new, recorded trial.
+
+## Gann settings (`app/gann/params.py`)
+
+| Setting | Value |
+|---|---|
+| `counts` | 7, 14, 21, 28, 30, 45, 49, 60, 72, 90, 108, 120, 135, 144, 180, 216, 240, 270, 288, 360, 365.25 |
+| `fracs` | 0.125, 0.25, 0.333333, 0.375, 0.5, 0.625, 0.666667, 0.75, 0.875 |
+| `tol_frac` | 0.025 |
+| `major_k` | 5 |
+| `per_kind` | 2 |
+| `sq9_steps` | 8 |
+| `sq9_step_deg` | 45 |
+| `sq9_time_max` | 400 |
+| `price_tol_atr` | 0.1 |
+| `rates` | 0.125, 0.25, 0.333333, 0.5, 1, 2, 3, 4, 8 |
+| `seasonal` | 3, 21, 6, 21, 9, 23, 12, 21, 2, 4, 5, 6, 8, 8, 11, 8 |
+| `seasonal_tol_days` | 2 |
+| `anniv_tol_days` | 2 |
+| `anniv_years` | 1, 2, 3 |
+| `symmetry_ratios` | 0.5, 1, 2 |
+| `fixed_scale` | 1 |
+| `tick` | 0.01 |
+| `atr_n` | 14 |
+
+## Timing track
+
+Tested timeframes: H1, H4, D1. Information only: M15, W1.
+
+| Method | Panel column | Timeframes |
+|---|---|---|
+| cycle_bars | `t_cycle_bars` | H1, H4, D1 |
+| cycle_days | `t_cycle_days` | D1 |
+| fraction | `t_fraction` | H1, H4, D1 |
+| anniversary | `t_anniversary` | D1 |
+| seasonal | `t_seasonal` | D1 |
+| balance_swing | `t_balance_swing` | H1, H4, D1 |
+| balance_atr | `t_balance_atr` | H1, H4, D1 |
+| balance_fixed | `t_balance_fixed` | D1 |
+| sq9_time | `t_sq9_time` | H1, H4, D1 |
+
+Level methods (tested): division, square9, angle_swing, angle_atr. Descriptive only (cannot pass): sq4, twelfth.
+
+| Outcome | Definition | Tested |
+|---|---|---|
+| reversal | candle is a 10-left/10-right fractal high or low (hindsight outcome) | inside > outside |
+| vol | true range / ATR(14) of the previous candle | inside > outside |
+| expansion | true range > 1.5 x ATR(14) of the previous candle | inside > outside |
+| dchange | sign(C[t+10]-C[t]) != sign(C[t]-C[t-10]) | two-sided |log lift| |
+
+Level reaction: touch_tol: max(0.1 x ATR, tick); move_atr: 1; beyond_close_atr: 1; horizon: 20; tie: the reaction wins when one candle does both (the close is the candle's last price).
+
+## Filter track
+
+Arms: B, C, D-swing, D-atr, E-swing, E-atr, F, G, H, I (definitions in `GANN_ENGINE_DESIGN.md` section 4.4).
+
+## Gann-only rules
+
+- rules: J1, J2, J3, J4, J5, J6
+- tfs: H1, H4, D1
+- entry: next candle open
+- stop: beyond the trigger extreme
+- min_risk_atr: 0.25
+- rejection_close_atr: 0.25
+- retest_window: 10
+- primary_exit: 2R, stop or Experiment 5 HOLD
+- tp1: nearest Gann level >= 1R, else 1R
+- tp2_r: 2
+- tp3: next Gann level, else 3R
+
+## Astro family (separate)
+
+- ephemeris: JPL DE421 via Skyfield 1.55
+- frame: geocentric apparent ecliptic longitude
+- events: moon_phase: new and full moon; mercury_station: retrograde and direct stations; mars_jupiter: conjunction, square, opposition; mars_saturn: conjunction, square, opposition
+- window_days: 2
+- timeframe: D1
+- excluded: Sun ingresses into cardinal signs (identical to the seasonal cardinal dates)
+
+## Controls, floors, costs
+
+| Item | Value |
+|---|---|
+| controls.draws | 20000 |
+| controls.tail | empirical |
+| controls.level_draws | 4000 |
+| controls.level_tail | gaussian |
+| controls.fallback | {"draws": 4000, "tail": "gaussian fit to the null distribution"} |
+| controls.runtime_basis | timed on a synthetic random walk of the real XAUUSD H1 size (102,671 candles), no real outcome read |
+| controls.time | random cycle lengths uniform on [7, 366], excluding every Gann count +- its tolerance, same anchors, spans and tolerance rule; coverage within 1 percentage point (up to 50 redraws, else the closest) |
+| controls.levels | every level shifted by a random fraction of the local level spacing, excluding shifts within the tolerance |
+| controls.filters | Experiment 6 random filter, same keep rate per timeframe x direction x year |
+| controls.rules | Experiment 5 direction-matched random entries in the same timeframe and session |
+| controls.coverage_rule | 0.9 |
+| controls.seed | 7 |
+| floors.timing_inside_candles | 200 |
+| floors.timing_inside_events | 30 |
+| floors.filters_kept | 300 |
+| floors.rules_trades | 100 |
+| floors.year_share | 0.6 |
+| floors.min_year_trades | 20 |
+| alpha | 0.05 |
+| costs.XAUUSD | {"real": "Dukascopy bid/ask", "slippage_scenarios": [0.1, 0.3]} |
+| costs.BTCUSDT | {"real": "Binance price +- $1 (archive convention)", "taker_fee_per_side": 0.001} |
+| costs.doubled | every pass also needs a positive result at doubled costs |
+| costs.swap | scenario for holds past 17:00 New York (no free history) |
+
+## Test families
+
+| Family | Tests |
+|---|---|
+| timing | 176 |
+| trading | 56 |
+| astro | 16 |
+| descriptive | 12 |
+
+Holm correction runs within each of timing, trading and astro. Descriptive and information rows never pass.
