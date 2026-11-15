@@ -101,7 +101,7 @@ def line_sets(b: Bars, p: GannParams) -> dict[str, S.LineSet]:
     cx = G._context(b, p, False)
     n = len(b.c)
     bounds = sorted({0, n} | {min(max(s, 0), n) for _, s, _ in cx.spans} | {min(max(e, 0), n) for _, _, e in cx.spans})
-    stat = {"division": [], "twelfth": [], "square9": []}
+    stat = {"division": [], "twelfth": [], "square9": [], "symmetry": []}
     x0s, x1s, ang = [], [], {"swing": [], "atr": []}
     rates = np.array(p.rates, dtype=float)
     order = np.argsort(rates)
