@@ -6,11 +6,13 @@ calendar time: weekends, holidays and gaps make them differ, so the two are sepa
 """
 import calendar
 import math
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import numpy as np
 import polars as pl
 
+from app.gann.anchors import Anchor
 from app.gann.squares import cross
 
 COUNTS = (7, 14, 21, 28, 30, 45, 49, 60, 72, 90, 108, 120, 135, 144, 180, 216, 240, 270, 288, 360, 365.25)
@@ -61,6 +63,23 @@ def calendar_window(t0: int, n: float, unit: str) -> tuple[int, int]:
     raise ValueError("unit must be day, week, month or year")
 
 
+@dataclass(frozen=True)
+class Window:
+    """One projected time window. unit "bar": lo/hi are candle indices; unit "day": UTC day numbers. Both inclusive.
+    It counts only on candles of the anchor's active span [s, e)."""
+    column: str  # panel column it feeds, e.g. "t_cycle_bars"
+    family: str  # confluence family: "cycles" | "angles" (balance) | "seasonal"
+    method: str
+    unit: str
+    anchor: Anchor | None
+    count: float
+    frac: float
+    lo: int
+    hi: int
+    s: int
+    e: int
+
+
 def _mark(diff: np.ndarray, lo: int, hi: int, s: int, e: int) -> None:
     lo, hi = max(lo, s, 0), min(hi, e - 1, len(diff) - 2)
     if lo <= hi:
@@ -68,10 +87,34 @@ def _mark(diff: np.ndarray, lo: int, hi: int, s: int, e: int) -> None:
         diff[hi + 1] -= 1
 
 
-def bar_cycle_mask(n: int, spans, counts, fracs=None, tol_frac: float = 0.025) -> np.ndarray:
-    """Candles inside a cycle window counted in candles from each anchor (fracs: the fractional divisions instead of the
-    whole cycle)."""
+def day_index(bar_ts: np.ndarray) -> np.ndarray:
+    return np.floor_divide(np.asarray(bar_ts, dtype=np.int64), DAY)
+
+
+def mask(windows, n: int, bday: np.ndarray | None = None) -> np.ndarray:
+    """Candles inside any of the windows (and inside each window's active span)."""
     diff = np.zeros(n + 1, dtype=np.int32)
+    for w in windows:
+        if w.unit == "bar":
+            _mark(diff, w.lo, w.hi, w.s, w.e)
+        else:
+            i0 = int(np.searchsorted(bday, w.lo, side="left"))
+            i1 = int(np.searchsorted(bday, w.hi, side="right")) - 1
+            _mark(diff, i0, i1, w.s, w.e)
+    return np.cumsum(diff[:n]) > 0
+
+
+def active(w: Window, i: int, bday: np.ndarray) -> bool:
+    if not (w.s <= i < w.e):
+        return False
+    x = i if w.unit == "bar" else int(bday[i])
+    return w.lo <= x <= w.hi
+
+
+def bar_windows(spans, counts, fracs=None, tol_frac: float = 0.025, column: str = "t_cycle_bars",
+                method: str = "cycle") -> list[Window]:
+    """Windows counted in candles from each anchor; fracs: the fractional divisions instead of whole cycles."""
+    out = []
     for a, s, e in spans:
         for N in counts:
             for f in fracs or (1.0,):
@@ -80,25 +123,15 @@ def bar_cycle_mask(n: int, spans, counts, fracs=None, tol_frac: float = 0.025) -
                 w = tol(L, tol_frac)
                 if c - w <= a.tc:
                     continue
-                _mark(diff, c - w, c + w, s, e)
-    return np.cumsum(diff[:n]) > 0
+                out.append(Window(column, "cycles", method, "bar", a, float(N), float(f), c - w, c + w, s, e))
+    return out
 
 
-def _day_index(bar_ts: np.ndarray) -> np.ndarray:
-    return np.floor_divide(np.asarray(bar_ts, dtype=np.int64), DAY)
-
-
-def _mark_days(mask_diff: np.ndarray, bday: np.ndarray, lo_day: int, hi_day: int, s: int, e: int) -> None:
-    i0 = int(np.searchsorted(bday, lo_day, side="left"))
-    i1 = int(np.searchsorted(bday, hi_day, side="right")) - 1
-    _mark(mask_diff, i0, i1, s, e)
-
-
-def calendar_cycle_mask(bar_ts: np.ndarray, spans, counts_days, tol_frac: float = 0.025) -> np.ndarray:
-    """Candles whose UTC calendar day lies inside a window counted in calendar days from each anchor's candle."""
-    bday = _day_index(bar_ts)
-    n = len(bday)
-    diff = np.zeros(n + 1, dtype=np.int32)
+def day_windows(bar_ts: np.ndarray, spans, counts_days, tol_frac: float = 0.025, column: str = "t_cycle_days",
+                method: str = "cycle_days") -> list[Window]:
+    """Windows counted in calendar (UTC) days from each anchor's candle."""
+    bday = day_index(bar_ts)
+    out = []
     for a, s, e in spans:
         d0, dtc = int(bday[a.idx]), int(bday[a.tc])
         for N in counts_days:
@@ -106,8 +139,32 @@ def calendar_cycle_mask(bar_ts: np.ndarray, spans, counts_days, tol_frac: float 
             w = tol(N, tol_frac)
             if c - w <= dtc:
                 continue
-            _mark_days(diff, bday, c - w, c + w, s, e)
-    return np.cumsum(diff[:n]) > 0
+            out.append(Window(column, "cycles", method, "day", a, float(N), 1.0, c - w, c + w, s, e))
+    return out
+
+
+def anniversary_windows(bar_ts: np.ndarray, anchors, tol_days: int = 2, years=(1, 2, 3)) -> list[Window]:
+    """Calendar anniversaries of EVERY confirmed anchor passed in (an anniversary looks back years), from its confirmation."""
+    bday = day_index(bar_ts)
+    n = len(bday)
+    out = []
+    for a in anchors:
+        dtc = int(bday[a.tc])
+        for y in years:
+            c = add_years(int(bar_ts[a.idx]), y) // DAY
+            if c - tol_days <= dtc:
+                continue
+            out.append(Window("t_anniversary", "cycles", "anniversary", "day", a, float(y), 1.0, c - tol_days,
+                              c + tol_days, a.tc, n))
+    return out
+
+
+def bar_cycle_mask(n: int, spans, counts, fracs=None, tol_frac: float = 0.025) -> np.ndarray:
+    return mask(bar_windows(spans, counts, fracs, tol_frac), n)
+
+
+def calendar_cycle_mask(bar_ts: np.ndarray, spans, counts_days, tol_frac: float = 0.025) -> np.ndarray:
+    return mask(day_windows(bar_ts, spans, counts_days, tol_frac), len(bar_ts), day_index(bar_ts))
 
 
 def sq9_time_counts(max_n: int = 400) -> list[int]:
@@ -115,19 +172,7 @@ def sq9_time_counts(max_n: int = 400) -> list[int]:
 
 
 def anniversary_mask(bar_ts: np.ndarray, anchors, tol_days: int = 2, years=(1, 2, 3)) -> np.ndarray:
-    """Candles within +- tol_days of the calendar anniversary of any anchor (every confirmed anchor passed in, not only the
-    latest ones: an anniversary looks back years), from the anchor's confirmation onwards."""
-    bday = _day_index(bar_ts)
-    n = len(bday)
-    diff = np.zeros(n + 1, dtype=np.int32)
-    for a in anchors:
-        dtc = int(bday[a.tc])
-        for y in years:
-            c = add_years(int(bar_ts[a.idx]), y) // DAY
-            if c - tol_days <= dtc:
-                continue
-            _mark_days(diff, bday, c - tol_days, c + tol_days, a.tc, n)
-    return np.cumsum(diff[:n]) > 0
+    return mask(anniversary_windows(bar_ts, anchors, tol_days, years), len(bar_ts), day_index(bar_ts))
 
 
 def seasonal_mask(bar_ts: np.ndarray, tol_days: int = 2, dates=SEASONAL) -> np.ndarray:
