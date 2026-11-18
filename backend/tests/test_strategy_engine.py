@@ -234,6 +234,107 @@ def test_a_liquidity_sweep_alone_is_never_a_trade():
     assert s.evaluate(td(b, lv), Regime("HIGH_VOLATILITY"), None, -1).status == "rejected"
 
 
+def _crt_case(shift: bool = True, retest: bool = True) -> tuple[TFData, TFData]:
+    closes = 100.5 + np.sin(np.arange(176) / 2.0) * 0.25
+    b = from_closes(closes, wick=0.2)
+    o, h, lo, c = list(b.o), list(b.h), list(b.l), list(b.c)
+    setup = [
+        (100.7, 100.9, 100.4, 100.8),  # left side of the pre-raid swing
+        (100.8, 101.0, 100.6, 100.9),
+        (100.9, 101.1, 100.7, 101.0),
+        (101.0, 101.3, 100.8, 101.2),  # pre-raid swing high
+        (101.3, 101.1, 100.7, 100.9),
+        (100.9, 101.0, 100.6, 100.8),
+        (100.8, 100.9, 100.5, 100.7),  # confirms the swing before the raid
+        (100.7, 101.0, 99.8, 100.4),   # raids anchor low 100 and closes back inside
+        (100.4, 100.9, 100.2, 100.7),
+        (100.7, 101.7 if shift else 101.0, 100.6, 101.6 if shift else 100.9),
+        (101.6, 101.8, 101.15, 101.4) if retest and shift else
+        (101.6, 101.9, 101.5, 101.7) if shift else (100.9, 101.1, 100.7, 100.8),
+    ]
+    for row in setup:
+        oo, hh, ll, cc = row
+        o.append(oo)
+        h.append(hh)
+        lo.append(ll)
+        c.append(cc)
+    signal_bars = bars(o, h, lo, c)
+    signal_bars.t[:] = T0 + np.arange(len(signal_bars), dtype=np.int64) * signal_bars.step
+    anchor_start = int(signal_bars.t[-4]) - 4 * 3600
+    context_bars = Bars(
+        t=np.array([anchor_start], dtype=np.int64), o=np.array([104.0]), h=np.array([108.0]), l=np.array([100.0]),
+        c=np.array([104.0]), v=np.zeros(1), step=4 * 3600,
+    )
+    return td(signal_bars), TFData.build("4H", context_bars)
+
+
+def test_crt_requires_closed_range_sweep_mss_and_retest():
+    s = STRATEGIES["crt_reversal"]
+    t, ctx = _crt_case()
+    candidate = s.evaluate_with_context(t, UNKNOWN, UNKNOWN, 1, ctx)
+    assert candidate.status == "ready" and candidate.entry_mode == "market", candidate.missing
+    assert candidate.invalidation < candidate.entry
+    assert candidate.targets == [(108.0, "CRT opposite range boundary")]
+    assert candidate.anchors.keys() == {"anchor", "range_low", "range_high", "sweep", "level", "mss", "retest"}
+
+    no_shift, ctx = _crt_case(shift=False)
+    candidate = s.evaluate_with_context(no_shift, UNKNOWN, UNKNOWN, 1, ctx)
+    assert candidate.status == "forming" and "await a lower-timeframe close" in candidate.missing[0]
+
+    no_retest, ctx = _crt_case(retest=False)
+    candidate = s.evaluate_with_context(no_retest, UNKNOWN, UNKNOWN, 1, ctx)
+    assert candidate.status == "pending" and candidate.entry_mode == "limit"
+
+
+def test_crt_does_not_use_a_sweep_before_the_anchor_closed_or_an_expired_anchor():
+    s = STRATEGIES["crt_reversal"]
+    t, ctx = _crt_case()
+    ctx.bars.t[-1] = int(t.bars.t[-1]) + 3600
+    ctx = TFData.build("4H", ctx.bars)
+    candidate = s.evaluate_with_context(t, UNKNOWN, UNKNOWN, 1, ctx)
+    assert candidate.status == "forming" and "after the higher-timeframe range closed" in candidate.missing[0]
+
+    t, ctx = _crt_case()
+    ctx.bars.t[-1] = int(t.bars.t[-5]) - int(ctx.bars.step)
+    ctx = TFData.build("4H", ctx.bars)
+    candidate = s.evaluate_with_context(t, UNKNOWN, UNKNOWN, 1, ctx)
+    assert candidate.status == "rejected" and "no longer the active CRT anchor" in candidate.missing[0]
+
+
+def test_crt_replay_matches_the_prefix_at_the_same_signal_candle():
+    t, ctx = _crt_case()
+    full_bars = t.bars
+    extended = Bars(
+        t=np.r_[full_bars.t, full_bars.t[-1] + np.array([full_bars.step, 2 * full_bars.step])],
+        o=np.r_[full_bars.o, [full_bars.c[-1], full_bars.c[-1]]],
+        h=np.r_[full_bars.h, [full_bars.c[-1] + 0.2, full_bars.c[-1] + 0.2]],
+        l=np.r_[full_bars.l, [full_bars.c[-1] - 0.2, full_bars.c[-1] - 0.2]],
+        c=np.r_[full_bars.c, [full_bars.c[-1], full_bars.c[-1]]],
+        v=np.r_[full_bars.v, [0.0, 0.0]], step=full_bars.step,
+    )
+    past = td(full_bars)
+    view = TFData.build("1H", extended).at(past.last)
+    args = (UNKNOWN, UNKNOWN, 1, ctx)
+    prefix_candidate = STRATEGIES["crt_reversal"].evaluate_with_context(past, *args)
+    replay_candidate = STRATEGIES["crt_reversal"].evaluate_with_context(view, *args)
+    assert (replay_candidate.status, replay_candidate.entry, replay_candidate.invalidation, replay_candidate.reasons,
+            replay_candidate.missing, replay_candidate.anchors) == (
+                prefix_candidate.status, prefix_candidate.entry, prefix_candidate.invalidation, prefix_candidate.reasons,
+                prefix_candidate.missing, prefix_candidate.anchors)
+
+
+def test_selector_uses_the_completed_context_candle_for_crt_and_keeps_it_unvalidated():
+    t, ctx = _crt_case()
+    result = evaluate_timeframe(t, "1H", UNKNOWN, UNKNOWN, precision=2, spread=0.0, price_now=float(t.bars.c[-1]),
+                                context_data=ctx)
+    candidate = next(c for c in result["candidates"] if c["strategy"] == "crt_reversal" and c["direction"] == 1)
+    assert candidate["status"] == "ready" and candidate["plan"], candidate["missing"]
+    assert candidate["plan"]["targets"][0]["basis"] == "CRT opposite range boundary"
+    if result["strategy"] == "crt_reversal":
+        assert result["research_status"] == "INSUFFICIENT EVIDENCE"
+        assert result["plan_label"] == "UNVALIDATED — HYPOTHETICAL TRADE PLAN"
+
+
 def test_the_shift_must_break_the_swing_that_led_into_the_sweep():
     s = STRATEGIES["sweep_reversal"]
     b, lv = _sweep_series(shift=True)
@@ -426,7 +527,8 @@ def test_replaying_history_gives_exactly_what_the_engine_saw_at_the_time(make):
 # ---- confirmation layer: strategies tag their checks and report their key candles (CONFIRMATION_DESIGN.md section 6) -------------
 EXPECTED_ANCHORS = {"trend_pullback": {"pullback", "trigger"}, "breakout_retest": {"breakout", "retest", "level"},
                     "momentum_continuation": {"displacement", "pullback"}, "range_reversion": {"touch", "boundary"},
-                    "sweep_reversal": {"sweep", "level"}, "volatility_expansion": {"expansion", "box_hi", "box_lo"}}
+                    "sweep_reversal": {"sweep", "level"}, "volatility_expansion": {"expansion", "box_hi", "box_lo"},
+                    "crt_reversal": {"anchor", "range_low", "range_high", "sweep", "level", "mss", "retest"}}
 COMPONENTS = {"regime", "htf", "entry", "structure"}
 
 

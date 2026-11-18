@@ -119,7 +119,8 @@ function useGreeting() {
 
 const ACTION_COLORS = { buy: "#34d07f", sell: "#f87171", wait: "#f6b03e", none: "#4b4b63" };
 
-const STRATEGY_ROWS: [string, string][] = [["trend_pullback", "Trend-following pullback"], ["breakout_retest", "Breakout and retest"],
+const STRATEGY_ROWS: [string, string][] = [["crt_reversal", "CRT (higher-timeframe range reversal)"],
+  ["trend_pullback", "Trend-following pullback"], ["breakout_retest", "Breakout and retest"],
   ["momentum_continuation", "Momentum continuation"], ["range_reversion", "Range mean reversion"], ["sweep_reversal", "Liquidity-sweep reversal"],
   ["volatility_expansion", "Volatility expansion"]];
 

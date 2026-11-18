@@ -1,7 +1,7 @@
 """Frozen parameters of strategy engine v2 (docs/engine_v2/DESIGN.md). Changing any value is a new experiment, not a tweak."""
 from dataclasses import dataclass
 
-ENGINE_VERSION = "v2-2026-11-13.1"
+ENGINE_VERSION = "v2-2026-11-18-crt.1"
 
 # Signal timeframes, in display order. 8H is built from complete 4H candles (two per bucket, same trading day).
 SIGNAL_TFS = ("1m", "3m", "5m", "15m", "30m", "1H", "4H", "8H", "1D", "1W", "1M")
@@ -58,6 +58,7 @@ TARGETS = {"tp1_min_r": 1.5, "tp1_max_r": 4.0, "tp1_default_r": 2.0, "tp2_max_r"
            "tp3_default_r": 5.0, "min_gap_r": 0.75}
 
 STRATEGY_NAMES = {
+    "crt_reversal": "CRT (higher-timeframe range reversal)",
     "trend_pullback": "Trend-following pullback",
     "breakout_retest": "Breakout and retest",
     "momentum_continuation": "Momentum continuation",
@@ -66,25 +67,29 @@ STRATEGY_NAMES = {
     "volatility_expansion": "Volatility expansion",
 }
 # Duplicate market events keep the most specific strategy (DESIGN section 7)
-SPECIFICITY = ("sweep_reversal", "breakout_retest", "volatility_expansion", "trend_pullback", "momentum_continuation", "range_reversion")
+SPECIFICITY = ("crt_reversal", "sweep_reversal", "breakout_retest", "volatility_expansion", "trend_pullback",
+               "momentum_continuation", "range_reversion")
 
 COMPATIBLE = {
-    "TRENDING": ("trend_pullback", "breakout_retest", "momentum_continuation", "sweep_reversal"),
-    "RANGING": ("breakout_retest", "range_reversion", "sweep_reversal"),
-    "CONSOLIDATING": ("breakout_retest", "volatility_expansion"),
-    "UNKNOWN": ("breakout_retest", "sweep_reversal", "volatility_expansion"),  # transitional only; insufficient data runs nothing
+    "TRENDING": ("crt_reversal", "trend_pullback", "breakout_retest", "momentum_continuation", "sweep_reversal"),
+    "RANGING": ("crt_reversal", "breakout_retest", "range_reversion", "sweep_reversal"),
+    "CONSOLIDATING": ("crt_reversal", "breakout_retest", "volatility_expansion"),
+    "UNKNOWN": ("crt_reversal", "breakout_retest", "sweep_reversal", "volatility_expansion"),
+    # transitional only; insufficient data runs nothing
     "HIGH_VOLATILITY": (),
 }
 
-# Research status per strategy, from Experiment 5 (docs/reports/XAUUSD_EXPERIMENT5.md, 2026-11-13): 51 pre-registered cells tested on
-# 17 years of gold, none passed. Tested and failed = NOT VALIDATED; never enough signals to test = INSUFFICIENT EVIDENCE.
+# Experiment 5 status for the original six strategies (docs/reports/XAUUSD_EXPERIMENT5.md, 2026-11-13); CRT is a later,
+# untested addition. Tested and failed = NOT VALIDATED; not adequately tested = INSUFFICIENT EVIDENCE.
 RESEARCH_STATUS = {
+    "crt_reversal": "INSUFFICIENT EVIDENCE",
     "trend_pullback": "NOT VALIDATED", "breakout_retest": "NOT VALIDATED", "momentum_continuation": "NOT VALIDATED",
     "sweep_reversal": "NOT VALIDATED", "volatility_expansion": "NOT VALIDATED", "range_reversion": "INSUFFICIENT EVIDENCE",
 }
-RESEARCH_NOTE = ("Experiment 5 tested these strategies on 17 years of gold (pre-registered, real bid/ask costs, matched random "
-                 "controls, multiple-testing correction): none passed (docs/reports/XAUUSD_EXPERIMENT5.md). Every plan is a hypothetical "
-                 "trade plan with no verified edge and no win probability.")
+RESEARCH_NOTE = ("Experiment 5 tested the original six strategies on 17 years of gold (pre-registered, real bid/ask costs, matched "
+                 "random controls, multiple-testing correction): none passed (docs/reports/XAUUSD_EXPERIMENT5.md). CRT is a new, "
+                 "untested research strategy (docs/engine_v2/CRT_RESEARCH.md). Every plan is hypothetical, with no verified edge or "
+                 "win probability.")
 PLAN_LABEL_UNVALIDATED = "UNVALIDATED — HYPOTHETICAL TRADE PLAN"
 PLAN_LABEL_VALIDATED = "VALIDATED TRADE PLAN"
 

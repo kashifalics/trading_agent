@@ -6,6 +6,10 @@ sessions), `EXPERIMENT_PLAN.md` (**awaiting approval, nothing run**).
 
 **Status: implemented and tested locally. Not pushed, merged or deployed** (owner approval needed).
 
+**Update (2026-11-18):** Added the separate, unvalidated CRT candidate described in
+[CRT_RESEARCH.md](CRT_RESEARCH.md). It was not included in Experiment 5, does not gate the original strategies, and has not been
+deployed or backtested.
+
 ## 1. What was built
 
 | Part | Where | Notes |

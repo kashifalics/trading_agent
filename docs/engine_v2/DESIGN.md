@@ -11,7 +11,7 @@ and range mean reversion is **INSUFFICIENT EVIDENCE**; every plan is marked **UN
 candles (same store, same provider per instrument as v1; complete candles only; H8 built from complete 1H buckets)
   └─ for each signal timeframe T (chain: context TF above, trigger TF below; section 6)
        regime(T), regime(context)            app/strategy_engine/regime.py
-       six strategies on T (+ trigger on the lower TF where the rule needs it)
+       six original strategies on T (+ trigger on the lower TF where the rule needs it); separate experimental CRT candidate
                                              app/strategy_engine/strategies/*.py   -> candidates (ready / pending / forming / rejected)
        trade plan for each candidate         app/strategy_engine/plan.py           -> validated levels, or rejected with the reason
        selector                              app/strategy_engine/selector.py       -> one action for T
@@ -46,6 +46,12 @@ Input: the bars of one timeframe, plus the context timeframe's regime. It needs 
 
 The output carries every input value and the list of criteria met or missed. No probability is attached. "Quality" is only the
 count of criteria met, labelled as such.
+
+### Experimental CRT extension
+
+The separate `crt_reversal` candidate is documented in [CRT_RESEARCH.md](CRT_RESEARCH.md). It uses the completed context-timeframe
+candle's range, a signal-timeframe raid-and-close-back, a confirmed MSS and retest. It was added after Experiment 5 and has not
+been included in that experiment or independently validated. It does not gate other strategies.
 
 ## 4. Strategies
 

@@ -61,6 +61,8 @@ def test_every_instrument_gets_one_clear_action_with_valid_levels(client):
     assert gold["status"] == "ok" and gold["primary"]["action"] in ACTIONS
     assert [t["timeframe"] for t in gold["tfs"]] == ["1m", "3m", "5m", "15m", "30m", "1H", "4H", "8H", "1D", "1W", "1M"]
     d = client.get("/api/v1/engine/XAUUSD").json()
+    assert d["research"]["status"]["crt_reversal"] == "INSUFFICIENT EVIDENCE"
+    assert "untested research strategy" in d["research"]["note"]
     checked = []
     for t in d["timeframes"]:
         assert t["action"] in ACTIONS - {"EXIT"}
@@ -74,7 +76,8 @@ def test_every_instrument_gets_one_clear_action_with_valid_levels(client):
             continue
         if t["n_bars"] >= 120 and "data stale" not in t["headline"]:  # every strategy is evaluated, both sides, and each says why
             checked.append(t["timeframe"])
-            assert {c["strategy"] for c in t["candidates"]} == {"trend_pullback", "breakout_retest", "momentum_continuation", "range_reversion",
+            assert {c["strategy"] for c in t["candidates"]} == {"crt_reversal", "trend_pullback", "breakout_retest",
+                                                                 "momentum_continuation", "range_reversion",
                                                                  "sweep_reversal", "volatility_expansion"}
             assert all(c["status"] in ("ready", "pending", "forming", "rejected", "not run") for c in t["candidates"])
     assert checked  # at least one fresh timeframe had every strategy evaluated
