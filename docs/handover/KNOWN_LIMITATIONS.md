@@ -1,11 +1,12 @@
 # Known limitations (release v2, 2026-11-13)
 
 **Strategy evidence**
-1. **No validated strategy.** Experiment 5 tested the six strategies on 17 years of gold. None passed the pre-registered criteria
-   ([report](../reports/XAUUSD_EXPERIMENT5.md)). Experiments 1-4 (1,981 earlier trials) found none either. Every plan is
-   therefore an **UNVALIDATED — HYPOTHETICAL TRADE PLAN**. The platform shows no win probability.
+1. **No validated strategy.** Experiment 5 tested the six original strategies on 17 years of gold. None passed the pre-registered
+   criteria ([report](../reports/XAUUSD_EXPERIMENT5.md)). Experiments 1-4 (1,981 earlier trials) found none either. CRT was added
+   later and has not been tested. Every plan is therefore an **UNVALIDATED — HYPOTHETICAL TRADE PLAN**. The platform shows no win
+   probability.
 2. **The paper forward test runs the older v1 rules.** It is a measurement of those rules (negative so far), not of the six v2
-   strategies. A v2 forward test should start only after a strategy passes research.
+   strategies or CRT. A v2 forward test should start only after a strategy passes research.
 
 **Data**
 

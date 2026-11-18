@@ -9,13 +9,13 @@ picks the strongest qualifying setup, and turns it into a plan. The exact rules,
 
 | Regime | Measured by | Strategies that may run |
 |---|---|---|
-| Trending (up or down) | ADX ≥ 25, efficiency ratio ≥ 0.30, aligned EMA20/EMA50 and a sloping EMA50 | Trend pullback, Breakout and retest, Momentum continuation, Liquidity-sweep reversal |
-| Ranging | ADX < 20, efficiency ratio < 0.25, a 50-candle span of 3-12 ATR | Breakout and retest, Range mean reversion, Liquidity-sweep reversal |
-| Consolidating | Bollinger width in its lowest 20%, ADX < 20 | Breakout and retest, Volatility expansion |
+| Trending (up or down) | ADX ≥ 25, efficiency ratio ≥ 0.30, aligned EMA20/EMA50 and a sloping EMA50 | CRT, Trend pullback, Breakout and retest, Momentum continuation, Liquidity-sweep reversal |
+| Ranging | ADX < 20, efficiency ratio < 0.25, a 50-candle span of 3-12 ATR | CRT, Breakout and retest, Range mean reversion, Liquidity-sweep reversal |
+| Consolidating | Bollinger width in its lowest 20%, ADX < 20 | CRT, Breakout and retest, Volatility expansion |
 | High volatility / abnormal | ATR in its top 5%, or a 3-ATR shock candle | none: NO TRADE |
-| Unknown | not enough data (fewer than 120 candles), or no rule fully met | none (no data), or Breakout and retest, Liquidity-sweep reversal, Volatility expansion (transitional) |
+| Unknown | not enough data (fewer than 120 candles), or no rule fully met | none (no data), or CRT, Breakout and retest, Liquidity-sweep reversal, Volatility expansion (transitional) |
 
-## The six strategies
+## The six original strategies
 
 | Strategy | In one sentence | It refuses when |
 |---|---|---|
@@ -25,6 +25,14 @@ picks the strongest qualifying setup, and turns it into a plan. The exact rules,
 | **Range mean reversion** | In a proven range, sell a rejection of the top (buy the bottom), targeting the middle and the far side | not a range; ADX ≥ 25; the range is not established by repeated touches |
 | **Liquidity-sweep reversal** | Price takes out a meaningful high (low), closes back inside, and then breaks structure the other way | **a sweep alone is never a trade**: the market-structure shift is required |
 | **Volatility expansion** | After a compression, a wide candle closes out of the box and breaks structure | no compression before; the expansion fails back into the box |
+
+## Experimental CRT candidate
+
+The engine also evaluates a separately labelled Candle Range Theory (CRT) variant: it takes the latest completed higher-timeframe
+candle as a range, requires a lower-timeframe raid-and-close-back, a confirmed market-structure shift, then a retest. The stop is
+beyond the raid extreme and the first target is the opposite range boundary. Full rules and sources are in
+[CRT_RESEARCH.md](../engine_v2/CRT_RESEARCH.md). CRT was added after Experiment 5, has not been backtested, is labelled
+**INSUFFICIENT EVIDENCE**, and does not gate the original strategies.
 
 ## How a plan is calculated
 

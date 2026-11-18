@@ -17,7 +17,7 @@ shown as **WAIT — UNVALIDATED SETUP**.
 
 | Page | What it is for |
 |---|---|
-| **Overview** | Four tiles (gold price, signals now, the paper forward test, open paper trades), the forward-test equity chart, signals by action, **Decisions now** (the same action as on Signals, with entry · SL · TP1), live prices, recent signals, the six strategies' research status and system health. A **delayed** badge means the market is closed or the price is old: it is the last known price, not a live one |
+| **Overview** | Four tiles (gold price, signals now, the paper forward test, open paper trades), the forward-test equity chart, signals by action, **Decisions now** (the same action as on Signals, with entry · SL · TP1), live prices, recent signals, the six original strategies and experimental CRT's research status, and system health. A **delayed** badge means the market is closed or the price is old: it is the last known price, not a live one |
 | **Signals** | The main analysis screen (section 3) |
 | **Paper Trading** | A simulated account that records every technically complete setup automatically and follows it on later candles, with a HOLD / EXIT / WAIT recommendation for open trades (section 5) |
 | **Trade Opportunities** | The older opportunity scanner: setups ranked by an evidence score (not a win probability). A strip at the top shows the strategy engine's current action for comparison |
@@ -37,7 +37,7 @@ Each instrument has one card, best opportunity first:
   - **WAIT FOR BUY / WAIT FOR SELL:** a valid setup waiting for an exact entry price (limit or stop).
   - **EXIT:** a tracked paper trade on that instrument must be closed; the reason is shown in a red alert.
   - **NO TRADE:** nothing qualifies, with the reasons.
-- **Strategy, timeframe and market regime:** one of six strategies; Trending, Ranging, Consolidating, High volatility or Unknown.
+- **Strategy, timeframe and market regime:** one of the six original strategies or the experimental CRT candidate; Trending, Ranging, Consolidating, High volatility or Unknown. CRT is labelled **INSUFFICIENT EVIDENCE** and is not a validated trading edge.
 - **Entry, stop loss, TP1, TP2 and TP3:** each target with its reward:risk and what it is based on (a swing high, an order block, or a
   "risk objective" when no structural level is near). Then the overall R:R, the spread cost, the entry status (READY, WAITING FOR
   ENTRY) and when the signal expires.

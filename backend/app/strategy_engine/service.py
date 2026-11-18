@@ -134,7 +134,8 @@ def analyze(session: Session, symbol: str, now: datetime | None = None) -> dict:
         ctx_tf = CHAINS[tf].context
         r = evaluate_timeframe(tfd[tf], tf, regimes[tf], regimes.get(ctx_tf) if ctx_tf else None, precision=inst.price_precision,
                                spread=spread, price_now=price_now, market_open=market_open and sess["entry_allowed"],
-                               spread_normal=spread_normal, stale_bars=_stale(frames, tf), symbol=sym)
+                               spread_normal=spread_normal, stale_bars=_stale(frames, tf), symbol=sym,
+                               context_data=tfd.get(ctx_tf) if ctx_tf else None)
         t = tfd[tf]
         r["n_bars"] = 0 if t is None else t.n
         r["data_time"] = _iso(int(t.bars.t[-1]) + int(t.bars.step)) if t is not None else None
@@ -220,4 +221,3 @@ def summary(session: Session) -> dict:
                               -(((x.get("opportunity") or {}).get("plan") or {}).get("risk_reward") or 0)))
     return to_jsonable({"items": items, "generated_at": datetime.now(timezone.utc).isoformat(), "engine_version": ENGINE_VERSION,
                         "research_note": RESEARCH_NOTE, "research_status": RESEARCH_STATUS, "news": NEWS})
-

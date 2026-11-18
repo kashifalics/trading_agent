@@ -60,9 +60,9 @@ def _vsa_out(t: TFData) -> dict:
 
 def evaluate_timeframe(t: TFData | None, tf: str, regime: Regime, context: Regime | None, *, precision: int, spread: float,
                        price_now: float | None, market_open: bool = True, spread_normal: bool = True,
-                       stale_bars: float | None = None, symbol: str = "") -> dict:
+                       stale_bars: float | None = None, symbol: str = "", context_data: TFData | None = None) -> dict:
     r = _evaluate(t, tf, regime, context, precision=precision, spread=spread, price_now=price_now, market_open=market_open,
-                  spread_normal=spread_normal, stale_bars=stale_bars, symbol=symbol)
+                  spread_normal=spread_normal, stale_bars=stale_bars, symbol=symbol, context_data=context_data)
     r.setdefault("confirmations", [])  # NO TRADE: no setup to score
     try:
         r["volume"] = asdict(t.volume) if t is not None else None
@@ -75,7 +75,8 @@ def evaluate_timeframe(t: TFData | None, tf: str, regime: Regime, context: Regim
 
 
 def _evaluate(t: TFData | None, tf: str, regime: Regime, context: Regime | None, *, precision: int, spread: float,
-              price_now: float | None, market_open: bool, spread_normal: bool, stale_bars: float | None, symbol: str) -> dict:
+              price_now: float | None, market_open: bool, spread_normal: bool, stale_bars: float | None, symbol: str,
+              context_data: TFData | None = None) -> dict:
     chain = CHAINS[tf]
     group = GROUPS[chain.group]
     base = {"timeframe": tf, "group": chain.group, "context_tf": chain.context, "trigger_tf": chain.trigger, "regime": regime.out(),
@@ -95,7 +96,7 @@ def _evaluate(t: TFData | None, tf: str, regime: Regime, context: Regime | None,
                 rows.append({"strategy": key, "name": STRATEGY_NAMES[key], "direction": d, "side": _side(d), "status": "not run",
                              "missing": [f"not compatible with a {regime.label.lower().replace('_', ' ')} regime"], "reasons": [], "plan": None})
                 continue
-            c = strat.evaluate(t, regime, context, d)
+            c = strat.evaluate_with_context(t, regime, context, d, context_data)
             row = {**c.out(), "plan": None}
             if c.status in ("ready", "pending"):
                 plan, why = build_plan(c, t, group=group, precision=precision, spread=spread, price_now=price_now)

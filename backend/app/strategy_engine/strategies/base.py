@@ -87,5 +87,10 @@ class Strategy:
     def evaluate(self, t: TFData, regime: Regime, context: Regime | None, d: int) -> Candidate:  # pragma: no cover - interface
         raise NotImplementedError
 
+    def evaluate_with_context(self, t: TFData, regime: Regime, context: Regime | None, d: int,
+                              context_data: TFData | None) -> Candidate:
+        """Evaluate strategies that optionally need the higher-timeframe candles."""
+        return self.evaluate(t, regime, context, d)
+
     def no(self, d: int, why: str, status: str = "rejected", component: str = "entry", **kw) -> Candidate:
         return Candidate(self.key, d, status, missing=[why], checks=[(component, False, why)], **kw)

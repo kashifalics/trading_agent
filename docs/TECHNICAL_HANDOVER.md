@@ -10,10 +10,13 @@ checklist). **It never places orders and has no broker connection.**
 **Since release v2 (2026-11-13):**
 - **One action per instrument:** the strategy engine (`backend/app/strategy_engine`, docs/engine_v2/DESIGN.md) gives each
   instrument one primary action: BUY, SELL, WAIT FOR BUY, WAIT FOR SELL, EXIT (a tracked paper trade to close) or NO TRADE.
-- **How the action is produced:** a market-regime classifier, six independent strategies, a selector, and plans with entry,
+- **How the action is produced:** a market-regime classifier, six original strategies plus a separate experimental CRT candidate,
+  a selector, and plans with entry,
   stop-loss and TP1-TP3.
 - **Research status:** no strategy or model has a verified out-of-sample edge (Experiment 5:
   docs/reports/XAUUSD_EXPERIMENT5.md). Every plan is labelled **UNVALIDATED — HYPOTHETICAL TRADE PLAN** with its research status.
+  CRT's selected Candle Range Theory variant and evidence limitations are documented in
+  [CRT research](engine_v2/CRT_RESEARCH.md); it is not included in Experiment 5 and does not gate the other strategies.
   The older decision layer (docs/DECISION_ENGINE.md) still serves the Predictions, Chart Analysis and Trade Opportunities pages.
 
 The document index for the handover is [handover/README.md](handover/README.md).
