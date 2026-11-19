@@ -5,13 +5,13 @@ import threading
 import time
 from datetime import datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.exceptions import AppError, NotFoundError
 from app.core.jsonutil import to_jsonable
-from app.database.models import Instrument, PaperAccount, PaperTrade
+from app.database.models import Instrument, PaperAccount, PaperShadowTrade, PaperTrade
 from app.database.session import session_scope
 from app.paper.simulator import LIVE, SimTrade, advance, build_path
 from app.signals import service as signals
@@ -20,6 +20,8 @@ from app.signals.context import session_name
 
 log = logging.getLogger(__name__)
 _LOCK = threading.Lock()
+SHADOW_VARIANT = "tp1-cap-2r-v1"
+SHADOW_TARGET_R = 2.0
 WORKER: dict = {"enabled": False, "interval_s": 0, "running": False, "cycles": 0, "last_cycle_at": None, "last_duration_s": None,
                 "last_results": None, "last_error": None}
 SNAPSHOT_KEYS = ("timeframe", "group_label", "state", "instruction", "side", "score", "grade", "checks_met", "checks_total", "factors",
@@ -163,17 +165,50 @@ def record_signals(session: Session, acc: PaperAccount, inst: Instrument, provid
             plan=to_jsonable({k: p.get(k) for k in SNAPSHOT_KEYS}), config_version=analysis.get("config_version") or CONFIG_VERSION)
         session.add(tr)
         session.flush()
+        shadow_tp = _shadow_target(tr)
+        session.add(PaperShadowTrade(
+            trade_id=tr.id, variant=SHADOW_VARIANT, status="pending", take_profit=shadow_tp, cursor_at=now,
+        ))
         new.append(tr)
     return new
 
 
 # ---- simulation ------------------------------------------------------------------------------------------------------------------------
+def _shadow_target(tr: PaperTrade) -> float:
+    direction = 1 if tr.direction == "BUY" else -1
+    entry, stop, target = float(tr.entry_price), float(tr.stop_loss), float(tr.take_profit)
+    risk = abs(entry - stop)
+    planned_r = direction * (target - entry) / risk if risk else 0.0
+    return entry + direction * SHADOW_TARGET_R * risk if planned_r > SHADOW_TARGET_R else target
+
+
 def to_sim(tr: PaperTrade) -> SimTrade:
     return SimTrade(d=1 if tr.direction == "BUY" else -1, order_type=tr.order_type, entry=float(tr.entry_price), sl=float(tr.stop_loss),
                     tp=float(tr.take_profit), inv=_f(tr.invalidation), spread=tr.spread or 0.0, detected_ts=_ts(tr.detected_at),
                     valid_until_ts=_ts(tr.valid_until), status=tr.status, cursor_ts=_ts(tr.cursor_at), fill_price=_f(tr.fill_price),
                     fill_ts=_ts(tr.filled_at), risk=tr.risk, mfe_r=tr.mfe_r, mae_r=tr.mae_r, last_price=tr.last_price,
                     last_ts=_ts(tr.last_price_at))
+
+
+def to_shadow_sim(tr: PaperTrade, shadow: PaperShadowTrade) -> SimTrade:
+    return SimTrade(d=1 if tr.direction == "BUY" else -1, order_type=tr.order_type, entry=float(tr.entry_price),
+                    sl=float(tr.stop_loss), tp=float(shadow.take_profit), inv=_f(tr.invalidation), spread=tr.spread or 0.0,
+                    detected_ts=_ts(tr.detected_at), valid_until_ts=_ts(tr.valid_until), status=shadow.status,
+                    cursor_ts=_ts(shadow.cursor_at), fill_price=_f(shadow.fill_price), fill_ts=_ts(shadow.filled_at),
+                    risk=shadow.risk, mfe_r=shadow.mfe_r, mae_r=shadow.mae_r, last_price=shadow.last_price,
+                    last_ts=_ts(shadow.last_price_at))
+
+
+def apply_shadow_sim(shadow: PaperShadowTrade, sim: SimTrade) -> None:
+    shadow.status, shadow.exit_reason, shadow.note = sim.status, sim.exit_reason, sim.note
+    shadow.fill_price, shadow.filled_at = sim.fill_price, None if sim.fill_ts is None else _dt(sim.fill_ts)
+    shadow.risk, shadow.r_gross, shadow.r_net, shadow.mfe_r, shadow.mae_r = (
+        sim.risk, sim.r_gross, sim.r_net, sim.mfe_r, sim.mae_r)
+    shadow.exit_price = sim.exit_price if sim.status == "closed" else None
+    shadow.cursor_at = _dt(sim.cursor_ts)
+    shadow.last_price, shadow.last_price_at = sim.last_price, None if sim.last_ts is None else _dt(sim.last_ts)
+    if sim.status not in LIVE:
+        shadow.closed_at = _dt(sim.exit_ts) if sim.exit_ts is not None else datetime.now(timezone.utc)
 
 
 def _unrealized_r(tr: PaperTrade) -> float | None:
@@ -197,21 +232,32 @@ def apply_sim(tr: PaperTrade, sim: SimTrade) -> None:
 
 
 def step_trades(session: Session, inst: Instrument, frames: dict, now: datetime) -> list[PaperTrade]:
-    """Advance every pending/open trade of an instrument through the complete candles stored since its cursor."""
-    trades = session.scalars(select(PaperTrade).where(PaperTrade.instrument_id == inst.id, PaperTrade.status.in_(LIVE))
-                             .order_by(PaperTrade.id)).all()
-    if not trades:
+    """Advance baseline trades and their independent shadow outcomes through complete candles."""
+    pairs = session.execute(
+        select(PaperTrade, PaperShadowTrade)
+        .outerjoin(PaperShadowTrade, PaperShadowTrade.trade_id == PaperTrade.id)
+        .where(PaperTrade.instrument_id == inst.id,
+               or_(PaperTrade.status.in_(LIVE), PaperShadowTrade.status.in_(LIVE)))
+        .order_by(PaperTrade.id)
+    ).all()
+    if not pairs:
         return []
     series = {tf: f.bars for tf, f in frames.items() if f is not None and f.bars is not None and len(f.bars)}
     changed = []
-    for tr in trades:
-        sim = to_sim(tr)
-        before = sim.status
+    for tr, shadow in pairs:
         b = series.get(tr.timeframe)
         closes = list(zip((b.t + b.step).tolist(), b.c.tolist())) if b is not None else []
-        advance(sim, build_path(series, sim.cursor_ts), closes, now_ts=int(now.timestamp()))
-        apply_sim(tr, sim)
-        if sim.status != before:
+        before = tr.status
+        shadow_before = shadow.status if shadow is not None else None
+        if tr.status in LIVE:
+            sim = to_sim(tr)
+            advance(sim, build_path(series, sim.cursor_ts), closes, now_ts=int(now.timestamp()))
+            apply_sim(tr, sim)
+        if shadow is not None and shadow.status in LIVE:
+            sim = to_shadow_sim(tr, shadow)
+            advance(sim, build_path(series, sim.cursor_ts), closes, now_ts=int(now.timestamp()))
+            apply_shadow_sim(shadow, sim)
+        if tr.status != before or (shadow is not None and shadow.status != shadow_before):
             changed.append(tr)
     session.flush()
     return changed

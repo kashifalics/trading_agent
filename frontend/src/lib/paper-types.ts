@@ -74,15 +74,33 @@ export interface PaperTradeDetail extends PaperTrade {
 
 export interface TradeMetrics {
   n_trades: number;
-  win_rate?: number;
+  win_rate?: number | null;
   profit_factor?: number | null;
-  expectancy_r?: number;
+  expectancy_r?: number | null;
   expectancy_r_ci_low?: number | null;
   expectancy_r_ci_high?: number | null;
-  max_drawdown_r?: number;
-  total_r?: number;
+  max_drawdown_r?: number | null;
+  total_r?: number | null;
   avg_win_r?: number | null;
   avg_loss_r?: number | null;
+}
+
+export interface PaperPerformanceWindow extends TradeMetrics {
+  start_at: string | null;
+  end_at: string | null;
+  range_start: string | null;
+  range_end: string | null;
+  target_hits: number;
+  stop_exits: number;
+  tp1_hit_rate: number | null;
+  stop_rate: number | null;
+  longest_losing_streak: number;
+  average_mfe_r: number | null;
+  average_mae_r: number | null;
+  excursion_sample_count: number;
+  stopped_trade_count: number;
+  stopped_mfe_at_least_1r: number;
+  stopped_mfe_at_least_2r: number;
 }
 
 export interface PaperVerdict {
@@ -92,6 +110,21 @@ export interface PaperVerdict {
   summary: string;
   ci95?: [number, number];
   p_value?: number;
+}
+
+export interface PaperShadowExperiment {
+  variant: string;
+  rule: string;
+  generated_at: string;
+  cohort_started_at: string | null;
+  n_recorded: number;
+  n_complete: number;
+  n_waiting: number;
+  n_targets_capped: number;
+  baseline: { n_signals: number; total_r: number | null; expectancy_r: number | null; win_rate: number | null };
+  candidate: { n_signals: number; total_r: number | null; expectancy_r: number | null; win_rate: number | null };
+  delta_expectancy_r: number | null;
+  note: string;
 }
 
 export interface BreakdownRow {
@@ -164,6 +197,14 @@ export interface PaperSummary {
     limit_fill_rate: number | null;
     since: string | null;
     equity_curve: { t: string; r: number; id: number }[];
+    performance_windows: {
+      lifetime: PaperPerformanceWindow;
+      last_100: PaperPerformanceWindow;
+      last_50: PaperPerformanceWindow;
+      last_30_days: PaperPerformanceWindow;
+      last_7_days: PaperPerformanceWindow;
+    };
+    shadow_experiment: PaperShadowExperiment;
   };
   backtest: { n_trades: number; expectancy_r: number | null; note: string };
   breakdowns: Record<BreakdownKey, BreakdownRow[]>;

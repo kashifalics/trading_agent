@@ -15,7 +15,7 @@ import { AnalysisOnlyNotice } from "@/components/domain/decision";
 import { useCandles, useEngineSignals, useEngineSummary, useHealth, useInstruments, useModels, usePaperSummary, usePredictions, useQuotes } from "@/lib/hooks";
 import type { Instrument, Quote } from "@/lib/types";
 import { useSettings } from "@/lib/store";
-import { cn, fmtDate, fmtNum, fmtPrice, fmtSignedR, timeAgo } from "@/lib/utils";
+import { cn, fmtDate, fmtNum, fmtPct, fmtPrice, fmtSignedR, timeAgo } from "@/lib/utils";
 
 const STATUS_TEXT: Record<Quote["status"], string> = {
   ok: "live",
@@ -155,6 +155,7 @@ export default function DashboardPage() {
   const goldPx = goldQuote?.status === "ok" ? goldQuote.price : closes[closes.length - 1];
   const goldDelta = closes.length > 24 && goldPx ? ((goldPx - closes[closes.length - 25]) / closes[closes.length - 25]) * 100 : null;
   const fwd = paper.data?.forward;
+  const recent100 = fwd?.performance_windows?.last_100;
   const curve = (fwd?.equity_curve ?? []).map((x) => ({ t: x.t, v: x.r }));
   const openTrades = paper.data?.open ?? [];
   const openR = openTrades.reduce((s, t) => s + (t.unrealized_r ?? 0), 0);
@@ -163,14 +164,16 @@ export default function DashboardPage() {
 
   return (
     <>
-      <PageHeader title="Overview" description={`${greet ? `${greet}. ` : ""}Here is what the strategy engine and the paper test show right now. Every number comes from the backend; nothing is simulated.`} />
+      <PageHeader title="Overview" description={`${greet ? `${greet}. ` : ""}Here is what the strategy engine and simulated paper test show right now. Paper results are not broker performance; no real orders are placed.`} />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" data-testid="kpis">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5" data-testid="kpis">
         <KpiTile icon={Coins} tone="violet" label="Gold (XAUUSD)" value={fmtPrice(goldPx, 2)} delta={goldDelta} sub=" over 24 h" spark={closes.slice(-48)} testId="kpi-gold" />
         <KpiTile icon={Zap} tone="green" label="Signals now" value={engine.data ? `${buy + sell} BUY/SELL` : "…"}
           sub={engine.data ? `${wait} waiting for entry · ${none} no trade` : "loading the engine"} testId="kpi-signals" />
-        <KpiTile icon={LineChart} tone="blue" label="Forward test (paper)" value={fwd ? fmtSignedR(fwd.total_r, 1) : "—"}
+        <KpiTile icon={LineChart} tone="blue" label="Lifetime forward test" value={fwd ? fmtSignedR(fwd.total_r, 1) : "—"}
           sub={fwd ? `${fwd.n_trades} closed · ${fmtSignedR(fwd.expectancy_r, 2)} per trade` : "loading"} spark={curve.slice(-60).map((x) => x.v)} testId="kpi-forward" />
+        <KpiTile icon={LineChart} tone="orange" label="Last 100 paper trades" value={recent100 ? fmtSignedR(recent100.total_r, 1) : "—"}
+          sub={recent100 ? `${recent100.n_trades} closed · ${fmtPct(recent100.win_rate)} wins` : "loading"} testId="kpi-forward-last100" />
         <KpiTile icon={Briefcase} tone="orange" label="Open paper trades" value={String(openTrades.length)}
           sub={openTrades.length ? `${fmtSignedR(openR, 1)} unrealised in total` : "none open"} testId="kpi-open" />
       </div>
@@ -179,7 +182,7 @@ export default function DashboardPage() {
         <Card className="xl:col-span-2">
           <CardHeader>
             <CardTitle>Forward-test equity (cumulative R)</CardTitle>
-            <Link href="/paper" className="text-xs text-primary hover:underline">Paper Trading</Link>
+            <Link href="/history" className="text-xs text-primary hover:underline">Performance windows</Link>
           </CardHeader>
           <CardContent>
             <div className="mb-2 flex flex-wrap items-baseline gap-2">

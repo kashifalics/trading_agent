@@ -79,3 +79,29 @@ class PaperTrade(Base):
     config_version: Mapped[str | None] = mapped_column(String(32))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
+
+
+class PaperShadowTrade(Base):
+    """Prospective, non-account shadow outcome for a frozen paper experiment variant."""
+
+    __tablename__ = "paper_shadow_trades"
+
+    trade_id: Mapped[int] = mapped_column(ForeignKey("paper_trades.id", ondelete="CASCADE"), primary_key=True)
+    variant: Mapped[str] = mapped_column(String(32))
+    status: Mapped[str] = mapped_column(String(12), index=True)
+    exit_reason: Mapped[str | None] = mapped_column(String(16))
+    note: Mapped[str | None] = mapped_column(String(200))
+    take_profit: Mapped[Decimal] = mapped_column(Price)
+    cursor_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    fill_price: Mapped[Decimal | None] = mapped_column(Price)
+    filled_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    exit_price: Mapped[Decimal | None] = mapped_column(Price)
+    closed_at: Mapped[datetime | None] = mapped_column(UTCDateTime, index=True)
+    risk: Mapped[float | None] = mapped_column(Float)
+    r_gross: Mapped[float | None] = mapped_column(Float)
+    r_net: Mapped[float | None] = mapped_column(Float)
+    mfe_r: Mapped[float | None] = mapped_column(Float)
+    mae_r: Mapped[float | None] = mapped_column(Float)
+    last_price: Mapped[float | None] = mapped_column(Float)
+    last_price_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)

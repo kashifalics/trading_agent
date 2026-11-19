@@ -86,7 +86,42 @@ def test_signal_is_recorded_once_filled_at_the_next_open_and_closed_at_tp1(clien
     assert summary["forward"]["verdict"]["status"] == "collecting"  # 1 trade is not evidence
     assert summary["account"]["balance"] == pytest.approx(10_000 + t["pnl"])
     assert len(summary["forward"]["equity_curve"]) == 1 and summary["breakdowns"]["series"][0]["key"] == "XAUUSD 15m"
+    lifetime = summary["forward"]["performance_windows"]["lifetime"]
+    assert lifetime["n_trades"] == 1 and lifetime["target_hits"] == 1 and lifetime["tp1_hit_rate"] == 1
+    assert summary["forward"]["performance_windows"]["last_100"]["total_r"] == pytest.approx(t["r_net"])
+    assert summary["forward"]["performance_windows"]["last_7_days"]["n_trades"] == 0
+    experiment = summary["forward"]["shadow_experiment"]
+    assert experiment["n_recorded"] == experiment["n_complete"] == 1
+    assert experiment["n_targets_capped"] == 0
+    assert experiment["baseline"]["total_r"] == pytest.approx(t["r_net"])
+    assert experiment["candidate"]["total_r"] == pytest.approx(t["r_net"])
+    assert experiment["delta_expectancy_r"] == pytest.approx(0)
     assert summary["method"] and "no real money" in summary["disclaimer"]
+
+
+def test_two_r_cap_is_prospective_and_does_not_change_baseline_or_account(client, monkeypatch):
+    seed_1m("XAUUSD", [(2000, 2000.5, 1999.5, 2000)] * 30, T0 - timedelta(minutes=30))
+    monkeypatch.setattr(signals, "analyze", fake_analyze({"XAUUSD": [plan(targets=[{"label": "TP1", "price": 2020.0, "rr": 4.0}])]}))
+    with session_scope() as s:
+        paper.process_symbol(s, "XAUUSD", T0 + timedelta(seconds=20))
+
+    seed_1m("XAUUSD", [
+        (2000.5, 2001, 2000, 2000.8),
+        (2001, 2011, 2000.8, 2010),
+        (2010, 2021, 2009, 2020),
+    ], T0 + timedelta(minutes=1))
+    with session_scope() as s:
+        paper.process_symbol(s, "XAUUSD", T0 + timedelta(minutes=5))
+
+    summary = client.get("/api/v1/paper/summary").json()
+    trade = client.get("/api/v1/paper/trades", params={"status": "closed"}).json()["items"][0]
+    experiment = summary["forward"]["shadow_experiment"]
+    assert trade["exit_reason"] == "target" and trade["exit_price"] == 2020
+    assert experiment["n_recorded"] == experiment["n_complete"] == experiment["n_targets_capped"] == 1
+    assert experiment["baseline"]["total_r"] == pytest.approx(trade["r_net"])
+    assert experiment["candidate"]["total_r"] < experiment["baseline"]["total_r"]
+    assert experiment["candidate"]["total_r"] == pytest.approx((2010 - 2000.5) / 5.5 - 0.3 / 5.5)
+    assert summary["account"]["balance"] == pytest.approx(10_000 + trade["pnl"])
 
 
 def test_account_rules_skip_signals_but_every_signal_is_still_tracked(client, monkeypatch):

@@ -3,9 +3,9 @@
 import { Play } from "lucide-react";
 import { useState } from "react";
 import { EmptyState, ErrorState, PageHeader, QueryState } from "@/components/domain/common";
-import { AccountCard, Breakdowns, EquityCurve, ForwardStats, TradesTable, VerdictCard, WorkerLine } from "@/components/domain/paper";
+import { AccountCard, Breakdowns, EquityCurve, fmtR, ForwardStats, TradesTable, VerdictCard, WorkerLine } from "@/components/domain/paper";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, Stat } from "@/components/ui/card";
 import { Skeleton, Tabs } from "@/components/ui/misc";
 import { usePaperSummary, usePaperTrades, useRunPaperCycle } from "@/lib/hooks";
 import type { PaperRunResult } from "@/lib/paper-types";
@@ -70,6 +70,27 @@ export default function PaperTradingPage() {
                   <span className="text-xs text-muted-foreground">every recorded signal, whether or not the account took it</span>
                 </CardHeader>
                 <CardContent><ForwardStats s={s} /></CardContent>
+              </Card>
+              <Card data-testid="shadow-experiment">
+                <CardHeader>
+                  <CardTitle>Exploratory shadow test: TP1 capped at 2R</CardTitle>
+                  <span className="text-xs text-muted-foreground">prospective · paper only · baseline unchanged</span>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">{s.forward.shadow_experiment.rule}</p>
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <Stat label="Paired signals complete" value={s.forward.shadow_experiment.n_complete} sub={`${s.forward.shadow_experiment.n_waiting} waiting`} />
+                    <Stat label="Targets capped" value={s.forward.shadow_experiment.n_targets_capped} sub={`${s.forward.shadow_experiment.n_recorded} recorded since start`} />
+                    <Stat label="Baseline expectancy / signal" value={fmtR(s.forward.shadow_experiment.baseline.expectancy_r)} sub="matched cohort · net R" />
+                    <Stat label="2R-cap expectancy / signal" value={fmtR(s.forward.shadow_experiment.candidate.expectancy_r)} sub="matched cohort · net R" />
+                    <Stat
+                      label="Candidate change"
+                      value={<span className={s.forward.shadow_experiment.delta_expectancy_r === null ? "" : s.forward.shadow_experiment.delta_expectancy_r >= 0 ? "text-bull" : "text-bear"}>{fmtR(s.forward.shadow_experiment.delta_expectancy_r)}</span>}
+                      sub="R per actionable signal"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">{s.forward.shadow_experiment.note} Unfilled terminal signals count as 0R; open/pending pairs are excluded until both outcomes are terminal.</p>
+                </CardContent>
               </Card>
               <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
                 <Card>

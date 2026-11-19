@@ -71,11 +71,32 @@ the account and opens a new one; the recorded signals and the forward-test recor
 
 * **Forward test:** every closed paper trade, whether or not the account took it. The reported metrics are win rate, expectancy with a
   95% CI, total R, profit factor, max drawdown, limit-order fill rate and the cumulative R curve.
+* **History windows:** the summary also calculates all-time, last 100, last 50, last 30 UTC days and last 7 UTC days over the full
+  closed forward-test record. Each window reports its sample and close-date range, net R, expectancy, win/TP1-hit/stop rates, profit
+  factor, drawdown, longest losing streak, and recorded average MFE/MAE. Stopped-trade MFE counts use the simulator's stored
+  candle-based excursion and do not prove that the excursion was executable before the stop.
 * **Account:** balance, equity (with open P&L), today's realised P&L, drawdown, and how many signals the rules skipped.
 * **Breakdowns:** by instrument × timeframe (with the backtest's out-of-sample expectancy beside it), timeframe, instrument, setup, score
   band, side, order type and session.
 * **Verdict:** below 100 closed trades it reads "collecting evidence" and draws no conclusion. From 100 trades it uses the backtest's
   bar (`app.opportunities.validation.classify`): bootstrap CI > 0, p < 0.05 and at least 2 of 3 chronological thirds positive.
+
+## Prospective shadow experiment
+
+The Paper page also reports the approved `tp1-cap-2r-v1` shadow candidate. For each newly recorded actionable signal, it runs a
+separate simulated order with the same entry, stop, and configured spread as the baseline. If the planned target is more than 2R
+from the planned entry, the shadow target is capped at 2R; otherwise the original target is kept. The original paper trade, account,
+and baseline performance remain unchanged. No existing trade is backfilled into this experiment.
+
+The paired comparison includes a signal only after both baseline and shadow outcomes are terminal. Unfilled terminal signals count
+as 0R for expectancy per actionable signal, and open/pending pairs are excluded until resolved. This is exploratory evidence, not a
+validated improvement or a strategy promotion; it does not access sealed data or place broker orders. The full approval and freeze
+record is in `docs/optimization/OPTIMIZATION_EXPERIMENT_PLAN.md`.
+
+The history windows describe simulated V1 forward trades, not broker execution or account-taken trades. They are descriptive and
+overlapping; the displayed trade-level confidence intervals do not adjust for clustering across instruments, timeframes or market
+periods. Only TP1 is simulated as an exit. TP2/TP3 hit rates, historical entry-time regime attribution and news-event attribution
+are not claimed where the stored trade record does not contain those observations.
 
 ## Running it
 

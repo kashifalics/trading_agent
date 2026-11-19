@@ -4,21 +4,29 @@
 // R is after the spread for every trade; a dollar P&L exists only for trades the account took within its risk limits.
 
 import { useState } from "react";
-import { EmptyState, PageHeader, QueryState } from "@/components/domain/common";
+import { Breakdowns } from "@/components/domain/paper";
+import { EmptyState, ErrorState, PageHeader, QueryState } from "@/components/domain/common";
 import { AnalysisOnlyNotice } from "@/components/domain/decision";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs } from "@/components/ui/misc";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { useInstruments, usePaperTrades } from "@/lib/hooks";
-import type { PaperTrade } from "@/lib/paper-types";
-import { fmtDate, fmtPrice, fmtSignedR } from "@/lib/utils";
+import { useInstruments, usePaperSummary, usePaperTrades } from "@/lib/hooks";
+import type { PaperPerformanceWindow, PaperTrade } from "@/lib/paper-types";
+import { fmtDate, fmtNum, fmtPct, fmtPrice, fmtSignedR, signClass } from "@/lib/utils";
 
 type Span = "50" | "100" | "200";
 const SPANS: { id: Span; label: string }[] = [{ id: "50", label: "Last 50" }, { id: "100", label: "Last 100" }, { id: "200", label: "Last 200" }];
 
 const usd = (v: number) => `${v >= 0 ? "+" : "-"}$${Math.abs(v).toFixed(2)}`;
 const tone = (v: number | null | undefined) => (v == null ? "" : v > 0 ? "text-bull" : v < 0 ? "text-bear" : "");
+const WINDOW_LABELS = [
+  ["lifetime", "Lifetime"],
+  ["last_100", "Last 100 trades"],
+  ["last_50", "Last 50 trades"],
+  ["last_30_days", "Last 30 days"],
+  ["last_7_days", "Last 7 days"],
+] as const;
 
 /** "2d 3h", "1h 30m", "14m": from the fill to the close. */
 function held(from: string | null, to: string | null): string {
@@ -65,8 +73,39 @@ function Summary({ trades }: { trades: PaperTrade[] }) {
   );
 }
 
+function PerformanceWindow({ label, data }: { label: string; data: PaperPerformanceWindow }) {
+  const dateRange = data.range_start && data.range_end
+    ? `UTC range ${fmtDate(data.range_start)} – ${fmtDate(data.range_end)}${data.start_at && data.end_at ? ` · closes ${fmtDate(data.start_at)} – ${fmtDate(data.end_at)}` : ""}`
+    : data.start_at && data.end_at
+      ? `Closes ${fmtDate(data.start_at)} – ${fmtDate(data.end_at)}`
+      : "No closed trades in this range";
+  return (
+    <Card data-testid={`performance-window-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>
+      <CardHeader className="px-4 py-3">
+        <CardTitle>{label}</CardTitle>
+        <span className="num text-xs text-muted-foreground">{data.n_trades} closed</span>
+      </CardHeader>
+      <CardContent className="grid grid-cols-2 gap-x-3 gap-y-3 px-4 py-3 text-sm sm:grid-cols-4">
+        <div><div className="text-[11px] text-muted-foreground">Net R</div><div className={`num font-semibold ${signClass(data.total_r)}`}>{fmtSignedR(data.total_r)}</div></div>
+        <div><div className="text-[11px] text-muted-foreground">Expectancy</div><div className={`num font-semibold ${signClass(data.expectancy_r)}`}>{fmtSignedR(data.expectancy_r, 2)}</div></div>
+        <div><div className="text-[11px] text-muted-foreground">Nominal 95% CI</div><div className="num text-xs">{fmtSignedR(data.expectancy_r_ci_low, 2)} – {fmtSignedR(data.expectancy_r_ci_high, 2)}</div></div>
+        <div><div className="text-[11px] text-muted-foreground">Win rate</div><div className="num">{fmtPct(data.win_rate)}</div></div>
+        <div><div className="text-[11px] text-muted-foreground">Profit factor</div><div className="num">{fmtNum(data.profit_factor, 2)}</div></div>
+        <div><div className="text-[11px] text-muted-foreground">TP1 hit rate</div><div className="num">{fmtPct(data.tp1_hit_rate)}</div></div>
+        <div><div className="text-[11px] text-muted-foreground">Stop rate</div><div className="num">{fmtPct(data.stop_rate)}</div></div>
+        <div><div className="text-[11px] text-muted-foreground">Max drawdown</div><div className="num">{fmtNum(data.max_drawdown_r, 2)}R</div></div>
+        <div><div className="text-[11px] text-muted-foreground">Longest loss streak</div><div className="num">{data.longest_losing_streak}</div></div>
+        <div><div className="text-[11px] text-muted-foreground">Average MFE / MAE (n={data.excursion_sample_count})</div><div className="num">{fmtNum(data.average_mfe_r, 2)}R / {fmtNum(data.average_mae_r, 2)}R</div></div>
+        <div><div className="text-[11px] text-muted-foreground">Stopped trades with MFE ≥1R / ≥2R</div><div className="num">{data.stopped_mfe_at_least_1r} / {data.stopped_mfe_at_least_2r}</div></div>
+        <div className="col-span-2 text-[11px] text-muted-foreground sm:col-span-4" data-testid="performance-window-dates">{dateRange}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function TradeHistoryPage() {
   const q = usePaperTrades("closed");
+  const performance = usePaperSummary();
   const inst = useInstruments();
   const [span, setSpan] = useState<Span>("100");
   const precisions = new Map((inst.data ?? []).map((i) => [i.canonical_symbol, i.price_precision]));
@@ -85,8 +124,31 @@ export default function TradeHistoryPage() {
   return (
     <>
       <PageHeader title="Trade History"
-        description="The paper account's closed trades, newest first, with their result after the spread. Refreshes automatically." />
+        description="The simulated forward-test record, newest first. Lifetime, rolling-trade and date-window statistics are distinct; this is not broker performance." />
 
+      {performance.isError && <ErrorState error={performance.error} />}
+      {performance.data && (
+        <div className="mb-4 space-y-4" data-testid="history-performance">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            {WINDOW_LABELS.map(([key, label]) => <PerformanceWindow key={key} label={label} data={performance.data!.forward.performance_windows[key]} />)}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            These are nominal trade-level confidence intervals and do not adjust for clustering across instruments, timeframes or market periods.
+            MFE/MAE are simulator-recorded candle excursions, not proof that a price could be executed.
+          </p>
+          <Card>
+            <CardHeader><CardTitle>Strategy and market breakdowns</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                All-signal simulated V1 paper results, net of configured spread. These overlapping historical groups are descriptive,
+                not independently validated filters. The simulator records TP1 exits only; TP2/TP3 hit rates, historical regime labels,
+                and news-event attribution are not available in this record.
+              </p>
+              <Breakdowns s={performance.data} />
+            </CardContent>
+          </Card>
+        </div>
+      )}
       <QueryState query={q} isEmpty={() => closed.length === 0} empty={<EmptyState title="No closed paper trades yet" />}>
         {(d) => (
           <>

@@ -4,18 +4,20 @@ Forward test = every recorded signal, whether or not the account took it (the ho
 paper account's risk rules let it take, in account currency. Verdicts use the same rule as the backtest (app.opportunities.validation
 .classify: >= 100 trades, bootstrap CI > 0, p < 0.05, >= 2/3 positive thirds); below 100 closed trades no conclusion is drawn.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.jsonutil import to_jsonable
-from app.database.models import PaperTrade
+from app.database.models import PaperShadowTrade, PaperTrade
 from app.ml_engine.evaluation import trade_metrics
 from app.opportunities.validation import classify
 from app.paper.service import (
     LIVE,
+    SHADOW_TARGET_R,
+    SHADOW_VARIANT,
     account_out,
     active_account,
     trade_out,
@@ -106,6 +108,100 @@ def _drawdown(values: list[float]) -> float:
     return float(dd)
 
 
+def _performance_window(trades: list[PaperTrade], start: datetime | None = None, end: datetime | None = None) -> dict:
+    """Metrics for a chronologically ordered set of closed forward-test trades."""
+    returns = [float(t.r_net) for t in trades if t.r_net is not None]
+    target_hits = sum(t.exit_reason == "target" for t in trades)
+    stop_exits = sum(t.exit_reason == "stop" for t in trades)
+    current_loss_streak = longest_loss_streak = 0
+    for r in returns:
+        current_loss_streak = current_loss_streak + 1 if r <= 0 else 0
+        longest_loss_streak = max(longest_loss_streak, current_loss_streak)
+    mfe = [float(t.mfe_r) for t in trades if t.mfe_r is not None]
+    mae = [float(t.mae_r) for t in trades if t.mae_r is not None]
+    stop_mfe = [float(t.mfe_r) for t in trades if t.exit_reason == "stop" and t.mfe_r is not None]
+    first, last = (trades[0], trades[-1]) if trades else (None, None)
+    return {
+        **metrics(returns),
+        "start_at": first.closed_at if first else None,
+        "end_at": last.closed_at if last else None,
+        "range_start": start,
+        "range_end": end,
+        "target_hits": target_hits,
+        "stop_exits": stop_exits,
+        "tp1_hit_rate": target_hits / len(trades) if trades else None,
+        "stop_rate": stop_exits / len(trades) if trades else None,
+        "longest_losing_streak": longest_loss_streak,
+        "average_mfe_r": float(np.mean(mfe)) if mfe else None,
+        "average_mae_r": float(np.mean(mae)) if mae else None,
+        "excursion_sample_count": len(mfe),
+        "stopped_trade_count": len(stop_mfe),
+        "stopped_mfe_at_least_1r": sum(value >= 1.0 for value in stop_mfe),
+        "stopped_mfe_at_least_2r": sum(value >= 2.0 for value in stop_mfe),
+    }
+
+
+def performance_windows(closed: list[PaperTrade], now: datetime) -> dict:
+    """Lifetime, rolling-count and UTC date windows from the full closed-trade set."""
+    ordered = sorted(closed, key=lambda t: (t.closed_at, t.id))
+    return {
+        "lifetime": _performance_window(ordered),
+        "last_100": _performance_window(ordered[-100:]),
+        "last_50": _performance_window(ordered[-50:]),
+        "last_30_days": _performance_window(
+            [t for t in ordered if now - timedelta(days=30) <= t.closed_at <= now],
+            now - timedelta(days=30), now,
+        ),
+        "last_7_days": _performance_window(
+            [t for t in ordered if now - timedelta(days=7) <= t.closed_at <= now],
+            now - timedelta(days=7), now,
+        ),
+    }
+
+
+def shadow_experiment(session: Session, now: datetime) -> dict:
+    """Paired, prospective comparison; unfilled terminal signals count as zero R."""
+    pairs = session.execute(
+        select(PaperTrade, PaperShadowTrade)
+        .join(PaperShadowTrade, PaperShadowTrade.trade_id == PaperTrade.id)
+        .order_by(PaperShadowTrade.created_at, PaperTrade.id)
+    ).all()
+    complete = [(trade, shadow) for trade, shadow in pairs
+                if trade.status not in LIVE and shadow.status not in LIVE]
+    baseline_r = [float(trade.r_net) if trade.status == "closed" and trade.r_net is not None else 0.0
+                  for trade, _ in complete]
+    candidate_r = [float(shadow.r_net) if shadow.status == "closed" and shadow.r_net is not None else 0.0
+                   for _, shadow in complete]
+
+    def signal_metrics(values: list[float]) -> dict:
+        n = len(values)
+        return {
+            "n_signals": n,
+            "total_r": float(sum(values)) if n else None,
+            "expectancy_r": float(np.mean(values)) if n else None,
+            "win_rate": float(np.mean(np.asarray(values) > 0)) if n else None,
+        }
+
+    baseline, candidate = signal_metrics(baseline_r), signal_metrics(candidate_r)
+    capped = sum(float(shadow.take_profit) != float(trade.take_profit) for trade, shadow in pairs)
+    return {
+        "variant": SHADOW_VARIANT,
+        "rule": f"Cap planned TP1 at {SHADOW_TARGET_R:g}R when its planned reward/risk is greater; keep entry, stop, and configured spread.",
+        "generated_at": now,
+        "cohort_started_at": min((shadow.created_at for _, shadow in pairs), default=None),
+        "n_recorded": len(pairs),
+        "n_complete": len(complete),
+        "n_waiting": len(pairs) - len(complete),
+        "n_targets_capped": capped,
+        "baseline": baseline,
+        "candidate": candidate,
+        "delta_expectancy_r": candidate["expectancy_r"] - baseline["expectancy_r"]
+        if candidate["expectancy_r"] is not None and baseline["expectancy_r"] is not None else None,
+        "note": ("Exploratory paired shadow test only; existing baseline/account results are unchanged. "
+                 "Unfilled terminal signals count as zero R. No validation claim is made."),
+    }
+
+
 def summary(session: Session, now: datetime | None = None) -> dict:
     now = now or datetime.now(timezone.utc)
     acc = active_account(session)
@@ -133,7 +229,9 @@ def summary(session: Session, now: datetime | None = None) -> dict:
         "generated_at": now, "account": account,
         "forward": {**metrics(r), "verdict": verdict(r), "counts": counts, "signals_recorded": len(trades),
                     "limit_fill_rate": (len(filled) / len(limits)) if limits else None,
-                    "since": min((t.detected_at for t in trades), default=None), "equity_curve": curve},
+                    "since": min((t.detected_at for t in trades), default=None), "equity_curve": curve,
+                    "performance_windows": performance_windows(closed, now),
+                    "shadow_experiment": shadow_experiment(session, now)},
         "backtest": backtest_reference(), "breakdowns": breakdowns(closed),
         "open": [trade_out(t) for t in live if t.status == "open"], "pending": [trade_out(t) for t in live if t.status == "pending"],
         "recent": [trade_out(t) for t in finished[:25]], "worker": worker_status(), "method": METHOD, "disclaimer": DISCLAIMER})

@@ -62,7 +62,9 @@ describe("Dashboard", () => {
   });
 
   it("summarises the engine, the paper test and system health in tiles and charts, all from backend data", async () => {
-    const paper = { forward: { n_trades: 3, total_r: -1.5, expectancy_r: -0.5, equity_curve: [{ t: "2026-11-02T10:00:00Z", r: 1 }, { t: "2026-11-03T10:00:00Z", r: -0.5 }, { t: "2026-11-04T10:00:00Z", r: -1.5 }] },
+    const paper = { forward: { n_trades: 3, total_r: -1.5, expectancy_r: -0.5,
+      performance_windows: { last_100: { n_trades: 3, total_r: -2.5, win_rate: 1 / 3 } },
+      equity_curve: [{ t: "2026-11-02T10:00:00Z", r: 1 }, { t: "2026-11-03T10:00:00Z", r: -0.5 }, { t: "2026-11-04T10:00:00Z", r: -1.5 }] },
       open: [{ id: 1, unrealized_r: 0.4 }, { id: 2, unrealized_r: -0.1 }], worker: { enabled: true, interval_s: 60, last_cycle_at: new Date().toISOString(), last_error: null } };
     mockApi({ ...base, "GET /api/v1/engine": ENGINE_SUMMARY, "GET /api/v1/paper/summary": paper, "GET /api/v1/engine/signals": { items: [] },
       "GET /api/v1/market/candles": { symbol: "XAUUSD", timeframe: "1H", provider: "biquote", count: 0, candles: [] } });
@@ -71,6 +73,9 @@ describe("Dashboard", () => {
     expect(screen.getByTestId("kpi-signals")).toHaveTextContent("1 waiting for entry · 42 no trade");
     expect(screen.getByTestId("kpi-forward")).toHaveTextContent("-1.5R");
     expect(screen.getByTestId("kpi-forward")).toHaveTextContent("3 closed");
+    expect(screen.getByTestId("kpi-forward-last100")).toHaveTextContent("-2.5R");
+    expect(screen.getByTestId("kpi-forward-last100")).toHaveTextContent("3 closed");
+    expect(screen.getByText(/simulated paper test/)).toBeInTheDocument();
     expect(screen.getByTestId("kpi-open")).toHaveTextContent("2");
     expect(screen.getByRole("img", { name: /Signals by action: BUY 1, SELL 0, WAIT FOR ENTRY 1, NO TRADE 42/ })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /Forward-test equity: 3 points, now -1.50R/ })).toBeInTheDocument();

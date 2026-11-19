@@ -47,7 +47,7 @@ key (an optional Twelve Data or OANDA key adds alternative sources).
 | API | [API specification](docs/API_SPECIFICATION.md) and `/docs` on the backend |
 | Security | [Security](docs/SECURITY.md) |
 | How it works | [Architecture](docs/ARCHITECTURE.md), [Signal engine](docs/SIGNAL_ENGINE.md), [Paper trading](docs/PAPER_TRADING.md), [Data providers](docs/MARKET_DATA_PROVIDERS.md) |
-| Current status | [Implementation status](docs/IMPLEMENTATION_STATUS.md) |
+| Current status | [Implementation status](docs/IMPLEMENTATION_STATUS.md), [initial performance audit](docs/optimization/INITIAL_PERFORMANCE_AUDIT.md), [optimization experiment plan](docs/optimization/OPTIMIZATION_EXPERIMENT_PLAN.md), [05:02 performance snapshot](docs/reports/PERFORMANCE_AUDIT_2026-11-19.md) |
 
 ## What the research found
 

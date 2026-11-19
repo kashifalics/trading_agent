@@ -21,6 +21,12 @@ const pending: PaperTrade = { ...base, id: 3, symbol: "US30", timeframe: "4H", d
   note: null, fill_price: null, filled_at: null, exit_price: null, closed_at: null, r_gross: null, r_net: null, pnl: null, account_taken: false,
   account_note: "max open positions (1) reached", risk_amount: null, entry_price: 44100, stop_loss: 44300, take_profit: 43700 };
 
+const EMPTY_WINDOW = {
+  n_trades: 0, win_rate: null, profit_factor: null, expectancy_r: null, expectancy_r_ci_low: null, expectancy_r_ci_high: null,
+  max_drawdown_r: null, total_r: 0, avg_win_r: null, avg_loss_r: null, start_at: null, end_at: null, range_start: null, range_end: null,
+  target_hits: 0, stop_exits: 0, tp1_hit_rate: null, stop_rate: null, longest_losing_streak: 0, average_mfe_r: null, average_mae_r: null,
+  excursion_sample_count: 0, stopped_trade_count: 0, stopped_mfe_at_least_1r: 0, stopped_mfe_at_least_2r: 0,
+};
 const SUMMARY: PaperSummary = {
   generated_at: "2026-11-07T12:00:00Z",
   account: {
@@ -34,6 +40,17 @@ const SUMMARY: PaperSummary = {
     verdict: { status: "collecting", n: 1, needed: 100, summary: "1 of 100 closed trades: too few to tell an edge from luck, no conclusion yet" },
     counts: { pending: 1, open: 1, closed: 1, cancelled: 0, missed: 0, expired: 0, skipped: 0 }, signals_recorded: 3, limit_fill_rate: null,
     since: "2026-11-02T10:00:20Z", equity_curve: [{ t: "2026-11-02T10:04:00Z", r: 1.673, id: 1 }],
+    performance_windows: { lifetime: { ...EMPTY_WINDOW, n_trades: 1, total_r: 1.673 }, last_100: { ...EMPTY_WINDOW, n_trades: 1, total_r: 1.673 },
+      last_50: { ...EMPTY_WINDOW, n_trades: 1, total_r: 1.673 }, last_30_days: { ...EMPTY_WINDOW, n_trades: 1, total_r: 1.673 },
+      last_7_days: { ...EMPTY_WINDOW, n_trades: 1, total_r: 1.673 } },
+    shadow_experiment: {
+      variant: "tp1-cap-2r-v1", rule: "Cap planned TP1 at 2R when its planned reward/risk is greater; keep entry, stop, and configured spread.",
+      generated_at: "2026-11-07T12:00:00Z", cohort_started_at: "2026-11-07T10:00:00Z", n_recorded: 1, n_complete: 1, n_waiting: 0,
+      n_targets_capped: 0,
+      baseline: { n_signals: 1, total_r: 1.673, expectancy_r: 1.673, win_rate: 1 },
+      candidate: { n_signals: 1, total_r: 1.673, expectancy_r: 1.673, win_rate: 1 },
+      delta_expectancy_r: 0, note: "Exploratory paired shadow test only; existing baseline/account results are unchanged. Unfilled terminal signals count as zero R. No validation claim is made.",
+    },
   },
   backtest: { n_trades: 400, expectancy_r: -0.048, note: "historical replay" },
   breakdowns: {
@@ -81,6 +98,8 @@ describe("Paper Trading page", () => {
     expect(screen.getByTestId("tp1-r")).toHaveTextContent("68,000.00 (2.0R)"); // the target's size, so a distant TP1 is visible
     expect(screen.getByTestId("hold-rule")).toHaveTextContent("no time limit, the same rule as the backtest");
     expect(screen.getByText("Pending orders (1)")).toBeInTheDocument();
+    expect(screen.getByTestId("shadow-experiment")).toHaveTextContent("Exploratory shadow test: TP1 capped at 2R");
+    expect(screen.getByTestId("shadow-experiment")).toHaveTextContent("baseline unchanged");
     expect(screen.getByText("Limit 44,100.00")).toBeInTheDocument();
     expect(screen.getByText("skipped")).toHaveAttribute("title", "max open positions (1) reached");
     expect(screen.getByTestId("worker-line")).toHaveTextContent("Automatic cycle every 60s");
