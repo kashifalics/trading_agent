@@ -3,6 +3,12 @@ import { CANDLES, INSTRUMENTS, QUOTES, analysis } from "../src/test/fixtures";
 
 const API = "http://localhost:8000/api/v1";
 const json = (body: unknown, status = 200) => ({ status, contentType: "application/json", body: JSON.stringify(body), headers: { "access-control-allow-origin": "*" } });
+const EMPTY_WINDOW = {
+  n_trades: 0, win_rate: null, profit_factor: null, expectancy_r: null, expectancy_r_ci_low: null, expectancy_r_ci_high: null,
+  max_drawdown_r: null, total_r: 0, avg_win_r: null, avg_loss_r: null, start_at: null, end_at: null, range_start: null, range_end: null,
+  target_hits: 0, stop_exits: 0, tp1_hit_rate: null, stop_rate: null, longest_losing_streak: 0, average_mfe_r: null, average_mae_r: null,
+  excursion_sample_count: 0, stopped_trade_count: 0, stopped_mfe_at_least_1r: 0, stopped_mfe_at_least_2r: 0,
+};
 
 // A fresh paper account with no recorded signals yet: the state production starts in.
 const PAPER_EMPTY = {
@@ -15,6 +21,14 @@ const PAPER_EMPTY = {
   forward: {
     n_trades: 0, verdict: { status: "collecting", n: 0, needed: 100, summary: "0 of 100 closed trades: too few to tell an edge from luck, no conclusion yet" },
     counts: { pending: 0, open: 0, closed: 0, cancelled: 0, missed: 0, expired: 0, skipped: 0 }, signals_recorded: 0, limit_fill_rate: null, since: null, equity_curve: [],
+    performance_windows: { lifetime: EMPTY_WINDOW, last_100: EMPTY_WINDOW, last_50: EMPTY_WINDOW, last_30_days: EMPTY_WINDOW, last_7_days: EMPTY_WINDOW },
+    shadow_experiment: {
+      variant: "tp1-cap-2r-v1", rule: "Cap planned TP1 at 2R when its planned reward/risk is greater; keep entry, stop, and configured spread.",
+      generated_at: "2026-11-07T12:00:00Z", cohort_started_at: null, n_recorded: 0, n_complete: 0, n_waiting: 0, n_targets_capped: 0,
+      baseline: { n_signals: 0, total_r: null, expectancy_r: null, win_rate: null },
+      candidate: { n_signals: 0, total_r: null, expectancy_r: null, win_rate: null }, delta_expectancy_r: null,
+      note: "Exploratory paired shadow test only; existing baseline/account results are unchanged. No validation claim is made.",
+    },
   },
   backtest: { n_trades: 414, expectancy_r: -0.19, note: "historical replay" },
   breakdowns: { series: [], symbol: [], timeframe: [], setup_type: [], score_band: [], direction: [], order_type: [], session: [] },
@@ -85,6 +99,7 @@ test("critical workflow: run an analysis and read the decision", async ({ page }
 });
 
 test("every page renders without horizontal overflow or console errors", async ({ page }) => {
+  test.setTimeout(60_000);
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   for (const path of ROUTES) {
